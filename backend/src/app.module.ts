@@ -19,6 +19,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MarketplaceModule } from './marketplace/marketplace.module';
+import { HealthController } from './health.controller';
 
 // ─── Logistics Module ───────────────────────────────────────
 import { LogisticsModule } from './logistics/logistics.module';
@@ -199,6 +200,7 @@ import { LoggingMiddleware } from './common/middleware/logging.middleware';
     // ─── Security Module ──────────────────────────
     SecurityModule,
   ],
+  controllers: [HealthController],
   providers: [],
 })
 export class AppModule implements NestModule {

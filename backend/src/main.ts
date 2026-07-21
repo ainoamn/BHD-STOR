@@ -23,7 +23,6 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3001);
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
   const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
-  const apiPrefix = configService.get<string>('API_PREFIX', '/api/v1');
 
   // Security middleware
   app.use(helmet({
@@ -66,15 +65,16 @@ async function bootstrap() {
     maxAge: 86400,
   });
 
-  // API versioning
+  // Canonical routes: /api/v1/...
+  // Do NOT put "api" inside the version prefix — that causes /api/api/v1/...
+  app.setGlobalPrefix('api', {
+    exclude: ['health', 'health/(.*)'],
+  });
   app.enableVersioning({
     type: VersioningType.URI,
     defaultVersion: '1',
-    prefix: 'api/v',
+    prefix: 'v',
   });
-
-  // Global API prefix
-  app.setGlobalPrefix(apiPrefix.replace(/^\//, '').replace(/\/v\d+$/, ''));
 
   // Rate limiting
   const rateLimitWindowMs = configService.get<number>('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000);
@@ -92,8 +92,13 @@ async function bootstrap() {
         error: 'Too Many Requests',
       },
       skip: (req) => {
-        // Skip health checks and swagger
-        return req.url === '/health' || req.url.startsWith('/api/docs');
+        const path = (req.originalUrl || req.url || '').split('?')[0];
+        return (
+          path === '/health' ||
+          path.endsWith('/health') ||
+          path.startsWith('/api/docs') ||
+          path.includes('/api/docs')
+        );
       },
     }),
   );

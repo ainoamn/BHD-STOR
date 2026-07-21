@@ -81,8 +81,16 @@ export class EncryptionService {
   constructor(private readonly configService: ConfigService) {
     // Load master key from environment
     const keyHex = this.configService.get<string>('ENCRYPTION_MASTER_KEY');
+    const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
     if (!keyHex) {
-      this.logger.error('ENCRYPTION_MASTER_KEY not configured! Using fallback - THIS IS INSECURE IN PRODUCTION');
+      if (nodeEnv === 'production') {
+        throw new Error(
+          'ENCRYPTION_MASTER_KEY is required in production. Refusing to start with a random key.',
+        );
+      }
+      this.logger.error(
+        'ENCRYPTION_MASTER_KEY not configured! Using ephemeral fallback — DEV ONLY (data will not survive restart)',
+      );
       this.masterKey = this.generateSecureRandom(KEY_LENGTH);
     } else {
       this.masterKey = Buffer.from(keyHex, 'hex');

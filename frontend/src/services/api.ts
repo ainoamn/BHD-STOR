@@ -17,7 +17,7 @@ import { isDemoToken } from '@/lib/demo-token';
 // ---------------------------------------------------------------------------
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'https://api.bhdoman.com/v1';
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 const AUTH_TOKEN_KEY = 'bhd_access_token';
 const REFRESH_TOKEN_KEY = 'bhd_refresh_token';
