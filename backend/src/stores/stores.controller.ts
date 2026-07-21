@@ -118,7 +118,10 @@ export class StoresController {
     const store = await this.storesService.findBySlug(slug);
     return {
       success: true,
-      data: store,
+      data: {
+        ...store,
+        scanUrl: this.storesService.buildScanUrl(store.storeSerial || store.storeCode || store.slug),
+      },
     };
   }
 
@@ -132,7 +135,10 @@ export class StoresController {
     const store = await this.storesService.findOne(id);
     return {
       success: true,
-      data: store,
+      data: {
+        ...store,
+        scanUrl: this.storesService.buildScanUrl(store.storeSerial || store.storeCode || store.slug),
+      },
     };
   }
 

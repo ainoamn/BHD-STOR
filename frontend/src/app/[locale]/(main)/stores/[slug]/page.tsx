@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStoreBySlug, useStoreProducts } from "@/hooks/useStores";
 import { TrendingProducts } from "@/components/home/TrendingProducts";
+import { StoreBarcodeCard } from "@/components/store/StoreBarcodeCard";
 
 export default function StoreDetailPage() {
   const params = useParams();
@@ -97,6 +98,20 @@ export default function StoreDetailPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="container mx-auto px-4">
+        <StoreBarcodeCard
+          variant="storefront"
+          identity={{
+            id: s.id,
+            name: storeName || storeNameAlt || s.slug,
+            slug: s.slug || slug,
+            storeSerial: s.storeSerial,
+            storeCode: s.storeCode,
+            scanUrl: s.scanUrl,
+          }}
+        />
       </div>
 
       <div className="container mx-auto px-4">
