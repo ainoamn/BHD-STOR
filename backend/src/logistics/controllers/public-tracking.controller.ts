@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ShipmentService } from '../services/shipment.service';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('Public - Tracking')
+@Public()
 @Controller('tracking')
 export class PublicTrackingController {
   constructor(private readonly shipmentService: ShipmentService) {}

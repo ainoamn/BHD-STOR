@@ -35,6 +35,8 @@ import {
   Store,
 } from "lucide-react";
 
+import { StoreBarcodeCard } from "@/components/store/StoreBarcodeCard";
+
 import {
   AreaChart,
   Area,
@@ -266,10 +268,12 @@ export default function StoreDashboardPage() {
           </Button>
           <Button onClick={() => router.push("/dashboard/store/products/new")}>
             <Package className="mr-2 h-4 w-4" />
-            {t("addProduct")}
+            {t("addProduct") || "Add product"}
           </Button>
         </div>
       </div>
+
+      <StoreBarcodeCard storeId={storeId} />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -26,8 +26,8 @@ import { isAdminRole } from "@/lib/auth-helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
 
+import { SmartCart } from "@/components/cart/SmartCart";
 // import { AIAssistant } from "@/components/ai/AIAssistant";
-// import { SmartCart, CartTrigger } from "@/components/cart/SmartCart";
 
 import {
   Menu,
@@ -469,7 +469,7 @@ export default function MainLayout({
             </div>
 
             {/* Global UI Components */}
-            {/* <SmartCart isOpen={cartOpen} onClose={() => setCartOpen(false)} /> */}
+            <SmartCart isOpen={cartOpen} onClose={() => setCartOpen(false)} />
             {/* <AIAssistant /> */}
             <Toaster
               position="top-right"

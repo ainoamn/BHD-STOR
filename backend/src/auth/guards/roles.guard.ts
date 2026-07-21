@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
-import { Role } from '@common/decorators/roles.decorator';
+import { Role, ROLES_KEY } from '@common/decorators/roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -20,7 +20,7 @@ export class RolesGuard implements CanActivate {
   ): boolean | Promise<boolean> | Observable<boolean> {
     // Get required roles from decorator
     const requiredRoles = this.reflector.getAllAndOverride<Role[]>(
-      'roles',
+      ROLES_KEY,
       [context.getHandler(), context.getClass()],
     );
 

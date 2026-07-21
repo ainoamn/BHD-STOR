@@ -35,6 +35,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { UploadService } from '../upload/upload.service';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Stores')
 @Controller('stores')
@@ -61,6 +62,7 @@ export class StoresController {
     };
   }
 
+  @Public()
   @Get()
   @ApiOperation({ summary: 'List all stores', description: 'Get a paginated list of stores with search and filters' })
   @ApiResponse({ status: 200, description: 'Stores retrieved successfully' })
@@ -79,6 +81,34 @@ export class StoresController {
     };
   }
 
+  /**
+   * Public barcode/serial scan — opens that store only.
+   */
+  @Public()
+  @Get('scan/:code')
+  @ApiOperation({
+    summary: 'Resolve store by serial or barcode code',
+    description:
+      'Used when a customer scans a store sticker. Returns the store slug/path for deep-link — never the marketplace home.',
+  })
+  @ApiParam({ name: 'code', example: 'BHD26-A1B2C3' })
+  @ApiResponse({ status: 200, description: 'Store resolved' })
+  @ApiResponse({ status: 404, description: 'Unknown code' })
+  async resolveScan(@Param('code') code: string) {
+    const data = await this.storesService.resolveByScanCode(code);
+    return { success: true, data };
+  }
+
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get my store (includes serial, barcode code, scan URL)' })
+  async findMine(@Request() req) {
+    const store = await this.storesService.findMine(req.user.userId);
+    return { success: true, data: store };
+  }
+
+  @Public()
   @Get('slug/:slug')
   @ApiOperation({ summary: 'Get store by slug', description: 'Retrieve a store by its unique slug' })
   @ApiParam({ name: 'slug', description: 'Store slug', example: 'al-maha-trading' })
@@ -92,6 +122,7 @@ export class StoresController {
     };
   }
 
+  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Get store by ID', description: 'Retrieve a store by its UUID' })
   @ApiParam({ name: 'id', description: 'Store UUID', format: 'uuid' })
@@ -248,6 +279,7 @@ export class StoresController {
     };
   }
 
+  @Public()
   @Get(':id/stats')
   @ApiOperation({ summary: 'Get store statistics', description: 'Get statistics for a specific store' })
   @ApiParam({ name: 'id', description: 'Store UUID', format: 'uuid' })
@@ -279,6 +311,7 @@ export class StoresController {
     };
   }
 
+  @Public()
   @Get(':id/followers')
   @ApiOperation({ summary: 'Get store followers', description: 'Get followers count and list' })
   @ApiParam({ name: 'id', description: 'Store UUID', format: 'uuid' })

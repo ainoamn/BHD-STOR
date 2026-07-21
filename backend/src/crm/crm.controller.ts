@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { CrmService } from './services/crm.service';
 import {
@@ -20,7 +21,12 @@ import {
   ContactQueryDto,
   OpportunityStage,
 } from './services/crm.service';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
+@UseGuards(RolesGuard)
+@Roles(UserRole.ADMIN, UserRole.MODERATOR)
 @Controller('crm')
 export class CrmController {
   constructor(private readonly crmService: CrmService) {}

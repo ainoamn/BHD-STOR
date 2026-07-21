@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@auth/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { UserRole } from '@users/entities/user.entity';
+import { Public } from '@common/decorators/public.decorator';
 
 @ApiTags('Currency')
 @Controller('currencies')
@@ -31,6 +32,7 @@ export class CurrencyController {
   /**
    * List all currencies
    */
+  @Public()
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -82,6 +84,7 @@ export class CurrencyController {
   /**
    * List active currencies
    */
+  @Public()
   @Get('active')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -99,6 +102,7 @@ export class CurrencyController {
   /**
    * Get currency by code
    */
+  @Public()
   @Get(':code')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -126,6 +130,7 @@ export class CurrencyController {
   /**
    * Convert amount between currencies
    */
+  @Public()
   @Post('convert')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

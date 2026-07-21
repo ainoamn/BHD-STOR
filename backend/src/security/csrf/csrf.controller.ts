@@ -21,6 +21,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { CsrfService, CSRF_TOKEN_COOKIE } from './csrf.service';
+import { Public } from '../../common/decorators/public.decorator';
 
 /** CSRF token response */
 interface CsrfTokenResponse {
@@ -42,6 +43,7 @@ export class CsrfController {
    * @param response - Express response object
    * @returns Token data
    */
+  @Public()
   @Get()
   @HttpCode(HttpStatus.OK)
   getToken(@Res({ passthrough: true }) response: Response): CsrfTokenResponse {

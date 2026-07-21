@@ -27,6 +27,7 @@ import { WebhookResponseDto } from './dto/webhook.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -135,6 +136,7 @@ export class PaymentsController {
   /**
    * Receive webhooks from payment gateways (public endpoint - no auth)
    */
+  @Public()
   @Post('webhook/:gateway')
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint(false)

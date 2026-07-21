@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { HrService } from './services/hr.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
@@ -18,7 +19,12 @@ import {
   ApproveLeaveDto,
   RejectLeaveDto,
 } from './dto/leave-request.dto';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
+@UseGuards(RolesGuard)
+@Roles(UserRole.ADMIN)
 @Controller('hr')
 export class HrController {
   constructor(private readonly hrService: HrService) {}

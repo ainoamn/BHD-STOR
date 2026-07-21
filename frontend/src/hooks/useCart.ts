@@ -10,11 +10,8 @@ import { cartService } from '@/services/cart.service';
 import type {
   Cart,
   CartItem,
-  AddToCartData,
-  UpdateCartItemData,
-  ApplyCouponData,
   CartTotals,
-} from '@/services/cart.service';
+} from '@/types';
 
 // ------------------------------------------------------------------
 // Query Keys
@@ -303,12 +300,12 @@ export function useClearCart(): UseMutationResult<Cart, Error, void> {
 export function useApplyCoupon(): UseMutationResult<
   Cart,
   Error,
-  ApplyCouponData
+  string
 > {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: ApplyCouponData) => cartService.applyCoupon(data),
+    mutationFn: (code: string) => cartService.applyCoupon(code),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: cartKeys.detail() });
     },

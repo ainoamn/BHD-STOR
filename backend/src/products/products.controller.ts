@@ -35,6 +35,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { UploadService } from '../upload/upload.service';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Products')
 @Controller('products')
@@ -61,6 +62,7 @@ export class ProductsController {
     };
   }
 
+  @Public()
   @Get()
   @ApiOperation({
     summary: 'List all products',
@@ -82,6 +84,7 @@ export class ProductsController {
     };
   }
 
+  @Public()
   @Get('search')
   @ApiOperation({ summary: 'Search products', description: 'Full-text search on products' })
   @ApiQuery({ name: 'q', description: 'Search query', example: 'traditional khanjar' })
@@ -96,6 +99,7 @@ export class ProductsController {
     };
   }
 
+  @Public()
   @Get('featured')
   @ApiOperation({ summary: 'Get featured products', description: 'Retrieve featured products' })
   @ApiResponse({ status: 200, description: 'Featured products retrieved' })
@@ -107,6 +111,7 @@ export class ProductsController {
     };
   }
 
+  @Public()
   @Get('trending')
   @ApiOperation({ summary: 'Get trending products', description: 'Retrieve trending products' })
   @ApiResponse({ status: 200, description: 'Trending products retrieved' })
@@ -118,6 +123,7 @@ export class ProductsController {
     };
   }
 
+  @Public()
   @Get('category/:categoryId')
   @ApiOperation({ summary: 'Get products by category', description: 'Retrieve products in a specific category' })
   @ApiParam({ name: 'categoryId', description: 'Category UUID', format: 'uuid' })
@@ -131,6 +137,7 @@ export class ProductsController {
     };
   }
 
+  @Public()
   @Get('store/:storeId')
   @ApiOperation({ summary: 'Get products by store', description: 'Retrieve products from a specific store' })
   @ApiParam({ name: 'storeId', description: 'Store UUID', format: 'uuid' })
@@ -144,6 +151,7 @@ export class ProductsController {
     };
   }
 
+  @Public()
   @Get('slug/:slug')
   @ApiOperation({ summary: 'Get product by slug', description: 'Retrieve a product by its unique slug' })
   @ApiParam({ name: 'slug', description: 'Product slug', example: 'traditional-omani-khanjar' })
@@ -158,6 +166,7 @@ export class ProductsController {
     };
   }
 
+  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Get product by ID', description: 'Retrieve a product by its UUID' })
   @ApiParam({ name: 'id', description: 'Product UUID', format: 'uuid' })

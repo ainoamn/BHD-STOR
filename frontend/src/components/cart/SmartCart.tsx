@@ -15,7 +15,6 @@ import { toast } from "sonner";
 
 import {
   useCart,
-  useAddToCart,
   useUpdateCartItem,
   useRemoveFromCart,
   useApplyCoupon,
@@ -37,7 +36,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 
-interface CartItem {
+interface CartItemView {
   id: string;
   productId: string;
   name: string;
@@ -54,6 +53,39 @@ interface SmartCartProps {
   onClose: () => void;
 }
 
+function normalizeItems(cart: any): CartItemView[] {
+  const items = cart?.items ?? [];
+  return items.map((item: any) => ({
+    id: item.id,
+    productId: item.productId,
+    name: item.name ?? item.product?.name ?? "Product",
+    image: item.image ?? item.product?.images?.[0],
+    price: Number(item.price ?? 0),
+    quantity: Number(item.quantity ?? 1),
+    stock: Number(item.stock ?? item.maxQuantity ?? 99),
+    variant: item.variant ?? item.variantName,
+    storeName: item.storeName ?? item.store?.name ?? "",
+  }));
+}
+
+function cartTotals(cart: any) {
+  const items = normalizeItems(cart);
+  const subtotal =
+    cart?.subtotal ??
+    cart?.totals?.subtotal ??
+    items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const discount =
+    cart?.discount ?? cart?.couponDiscount ?? cart?.discountTotal ?? 0;
+  const shipping =
+    cart?.shipping ?? cart?.shippingTotal ?? cart?.totals?.shipping ?? 0;
+  const total =
+    cart?.total ??
+    cart?.grandTotal ??
+    cart?.totals?.total ??
+    subtotal - discount + shipping;
+  return { subtotal, discount, shipping, total };
+}
+
 export function SmartCart({ isOpen, onClose }: SmartCartProps) {
   const t = useTranslations("cart");
   const router = useRouter();
@@ -67,53 +99,51 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
   const applyCouponMutation = useApplyCoupon();
   const removeCouponMutation = useRemoveCoupon();
 
-  const items: CartItem[] = cart?.items ?? [];
-  const subtotal = cart?.subtotal ?? 0;
-  const discount = cart?.discount ?? 0;
-  const shipping = cart?.shipping ?? 0;
-  const total = cart?.total ?? 0;
-  const appliedCoupon = cart?.coupon;
-  const itemCount = items.reduce((sum: number, item: CartItem) => sum + item.quantity, 0);
+  const rawCart = cart as any;
+  const items = normalizeItems(rawCart);
+  const { subtotal, discount, shipping, total } = cartTotals(rawCart);
+  const appliedCoupon =
+    rawCart?.coupon ?? (rawCart?.couponCode ? { code: rawCart.couponCode } : null);
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleUpdateQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
     updateItemMutation.mutate(
       { itemId, quantity: newQuantity },
       {
-        onError: (err: any) => {
-          toast.error(err?.response?.data?.message || t("updateError"));
+        onError: () => {
+          toast.error(t("stockUnavailable"));
         },
       }
     );
   };
 
   const handleRemoveItem = (itemId: string) => {
-    removeItemMutation.mutate(itemId, {
-      onSuccess: () => {
-        toast.success(t("itemRemoved"));
-      },
-      onError: (err: any) => {
-        toast.error(err?.response?.data?.message || t("removeError"));
-      },
-    });
+    removeItemMutation.mutate(
+      { itemId },
+      {
+        onSuccess: () => {
+          toast.success(t("itemRemoved"));
+        },
+        onError: () => {
+          toast.error(t("stockUnavailable"));
+        },
+      }
+    );
   };
 
   const handleApplyCoupon = () => {
     if (!couponCode.trim()) {
-      toast.warning(t("enterCoupon"));
+      toast.warning(t("summary.couponPlaceholder"));
       return;
     }
     applyCouponMutation.mutate(couponCode.trim(), {
-      onSuccess: (data: any) => {
-        toast.success(t("couponApplied"), {
-          description: data?.discount
-            ? t("couponDiscount", { amount: data.discount })
-            : undefined,
-        });
+      onSuccess: () => {
+        toast.success(t("summary.couponApplied"));
         setCouponCode("");
       },
-      onError: (err: any) => {
-        toast.error(err?.response?.data?.message || t("couponError"));
+      onError: () => {
+        toast.error(t("summary.invalidCoupon"));
       },
     });
   };
@@ -121,7 +151,7 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
   const handleRemoveCoupon = () => {
     removeCouponMutation.mutate(undefined, {
       onSuccess: () => {
-        toast.success(t("couponRemoved"));
+        toast.success(t("cartUpdated"));
       },
     });
   };
@@ -135,7 +165,6 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             className="fixed inset-0 bg-black/50 z-50"
             initial={{ opacity: 0 }}
@@ -144,21 +173,19 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
             onClick={onClose}
           />
 
-          {/* Drawer */}
           <motion.div
-            className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-background z-50 shadow-2xl flex flex-col"
+            className="fixed top-0 end-0 h-full w-full sm:w-[420px] bg-background z-50 shadow-2xl flex flex-col"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
           >
-            {/* Header */}
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="h-5 w-5" />
                 <h2 className="text-lg font-semibold">{t("title")}</h2>
                 {itemCount > 0 && (
-                  <Badge variant="secondary">{itemCount}</Badge>
+                  <Badge>{itemCount}</Badge>
                 )}
               </div>
               <Button variant="ghost" size="icon" onClick={onClose}>
@@ -166,7 +193,6 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
               </Button>
             </div>
 
-            {/* Content */}
             {isLoading ? (
               <div className="flex-1 p-4 space-y-4">
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -185,19 +211,23 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
                 <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center mb-4">
                   <ShoppingBag className="h-12 w-12 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-medium mb-1">{t("empty.title")}</h3>
-                <p className="text-sm text-muted-foreground mb-6">{t("empty.description")}</p>
-                <Button onClick={() => { onClose(); router.push("/products"); }}>
-                  {t("empty.cta")}
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                <h3 className="text-lg font-medium mb-1">{t("empty")}</h3>
+                <p className="text-sm text-muted-foreground mb-6">{t("emptySubtitle")}</p>
+                <Button
+                  onClick={() => {
+                    onClose();
+                    router.push("/products");
+                  }}
+                >
+                  {t("browseProducts")}
+                  <ArrowRight className="ms-2 h-4 w-4" />
                 </Button>
               </div>
             ) : (
               <>
                 <ScrollArea className="flex-1">
                   <div className="p-4 space-y-4">
-                    {/* Cart Items */}
-                    {items.map((item: CartItem) => (
+                    {items.map((item) => (
                       <motion.div
                         key={item.id}
                         layout
@@ -206,7 +236,6 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
                         exit={{ opacity: 0, height: 0 }}
                         className="flex gap-3 p-3 rounded-lg border bg-card"
                       >
-                        {/* Image */}
                         <div
                           className="h-20 w-20 rounded-lg bg-muted flex items-center justify-center overflow-hidden shrink-0 cursor-pointer"
                           onClick={() => router.push(`/products/${item.productId}`)}
@@ -222,7 +251,6 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
                           )}
                         </div>
 
-                        {/* Details */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
@@ -232,14 +260,12 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
                               >
                                 {item.name}
                               </p>
-                              <p className="text-xs text-muted-foreground">
-                                {item.storeName}
-                              </p>
-                              {item.variant && (
-                                <p className="text-xs text-muted-foreground">
-                                  {item.variant}
-                                </p>
-                              )}
+                              {item.storeName ? (
+                                <p className="text-xs text-muted-foreground">{item.storeName}</p>
+                              ) : null}
+                              {item.variant ? (
+                                <p className="text-xs text-muted-foreground">{item.variant}</p>
+                              ) : null}
                             </div>
                             <Button
                               variant="ghost"
@@ -257,7 +283,6 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
                           </div>
 
                           <div className="flex items-center justify-between mt-2">
-                            {/* Quantity Controls */}
                             <div className="flex items-center gap-1">
                               <Button
                                 variant="outline"
@@ -281,8 +306,6 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
                                 <Plus className="h-3 w-3" />
                               </Button>
                             </div>
-
-                            {/* Price */}
                             <p className="font-semibold text-sm">
                               {formatPrice(item.price * item.quantity)}
                             </p>
@@ -291,18 +314,17 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
                       </motion.div>
                     ))}
 
-                    {/* Coupon */}
                     <div className="pt-2">
                       {appliedCoupon ? (
-                        <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
                           <div className="flex items-center gap-2">
-                            <Tag className="h-4 w-4 text-green-600" />
+                            <Tag className="h-4 w-4 text-emerald-600" />
                             <div>
-                              <p className="text-sm font-medium text-green-800">
+                              <p className="text-sm font-medium text-emerald-800">
                                 {appliedCoupon.code}
                               </p>
-                              <p className="text-xs text-green-600">
-                                {t("couponSaved", { amount: formatPrice(discount) })}
+                              <p className="text-xs text-emerald-600">
+                                {t("summary.discount")}: {formatPrice(discount)}
                               </p>
                             </div>
                           </div>
@@ -319,10 +341,10 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
                       ) : (
                         <div className="flex gap-2">
                           <div className="relative flex-1">
-                            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Tag className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
-                              placeholder={t("couponPlaceholder")}
-                              className="pl-9"
+                              placeholder={t("summary.couponPlaceholder")}
+                              className="ps-9"
                               value={couponCode}
                               onChange={(e) => setCouponCode(e.target.value)}
                               onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
@@ -336,7 +358,7 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
                             {applyCouponMutation.isPending ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                              t("apply")
+                              t("summary.applyCoupon")
                             )}
                           </Button>
                         </div>
@@ -345,43 +367,45 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
                   </div>
                 </ScrollArea>
 
-                {/* Footer - Summary */}
                 <div className="border-t bg-muted/30 p-4 space-y-3">
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">{t("subtotal")}</span>
+                      <span className="text-muted-foreground">{t("summary.subtotal")}</span>
                       <span>{formatPrice(subtotal)}</span>
                     </div>
                     {discount > 0 && (
-                      <div className="flex justify-between text-green-600">
-                        <span>{t("discount")}</span>
+                      <div className="flex justify-between text-emerald-600">
+                        <span>{t("summary.discount")}</span>
                         <span>-{formatPrice(discount)}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">{t("shipping")}</span>
+                      <span className="text-muted-foreground">{t("summary.shipping")}</span>
                       <span>
-                        {shipping > 0 ? formatPrice(shipping) : t("freeShipping")}
+                        {shipping > 0 ? formatPrice(shipping) : t("summary.freeShipping")}
                       </span>
                     </div>
                     <Separator />
                     <div className="flex justify-between font-semibold text-base">
-                      <span>{t("total")}</span>
+                      <span>{t("summary.total")}</span>
                       <span>{formatPrice(total)}</span>
                     </div>
                   </div>
 
                   <Button className="w-full" size="lg" onClick={handleCheckout}>
-                    {t("checkout")}
-                    <ChevronRight className="ml-2 h-4 w-4" />
+                    {t("summary.proceedToCheckout")}
+                    <ChevronRight className="ms-2 h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     className="w-full"
                     size="sm"
-                    onClick={() => { onClose(); router.push("/cart"); }}
+                    onClick={() => {
+                      onClose();
+                      router.push("/cart");
+                    }}
                   >
-                    {t("viewFullCart")}
+                    {t("title")}
                   </Button>
                 </div>
               </>
@@ -393,7 +417,13 @@ export function SmartCart({ isOpen, onClose }: SmartCartProps) {
   );
 }
 
-export function CartTrigger({ onClick, itemCount }: { onClick: () => void; itemCount: number }) {
+export function CartTrigger({
+  onClick,
+  itemCount,
+}: {
+  onClick: () => void;
+  itemCount: number;
+}) {
   const t = useTranslations("cart");
   return (
     <Button
@@ -406,8 +436,7 @@ export function CartTrigger({ onClick, itemCount }: { onClick: () => void; itemC
       <ShoppingCart className="h-5 w-5" />
       {itemCount > 0 && (
         <Badge
-          className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px]"
-          variant="destructive"
+          className="absolute -top-1 -end-1 h-5 w-5 flex items-center justify-center p-0 text-[10px]"
         >
           {itemCount > 99 ? "99+" : itemCount}
         </Badge>

@@ -27,6 +27,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Categories')
 @Controller('categories')
@@ -51,6 +52,7 @@ export class CategoriesController {
     };
   }
 
+  @Public()
   @Get()
   @ApiOperation({
     summary: 'List all categories',
@@ -68,6 +70,7 @@ export class CategoriesController {
     };
   }
 
+  @Public()
   @Get('tree')
   @ApiOperation({ summary: 'Get category tree', description: 'Get categories in nested tree structure' })
   @ApiResponse({ status: 200, description: 'Category tree retrieved' })
@@ -79,6 +82,7 @@ export class CategoriesController {
     };
   }
 
+  @Public()
   @Get('search')
   @ApiOperation({ summary: 'Search categories', description: 'Search categories by name' })
   @ApiQuery({ name: 'q', description: 'Search query', example: 'traditional' })
@@ -91,6 +95,7 @@ export class CategoriesController {
     };
   }
 
+  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Get category by ID', description: 'Retrieve a category by its UUID' })
   @ApiParam({ name: 'id', description: 'Category UUID', format: 'uuid' })
@@ -104,6 +109,7 @@ export class CategoriesController {
     };
   }
 
+  @Public()
   @Get('slug/:slug')
   @ApiOperation({ summary: 'Get category by slug', description: 'Retrieve a category by its slug' })
   @ApiParam({ name: 'slug', description: 'Category slug', example: 'traditional-products' })
@@ -117,6 +123,7 @@ export class CategoriesController {
     };
   }
 
+  @Public()
   @Get(':id/path')
   @ApiOperation({ summary: 'Get category breadcrumb path', description: 'Get full path from root to category' })
   @ApiParam({ name: 'id', description: 'Category UUID', format: 'uuid' })

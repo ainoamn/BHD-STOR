@@ -21,6 +21,7 @@ import { WebhookMessageDto } from './dto/webhook-message.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
@@ -43,6 +44,7 @@ export class WhatsAppController {
    * POST /whatsapp/webhook - Receive webhooks from Twilio/Meta
    * Public endpoint - no auth required (validated by signature)
    */
+  @Public()
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Receive WhatsApp webhooks (Twilio/Meta)' })
@@ -74,6 +76,7 @@ export class WhatsAppController {
    * GET /whatsapp/webhook - Verify webhook (Meta challenge response)
    * Public endpoint for webhook verification
    */
+  @Public()
   @Get('webhook')
   @ApiOperation({ summary: 'Verify WhatsApp webhook (Meta challenge)' })
   async verifyWebhook(

@@ -14,4 +14,4 @@ export const IS_PUBLIC_KEY = 'isPublic';
  * @Post('login')
  * async login() { ... }
  */
-export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);\n
+export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);

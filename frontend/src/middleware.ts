@@ -21,6 +21,7 @@ const publicPaths = [
   '/category',
   '/stores',
   '/store',
+  '/s',
   '/search',
   '/about',
   '/contact',

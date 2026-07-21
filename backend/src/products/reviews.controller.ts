@@ -27,6 +27,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Reviews')
 @Controller('reviews')
@@ -51,6 +52,7 @@ export class ReviewsController {
     };
   }
 
+  @Public()
   @Get('product/:productId')
   @ApiOperation({ summary: 'Get product reviews', description: 'Get all reviews for a specific product' })
   @ApiParam({ name: 'productId', description: 'Product UUID', format: 'uuid' })
@@ -76,6 +78,7 @@ export class ReviewsController {
     };
   }
 
+  @Public()
   @Get('product/:productId/summary')
   @ApiOperation({ summary: 'Get product review summary', description: 'Get rating summary for a product' })
   @ApiParam({ name: 'productId', description: 'Product UUID', format: 'uuid' })

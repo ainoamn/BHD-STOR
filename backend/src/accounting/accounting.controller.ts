@@ -9,11 +9,17 @@ import {
   ParseDatePipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { AccountingService } from './services/accounting.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { CreateJournalEntryDto } from './dto/create-journal-entry.dto';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
+@UseGuards(RolesGuard)
+@Roles(UserRole.ADMIN)
 @Controller('accounting')
 export class AccountingController {
   constructor(private readonly accountingService: AccountingService) {}

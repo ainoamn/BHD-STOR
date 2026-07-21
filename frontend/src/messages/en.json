@@ -148,6 +148,11 @@
       "products": "products",
       "storeProducts": "Store Products",
       "noProducts": "No products in this store yet"
+    },
+    "storeScan": {
+      "title": "Opening store...",
+      "loading": "Barcode scanned — taking you to this store only",
+      "browseStores": "Browse stores"
     }
   },
   "home": {
@@ -664,6 +669,45 @@
       "viewOrders": "View Orders",
       "manageStore": "Manage Store",
       "viewAnalytics": "View Analytics"
+    },
+    "store": {
+      "title": "Store Dashboard",
+      "subtitle": "Manage sales, products, and your store identity",
+      "refresh": "Refresh",
+      "unauthorized": "Sellers only",
+      "noStore": {
+        "title": "No store yet",
+        "description": "Create your store to receive a unique serial and barcode",
+        "createButton": "Create store"
+      },
+      "error": {
+        "title": "Failed to load",
+        "description": "Could not load store analytics",
+        "retry": "Retry"
+      },
+      "stats": {
+        "revenue": "Revenue",
+        "orders": "Orders",
+        "products": "Products",
+        "views": "Views"
+      },
+      "identity": {
+        "title": "Store identity — serial & barcode",
+        "description": "Print this barcode on a sticker for your shop. Scanning opens your store only on BHD — not the full marketplace.",
+        "loading": "Loading store identity...",
+        "unavailable": "Serial appears after the store is linked to the API.",
+        "serial": "Serial number",
+        "barcodeCode": "Barcode code",
+        "scanUrl": "Direct scan link",
+        "copySerial": "Copy serial",
+        "copyUrl": "Copy link",
+        "openStore": "Open my store",
+        "downloadQr": "Download QR",
+        "copied": "Copied",
+        "copyFailed": "Copy failed",
+        "qrAlt": "QR code for your store",
+        "stickerHint": "Later you can print a Code128 sticker with the same serial. Phone cameras open the QR URL and land on your store page only."
+      }
     },
     "products": {
       "title": "Products",

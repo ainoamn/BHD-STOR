@@ -15,11 +15,17 @@ import {
   ParseEnumPipe,
   DefaultValuePipe,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { AuditService } from './audit.service';
 import { AuditAction, RiskLevel } from './entities/audit-log.entity';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '../../users/entities/user.entity';
 
+@UseGuards(RolesGuard)
+@Roles(UserRole.ADMIN)
 @Controller('audit-logs')
 export class AuditController {
   private readonly logger = new Logger(AuditController.name);
