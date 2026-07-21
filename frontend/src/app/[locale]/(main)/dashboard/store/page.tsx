@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
@@ -11,7 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 
 import { isSellerRole } from "@/lib/auth-helpers";
@@ -29,7 +28,6 @@ import {
   AlertTriangle,
   Eye,
   RefreshCw,
-  ArrowUpRight,
   BarChart3,
   AlertCircle,
   Store,
