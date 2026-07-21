@@ -87,7 +87,9 @@ export const adminKeys = {
  * Hook: useAdminStats
  * Fetch admin dashboard statistics (sales, users, orders, revenue).
  */
-export function useAdminStats(): UseQueryResult<AdminDashboardStats, Error> {
+export function useAdminStats(options?: {
+  enabled?: boolean;
+}): UseQueryResult<AdminDashboardStats, Error> {
   return useQuery({
     queryKey: adminKeys.stats(),
     queryFn: () => analyticsService.getAdminStats(),
@@ -95,6 +97,7 @@ export function useAdminStats(): UseQueryResult<AdminDashboardStats, Error> {
     gcTime: 1000 * 60 * 5,
     refetchInterval: 60000, // 1 minute
     refetchIntervalInBackground: false,
+    enabled: options?.enabled ?? true,
   });
 }
 

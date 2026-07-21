@@ -154,6 +154,7 @@
     "hero": {
       "title": "Shop with confidence from Oman's best stores",
       "subtitle": "Discover thousands of authentic products at great prices",
+      "badge": "Smart Omani Marketplace",
       "cta": {
         "primary": "Explore Stores",
         "secondary": "Browse Products"
@@ -164,6 +165,12 @@
         "buyers": "Buyers",
         "orders": "Orders"
       }
+    },
+    "stats": {
+      "stores": "Stores",
+      "products": "Products",
+      "customers": "Customers",
+      "orders": "Orders"
     },
     "featuredStores": {
       "title": "Featured Stores",
@@ -197,7 +204,9 @@
     "categories": {
       "title": "Shop by Category",
       "subtitle": "Explore our collections",
-      "viewAll": "View All"
+      "viewAll": "View All",
+      "products": "products",
+      "empty": "No categories available"
     },
     "error": {
       "loading": "Failed to load data"

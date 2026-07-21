@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
-import { motion } from "framer-motion";
 
 import { useFeaturedProducts } from "@/hooks/useProducts";
 import { useFeaturedStores } from "@/hooks/useStores";
@@ -20,19 +18,6 @@ import { HeroSection } from "@/components/home/HeroSection";
 import { CategoriesSection } from "@/components/home/CategoriesSection";
 import { FeaturedStores } from "@/components/home/FeaturedStores";
 import { TrendingProducts } from "@/components/home/TrendingProducts";
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-};
 
 function HomePageSkeleton() {
   return (
@@ -154,7 +139,7 @@ export default function HomePage() {
   } = useCategories();
 
   const { data: adminStats } = useAdminStats({
-    enabled: user?.role === "admin",
+    enabled: isAdminRole(user?.role),
   });
 
   const isLoading = productsLoading || storesLoading || categoriesLoading;
@@ -203,14 +188,9 @@ export default function HomePage() {
       };
 
   return (
-    <motion.div
-      className="min-h-screen bg-background"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
+    <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <motion.section variants={itemVariants}>
+      <section>
         <HeroSection
           title={t("hero.title")}
           subtitle={t("hero.subtitle")}
@@ -218,10 +198,10 @@ export default function HomePage() {
           primaryCta={{ label: t("hero.cta.primary"), href: "/stores" }}
           secondaryCta={{ label: t("hero.cta.secondary"), href: "/products" }}
         />
-      </motion.section>
+      </section>
 
       {/* Categories Section */}
-      <motion.section variants={itemVariants} className="py-12">
+      <section className="py-12">
         {categoriesLoading ? (
           <div className="container mx-auto px-4">
             <Skeleton className="h-8 w-48 mb-6" />
@@ -237,10 +217,10 @@ export default function HomePage() {
         ) : (
           <CategoriesSection categories={categories ?? []} />
         )}
-      </motion.section>
+      </section>
 
       {/* Featured Stores */}
-      <motion.section variants={itemVariants} className="py-12 bg-muted/30">
+      <section className="py-12 bg-muted/30">
         {storesLoading ? (
           <div className="container mx-auto px-4">
             <Skeleton className="h-8 w-48 mb-6" />
@@ -261,10 +241,10 @@ export default function HomePage() {
             viewAllHref="/stores"
           />
         )}
-      </motion.section>
+      </section>
 
       {/* Trending Products */}
-      <motion.section variants={itemVariants} className="py-12">
+      <section className="py-12">
         {productsLoading ? (
           <div className="container mx-auto px-4">
             <Skeleton className="h-8 w-48 mb-6" />
@@ -285,13 +265,10 @@ export default function HomePage() {
             viewAllHref="/products"
           />
         )}
-      </motion.section>
+      </section>
 
       {/* Trust Badges / Stats Banner */}
-      <motion.section
-        variants={itemVariants}
-        className="py-12 bg-primary/5 border-y"
-      >
+      <section className="py-12 bg-primary/5 border-y">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
@@ -307,7 +284,7 @@ export default function HomePage() {
             ))}
           </div>
         </div>
-      </motion.section>
-    </motion.div>
+      </section>
+    </div>
   );
 }

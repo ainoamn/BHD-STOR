@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,13 +77,7 @@ export function CategoriesSection({ categories }: CategoriesSectionProps) {
 
   return (
     <div className="container mx-auto px-4">
-      <motion.div
-        className="flex items-center justify-between mb-8"
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5 }}
-      >
+      <div className="flex items-center justify-between mb-8">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold">{t("title")}</h2>
           <p className="text-muted-foreground mt-1">{t("subtitle")}</p>
@@ -93,19 +86,16 @@ export function CategoriesSection({ categories }: CategoriesSectionProps) {
           {t("viewAll")}
           <MoreHorizontal className="ml-2 h-4 w-4" />
         </Button>
-      </motion.div>
+      </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
-        {displayCategories.map((category, index) => {
+        {displayCategories.map((category) => {
           const Icon = getCategoryIcon(category.name);
           return (
-            <motion.button
+            <button
               key={category.id}
+              type="button"
               className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-border/50 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 cursor-pointer"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
               onClick={() => router.push(`/categories/${category.slug}`)}
             >
               <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -129,7 +119,7 @@ export function CategoriesSection({ categories }: CategoriesSectionProps) {
                   </p>
                 )}
               </div>
-            </motion.button>
+            </button>
           );
         })}
       </div>

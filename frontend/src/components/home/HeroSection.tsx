@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { motion, useInView, useAnimation } from "framer-motion";
+import { useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -26,7 +26,6 @@ interface HeroSectionProps {
 function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true });
-  const controls = useAnimation();
 
   useEffect(() => {
     if (isInView) {
@@ -45,9 +44,9 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
       };
       requestAnimationFrame(animate);
     }
-  }, [isInView, value, suffix, controls]);
+  }, [isInView, value, suffix]);
 
-  return <span ref={ref}>0</span>;
+  return <span ref={ref}>{value.toLocaleString()}{suffix}</span>;
 }
 
 export function HeroSection({ title, subtitle, stats, primaryCta, secondaryCta }: HeroSectionProps) {
@@ -83,11 +82,7 @@ export function HeroSection({ title, subtitle, stats, primaryCta, secondaryCta }
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-3xl">
           {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
+          <div>
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
@@ -95,35 +90,20 @@ export function HeroSection({ title, subtitle, stats, primaryCta, secondaryCta }
               </span>
               {t("badge")}
             </span>
-          </motion.div>
+          </div>
 
           {/* Title */}
-          <motion.h1
-            className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
             {title}
-          </motion.h1>
+          </h1>
 
           {/* Subtitle */}
-          <motion.p
-            className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
+          <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl">
             {subtitle}
-          </motion.p>
+          </p>
 
           {/* CTAs */}
-          <motion.div
-            className="flex flex-wrap gap-4 mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
+          <div className="flex flex-wrap gap-4 mb-12">
             <Button size="lg" onClick={() => router.push(primaryCta.href)} className="text-base">
               <ShoppingBag className="mr-2 h-5 w-5" />
               {primaryCta.label}
@@ -137,16 +117,11 @@ export function HeroSection({ title, subtitle, stats, primaryCta, secondaryCta }
               <Store className="mr-2 h-5 w-5" />
               {secondaryCta.label}
             </Button>
-          </motion.div>
+          </div>
 
           {/* Stats */}
-          <motion.div
-            className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-          >
-            {statItems.map((stat, index) => (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+            {statItems.map((stat) => (
               <div
                 key={stat.label}
                 className="bg-background/60 backdrop-blur-sm rounded-xl p-4 border border-border/50"
@@ -158,7 +133,7 @@ export function HeroSection({ title, subtitle, stats, primaryCta, secondaryCta }
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
               </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>
