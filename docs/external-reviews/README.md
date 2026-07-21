@@ -6,6 +6,7 @@
 |-------|--------|--------|
 | [`chatgpt-2026-07-21.md`](./chatgpt-2026-07-21.md) | ChatGPT | نقاط CD + تقييم الجاهزية + طلب «مراجعة 150 صفحة» |
 | [`deepseek-2026-07-21.md`](./deepseek-2026-07-21.md) | DeepSeek | مراجعة متجر (نص حرفي من المحادثة) |
+| [`deepseek-followup-2026-07-21.md`](./deepseek-followup-2026-07-21.md) | DeepSeek (متابعة) | يعيد صياغة نقد Cursor؛ جزء منه أصبح قديماً بعد `4e7a7e4` |
 | [`gemini-or-kimi-2026-07-21-report-a.md`](./gemini-or-kimi-2026-07-21-report-a.md) | جيميني / كيمي (فشل جلب المستودع) | افترض **عقارات** بالخطأ |
 | [`gemini-or-kimi-2026-07-21-report-b.md`](./gemini-or-kimi-2026-07-21-report-b.md) | جيميني / كيمي (فشل جلب المستودع) | نسخة ثانية أطول — نفس الخطأ |
 | [`cursor-validation-2026-07-21.md`](./cursor-validation-2026-07-21.md) | Cursor (هذه الجلسة) | تصحيحات مقابل الكود الفعلي |
