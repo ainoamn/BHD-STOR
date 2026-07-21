@@ -153,3 +153,10 @@ export {
   useIsDesktop,
   useBreakpoint,
 } from './useMediaQuery';
+
+// --- Analytics ---
+export {
+  useStoreAnalytics,
+  analyticsKeys,
+} from './useAnalytics';
+export type { StoreDashboardAnalytics } from './useAnalytics';

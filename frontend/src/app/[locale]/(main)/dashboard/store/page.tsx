@@ -14,7 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 
-import { isAdminRole, isSellerRole } from "@/lib/auth-helpers";
+import { isSellerRole } from "@/lib/auth-helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { useStoreAnalytics } from "@/hooks/useAnalytics";
 import { useOrders } from "@/hooks/useOrders";
@@ -123,8 +123,9 @@ export default function StoreDashboardPage() {
     isError: ordersError,
     refetch: refetchOrders,
   } = useOrders(
-    { storeId: storeId ?? "", limit: 5 },
-    { enabled: !!storeId }
+    storeId
+      ? { store: storeId, perPage: 5, page: 1 }
+      : { perPage: 5, page: 1 }
   );
 
   const {
@@ -133,12 +134,19 @@ export default function StoreDashboardPage() {
     isError: productsError,
     refetch: refetchProducts,
   } = useProducts(
-    { storeId: storeId ?? "", limit: 5 },
-    { enabled: !!storeId }
+    storeId
+      ? { store: storeId, perPage: 5, page: 1 }
+      : { perPage: 5, page: 1 }
   );
 
-  const orders: Order[] = ordersResponse?.orders ?? [];
-  const products: Product[] = productsResponse?.products ?? [];
+  const orders: Order[] =
+    (ordersResponse as any)?.orders ??
+    (ordersResponse as any)?.data ??
+    [];
+  const products: Product[] =
+    (productsResponse as any)?.products ??
+    (productsResponse as any)?.data ??
+    [];
 
   const lowStockProducts = products.filter((p: Product) => p.stock < 10);
 
