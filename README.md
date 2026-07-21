@@ -72,6 +72,7 @@
 | ما هو هذا؟ | منصة سوق عمانية متعددة البائعين (B2B/B2C/…) — **هيكل احترافي واسع** وليس منتج إنتاج مكتمل |
 | التشغيل المعتمد على Windows | `C:\dev\bhd-app` فقط (مسارات عربية تكسر Webpack لـ Next.js) |
 | الخطة والنواقص | **[`ROADMAP.md`](./ROADMAP.md)** — المصدر الوحيد؛ لا تكرر الخطط في ملفات أخرى |
+| مراجعة أمنية/هندسية كاملة | **[`docs/FULL_AUDIT.md`](./docs/FULL_AUDIT.md)** |
 | أرشيف الخطط القديمة | `docs/plans/` (مرجع تاريخي فقط) |
 | الأمان | طبقات متعددة في الكود (JWT، RBAC، bcrypt، AES-256-GCM، rate limit، CSRF/XSS/CSP، audit) — راجع [`SECURITY.md`](./SECURITY.md) وقسم الأمان في `ROADMAP.md` |
 
