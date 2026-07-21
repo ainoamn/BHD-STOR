@@ -206,6 +206,10 @@ npm run dev
 
 → **[`docs/external-reviews/`](./docs/external-reviews/)** — ChatGPT · DeepSeek · جيميني/كيمي · تحقق Cursor
 
+سجل جلسة التطوير (ما نوقش / نُفّذ / التالي — لأجهزة متعددة):
+
+→ **[`docs/SESSION-2026-07-21.md`](./docs/SESSION-2026-07-21.md)**
+
 أي تحديث للخطة يُكتب **فقط** في هذا الملف (`ROADMAP.md`).
 
 ---
