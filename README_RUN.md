@@ -1,22 +1,34 @@
-﻿# BHD Store (BHD-STOR)
+﻿# تشغيل المشروع — اقرأ هذا أولاً
 
-Omani e-commerce marketplace monorepo (frontend Next.js + backend + mobile).
-
-## Run frontend (Windows)
-
-Use the ASCII path to avoid webpack chunk errors with Arabic folder names:
+## المسار الوحيد الصحيح
 
 ```bat
-cd C:\dev\bhd-app\frontend
-npm install
-npm run dev
+C:\dev\bhd-app
 ```
 
-Open http://localhost:3000/ar
+أو الاختصار:
 
-Demo admin: `admin@bhd.om` / any password 6+ chars (demo mode).
+```bat
+C:\dev\bhd-run   (يشير الآن إلى bhd-app)
+```
 
-## Docs
+## لماذا الشاشة البيضاء بعد الشعار؟
 
-- See root markdown files (`SETUP.md`, `DEPLOYMENT.md`, …)
-- Planning notes: `docs/plans/`
+تشغيل Next.js من مسار فيه حروف عربية (مثل `مشروع المتجر` أو مجلد Downloads) يسبب عطل Webpack → يظهر الشعار لحظة ثم صفحة بيضاء.
+
+## التشغيل
+
+انقر نقراً مزدوجاً:
+
+`C:\dev\bhd-app\start-dev.bat`
+
+ثم افتح:
+
+http://localhost:3000/ar
+
+## GitHub
+
+المستودع: https://github.com/ainoamn/BHD-STOR  
+يجب أن يطابق `C:\dev\bhd-app` على فرع `main`.
+
+لا تستخدم مجلدات `extracted-*` أو ملفات ZIP القديمة للتشغيل.

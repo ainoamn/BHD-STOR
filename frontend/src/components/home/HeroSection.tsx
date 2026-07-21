@@ -53,11 +53,19 @@ export function HeroSection({ title, subtitle, stats, primaryCta, secondaryCta }
   const router = useRouter();
   const t = useTranslations("home.hero");
 
+  const safe = (key: string, fallback: string) => {
+    try {
+      return t(key);
+    } catch {
+      return fallback;
+    }
+  };
+
   const statItems = [
-    { value: stats.totalStores, label: t("stats.stores"), icon: Store },
-    { value: stats.totalProducts, label: t("stats.products"), icon: ShoppingBag },
-    { value: stats.totalUsers, label: t("stats.buyers"), icon: Users },
-    { value: stats.totalOrders, label: t("stats.orders"), icon: TrendingUp },
+    { value: stats.totalStores, label: safe("stats.stores", "Stores"), icon: Store },
+    { value: stats.totalProducts, label: safe("stats.products", "Products"), icon: ShoppingBag },
+    { value: stats.totalUsers, label: safe("stats.buyers", "Buyers"), icon: Users },
+    { value: stats.totalOrders, label: safe("stats.orders", "Orders"), icon: TrendingUp },
   ];
 
   return (
@@ -88,7 +96,7 @@ export function HeroSection({ title, subtitle, stats, primaryCta, secondaryCta }
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
               </span>
-              {t("badge")}
+              {safe("badge", "BHD Marketplace")}
             </span>
           </div>
 

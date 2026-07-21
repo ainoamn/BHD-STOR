@@ -42,6 +42,17 @@ export default getRequestConfig(async ({ locale }) => {
     messages,
     timeZone: 'Asia/Muscat',
     now: new Date(),
+    onError(error) {
+      // Missing keys should not crash the whole page to a white screen
+      if (error.code === 'MISSING_MESSAGE') {
+        console.warn('[i18n]', error.message);
+        return;
+      }
+      console.error('[i18n]', error);
+    },
+    getMessageFallback({ namespace, key }) {
+      return key;
+    },
     formats: {
       dateTime: {
         short: {
