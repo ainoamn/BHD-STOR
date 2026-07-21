@@ -1,0 +1,243 @@
+/*
+  Localizable.strings (English)
+  BHD Marketplace
+*/
+
+// App
+"app.name" = "BHD Marketplace";
+"app.tagline" = "Your Marketplace in Bahrain";
+
+// Common
+"common.ok" = "OK";
+"common.cancel" = "Cancel";
+"common.save" = "Save";
+"common.edit" = "Edit";
+"common.delete" = "Delete";
+"common.done" = "Done";
+"common.retry" = "Retry";
+"common.loading" = "Loading...";
+"common.seeAll" = "See All";
+"common.clear" = "Clear";
+"common.showMore" = "Show More";
+"common.showLess" = "Show Less";
+"common.next" = "Next";
+"common.back" = "Back";
+"common.submit" = "Submit";
+"common.apply" = "Apply";
+"common.close" = "Close";
+
+// Tab Bar
+"tab.home" = "Home";
+"tab.search" = "Search";
+"tab.cart" = "Cart";
+"tab.orders" = "Orders";
+"tab.profile" = "Profile";
+
+// Home
+"home.categories" = "Categories";
+"home.featured" = "Featured Products";
+"home.trending" = "Trending Now";
+"home.newArrivals" = "New Arrivals";
+"home.bestSellers" = "Best Sellers";
+"home.flashSale" = "Flash Sale";
+
+// Search
+"search.title" = "Search";
+"search.placeholder" = "Search products...";
+"search.results" = "results found";
+"search.noResults" = "No Results Found";
+"search.noResultsMessage" = "We couldn't find any products matching '%@'";
+"search.recent" = "Recent Searches";
+"search.popular" = "Popular Searches";
+
+// Product
+"product.details" = "Product Details";
+"product.description" = "Description";
+"product.specifications" = "Specifications";
+"product.reviews" = "Customer Reviews";
+"product.noImage" = "No Image";
+"product.inStock" = "In Stock";
+"product.outOfStock" = "Out of Stock";
+"product.freeShipping" = "Free Shipping";
+"product.deliveryTime" = "Delivery in 1-3 business days";
+"product.addToCart" = "Add to Cart";
+"product.buyNow" = "Buy Now";
+
+// Cart
+"cart.title" = "Shopping Cart";
+"cart.empty" = "Your Cart is Empty";
+"cart.emptyMessage" = "Browse products and add items to your cart";
+"cart.startShopping" = "Start Shopping";
+"cart.add" = "Add to Cart";
+"cart.added" = "Added to Cart!";
+"cart.addedMessage" = "Item added to your cart";
+"cart.view" = "View Cart";
+"cart.checkout" = "Checkout";
+"cart.subtotal" = "Subtotal";
+"cart.discount" = "Discount";
+"cart.shipping" = "Shipping";
+"cart.tax" = "Tax";
+"cart.total" = "Total";
+"cart.items" = "Items";
+"cart.item" = "Item";
+"cart.clear" = "Clear Cart";
+"cart.clearConfirm" = "Clear Cart?";
+"cart.clearMessage" = "All items will be removed from your cart";
+"cart.addPromo" = "Add Promo Code";
+"cart.promoPlaceholder" = "Enter promo code";
+
+// Checkout
+"checkout.title" = "Checkout";
+"checkout.address" = "Delivery Address";
+"checkout.addAddress" = "Add New Address";
+"checkout.payment" = "Payment Method";
+"checkout.notes" = "Order Notes";
+"checkout.summary" = "Order Summary";
+"checkout.placeOrder" = "Place Order";
+"checkout.placing" = "Placing Order...";
+"checkout.success" = "Order Placed!";
+"checkout.successMessage" = "Your order has been placed successfully";
+"checkout.done" = "Done";
+
+// Orders
+"orders.title" = "My Orders";
+"orders.all" = "All";
+"orders.items" = "items";
+"orders.cancel" = "Cancel Order";
+"orders.cancelConfirm" = "Cancel this order?";
+"orders.cancelReason" = "Reason for cancellation";
+"orders.confirmCancel" = "Confirm Cancel";
+"orders.reorder" = "Reorder";
+"orders.empty" = "No Orders Yet";
+"orders.emptyMessage" = "Your orders will appear here";
+"orders.returns" = "Returns";
+
+// Order Detail
+"order.details" = "Order Details";
+"order.status" = "Order Status";
+"order.tracking" = "Tracking Number";
+"order.estimatedDelivery" = "Estimated Delivery";
+"order.timeline" = "Order Timeline";
+"order.items" = "Order Items";
+"order.shippingAddress" = "Shipping Address";
+"order.payment" = "Payment";
+"order.summary" = "Order Summary";
+"order.trackExternal" = "Track Externally";
+
+// Order Status
+"order.status.pending" = "Pending";
+"order.status.confirmed" = "Confirmed";
+"order.status.processing" = "Processing";
+"order.status.shipped" = "Shipped";
+"order.status.outForDelivery" = "Out for Delivery";
+"order.status.delivered" = "Delivered";
+"order.status.cancelled" = "Cancelled";
+"order.status.refunded" = "Refunded";
+
+// Profile
+"profile.title" = "Profile";
+"profile.edit" = "Edit Profile";
+"profile.myOrders" = "My Orders";
+"profile.personalInfo" = "Personal Information";
+"profile.addresses" = "My Addresses";
+"profile.wishlist" = "Wishlist";
+"profile.notifications" = "Notifications";
+"profile.language" = "Language";
+"profile.darkMode" = "Dark Mode";
+"profile.currency" = "Currency";
+"profile.support" = "Support";
+"profile.help" = "Help Center";
+"profile.contactUs" = "Contact Us";
+"profile.privacy" = "Privacy Policy";
+"profile.terms" = "Terms of Service";
+"profile.logout" = "Logout";
+"profile.logoutConfirm" = "Are you sure you want to logout?";
+"profile.guestTitle" = "Welcome!";
+"profile.guestMessage" = "Login or create an account to enjoy a personalized shopping experience";
+
+// Address
+"address.default" = "Default";
+"address.add" = "Add Address";
+"address.edit" = "Edit Address";
+
+// Auth
+"auth.login" = "Login";
+"auth.loginSubtitle" = "Welcome back! Sign in to continue";
+"auth.register" = "Register";
+"auth.registerTitle" = "Create Account";
+"auth.registerSubtitle" = "Fill in your details to get started";
+"auth.email" = "Email";
+"auth.password" = "Password";
+"auth.passwordPlaceholder" = "Enter your password";
+"auth.confirmPassword" = "Confirm Password";
+"auth.firstName" = "First Name";
+"auth.lastName" = "Last Name";
+"auth.firstNamePlaceholder" = "Enter first name";
+"auth.lastNamePlaceholder" = "Enter last name";
+"auth.phone" = "Phone Number";
+"auth.forgotPassword" = "Forgot Password?";
+"auth.forgotTitle" = "Reset Password";
+"auth.forgotMessage" = "Enter your email and we'll send you a link to reset your password";
+"auth.sendReset" = "Send Reset Link";
+"auth.resetSent" = "Reset link sent! Check your email";
+"auth.noAccount" = "Don't have an account?";
+"auth.registerNow" = "Register Now";
+"auth.haveAccount" = "Already have an account?";
+"auth.loginNow" = "Login";
+"auth.or" = "OR";
+"auth.apple" = "Continue with Apple";
+"auth.google" = "Continue with Google";
+"auth.agreeTo" = "I agree to the";
+"auth.terms" = "Terms of Service";
+"auth.and" = "and";
+"auth.privacy" = "Privacy Policy";
+
+// Password Strength
+"password.weak" = "Weak";
+"password.fair" = "Fair";
+"password.good" = "Good";
+"password.strong" = "Strong";
+
+// Payment
+"payment.creditCard" = "Credit Card";
+"payment.debitCard" = "Debit Card";
+"payment.applePay" = "Apple Pay";
+"payment.cod" = "Cash on Delivery";
+"payment.bankTransfer" = "Bank Transfer";
+
+// Filter
+"filter.title" = "Filters";
+"filter.sortBy" = "Sort By";
+"filter.priceRange" = "Price Range";
+"filter.from" = "From";
+"filter.to" = "To";
+"filter.category" = "Category";
+"filter.allCategories" = "All Categories";
+"filter.reset" = "Reset Filters";
+"filter.apply" = "Apply Filters";
+
+// Sort
+"sort.priceAsc" = "Price: Low to High";
+"sort.priceDesc" = "Price: High to Low";
+"sort.newest" = "Newest First";
+"sort.popular" = "Most Popular";
+"sort.rating" = "Highest Rated";
+
+// Category
+"category.noProducts" = "No Products";
+"category.noProductsMessage" = "There are no products in this category yet";
+
+// Errors
+"error.title" = "Error";
+"error.invalidURL" = "Invalid URL";
+"error.noData" = "No data received";
+"error.decoding" = "Failed to decode response";
+"error.encoding" = "Failed to encode request";
+"error.server" = "Server error:";
+"error.network" = "Network error";
+"error.unauthorized" = "Session expired. Please login again";
+"error.forbidden" = "You don't have permission";
+"error.notFound" = "Resource not found";
+"error.rateLimited" = "Too many requests. Please wait %d seconds";
+"error.cancelled" = "Request cancelled";
+"error.unknown" = "An unknown error occurred";

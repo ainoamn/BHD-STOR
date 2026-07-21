@@ -1,0 +1,361 @@
+# =============================================================================
+# BHD Oman Marketplace - Continuous Deployment
+# Deploys to staging on push to main, production on manual approval
+# =============================================================================
+
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: "Version tag to deploy (e.g., v1.2.3)"
+        required: false
+        type: string
+
+# Prevent concurrent deployments
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ${{ secrets.DOCKER_REGISTRY || 'bhdoman' }}
+  BACKEND_IMAGE: bhd-backend
+  FRONTEND_IMAGE: bhd-frontend
+
+jobs:
+  # =========================================================================
+  # JOB: Build and Push Docker Images
+  # =========================================================================
+  build-images:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      backend_tag: ${{ steps.meta.outputs.backend_tag }}
+      frontend_tag: ${{ steps.meta.outputs.frontend_tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate version
+        id: version
+        run: |
+          if [ "${{ github.event.inputs.version }}" != "" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="v$(date +'%Y.%m.%d')-${{ github.run_number }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate metadata
+        id: meta
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "backend_tag=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:$VERSION" >> $GITHUB_OUTPUT
+          echo "frontend_tag=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY_URL }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.backend
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.backend_tag }}
+            ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=production
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.frontend
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.frontend_tag }}
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.API_URL }}
+            NEXT_PUBLIC_APP_URL=${{ vars.APP_URL }}
+            NEXT_PUBLIC_APP_NAME=${{ vars.APP_NAME }}
+
+  # =========================================================================
+  # JOB: Deploy to Staging
+  # =========================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build-images]
+    if: github.event.inputs.environment == 'staging' || github.event.inputs.environment == null
+    environment:
+      name: staging
+      url: https://staging.bhdoman.com
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
+
+      - name: Add host to known hosts
+        run: ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to staging server
+        env:
+          HOST: ${{ secrets.STAGING_HOST }}
+          USER: ${{ secrets.STAGING_USER }}
+          VERSION: ${{ needs.build-images.outputs.version }}
+        run: |
+          ssh $USER@$HOST << EOF
+            set -e
+            cd /opt/bhd-marketplace
+            
+            # Pull latest code
+            git fetch origin
+            git checkout main
+            git pull origin main
+            
+            # Update environment
+            echo "BACKEND_TAG=$VERSION" >> .env
+            echo "FRONTEND_TAG=$VERSION" >> .env
+            
+            # Pull and deploy
+            docker-compose -f docker-compose.prod.yml pull
+            docker-compose -f docker-compose.prod.yml up -d --remove-orphans
+            
+            # Run migrations
+            docker-compose -f docker-compose.prod.yml exec -T app npm run migration:run
+            
+            # Health check
+            sleep 10
+            curl -f http://localhost:3001/api/v1/health || exit 1
+            echo "Staging deployment successful!"
+          EOF
+
+      - name: Run smoke tests
+        run: |
+          sleep 15
+          curl -sf https://staging.bhdoman.com/api/v1/health || exit 1
+          curl -sf https://staging.bhdoman.com || exit 1
+          echo "Smoke tests passed!"
+
+      - name: Notify deployment success
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Staging deployment successful!",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Deployment to *staging* completed successfully!\n*Version:* ${{ needs.build-images.outputs.version }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # =========================================================================
+  # JOB: Deploy to Production (Manual Approval Required)
+  # =========================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build-images, deploy-staging]
+    if: github.event.inputs.environment == 'production'
+    environment:
+      name: production
+      url: https://bhdoman.com
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+
+      - name: Add host to known hosts
+        run: ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create deployment backup
+        env:
+          HOST: ${{ secrets.PRODUCTION_HOST }}
+          USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          ssh $USER@$HOST << EOF
+            cd /opt/bhd-marketplace
+            # Tag current images for rollback
+            docker tag ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:rollback || true
+            docker tag ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:rollback || true
+            # Backup database
+            docker-compose -f docker-compose.prod.yml exec -T db pg_dump -U ${{ secrets.DB_USER }} ${{ secrets.DB_NAME }} > backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sql
+          EOF
+
+      - name: Deploy to production server
+        env:
+          HOST: ${{ secrets.PRODUCTION_HOST }}
+          USER: ${{ secrets.PRODUCTION_USER }}
+          VERSION: ${{ needs.build-images.outputs.version }}
+        run: |
+          ssh $USER@$HOST << EOF
+            set -e
+            cd /opt/bhd-marketplace
+            
+            # Pull latest code
+            git fetch origin
+            git checkout main
+            git pull origin main
+            
+            # Update environment
+            echo "BACKEND_TAG=$VERSION" >> .env
+            echo "FRONTEND_TAG=$VERSION" >> .env
+            
+            # Pull and deploy with zero-downtime
+            docker-compose -f docker-compose.prod.yml pull
+            docker-compose -f docker-compose.prod.yml up -d --no-deps --scale app=2 app
+            sleep 30
+            docker-compose -f docker-compose.prod.yml up -d --no-deps --scale app=1 app
+            docker-compose -f docker-compose.prod.yml up -d --no-deps --scale web=2 web
+            sleep 15
+            docker-compose -f docker-compose.prod.yml up -d --no-deps --scale web=1 web
+            
+            # Remove orphans
+            docker-compose -f docker-compose.prod.yml up -d --remove-orphans
+            
+            # Run migrations
+            docker-compose -f docker-compose.prod.yml exec -T app npm run migration:run
+            
+            # Cleanup old images
+            docker image prune -af --filter "until=168h"
+            
+            echo "Production deployment successful!"
+          EOF
+
+      - name: Run production smoke tests
+        run: |
+          sleep 20
+          curl -sf https://bhdoman.com/api/v1/health || exit 1
+          curl -sf https://bhdoman.com || exit 1
+          curl -sf https://bhdoman.com/api/v1/products || exit 1
+          echo "Production smoke tests passed!"
+
+      - name: Notify deployment success
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Production deployment successful!",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Deployment to *production* completed successfully!\n*Version:* ${{ needs.build-images.outputs.version }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # =========================================================================
+  # JOB: Rollback (Manual Trigger)
+  # =========================================================================
+  rollback:
+    name: Rollback Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.inputs.environment == 'rollback'
+    environment: production
+
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+
+      - name: Rollback to previous version
+        env:
+          HOST: ${{ secrets.PRODUCTION_HOST }}
+          USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          ssh $USER@$HOST << EOF
+            cd /opt/bhd-marketplace
+            
+            # Rollback to previous images
+            docker tag ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:rollback ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:rollback ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
+            
+            # Redeploy
+            docker-compose -f docker-compose.prod.yml up -d app web
+            
+            # Restore database from latest backup
+            LATEST_BACKUP=$(ls -t backups/*.sql | head -1)
+            if [ -f "$LATEST_BACKUP" ]; then
+              docker-compose -f docker-compose.prod.yml exec -T db psql -U ${{ secrets.DB_USER }} -d ${{ secrets.DB_NAME }} < "$LATEST_BACKUP"
+            fi
+            
+            echo "Rollback completed!"
+          EOF
+
+      - name: Notify rollback
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Production rollback executed!",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Production has been *rolled back* to the previous version.\n*Triggered by:* ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

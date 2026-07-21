@@ -1,0 +1,100 @@
+# =============================================================================
+# BHD Oman Marketplace - Docker Ignore
+# Files to exclude from Docker build context
+# =============================================================================
+
+# Dependencies
+node_modules
+*/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+.next
+out
+dist
+build
+*/.next
+*/out
+*/dist
+*/build
+
+# Environment files
+.env
+.env.*
+!.env.example
+*/.env
+*/.env.*
+
+# Git
+.git
+.gitignore
+.gitattributes
+.gitmodules
+
+# Documentation
+*.md
+docs/
+README*
+CHANGELOG*
+CONTRIBUTING*
+LICENSE*
+
+# Tests
+tests/
+test/
+__tests__/
+__mocks__/
+*.spec.ts
+*.spec.js
+*.test.ts
+*.test.js
+coverage/
+.nyc_output/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Docker (avoid recursion)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Scripts (not needed in build)
+scripts/
+Makefile
+
+# Monitoring (not needed in build)
+monitoring/
+
+# Nginx configs (not needed in build)
+nginx/
+
+# Backup files
+backups/
+
+# Misc
+.cache/
+temp/
+tmp/
+*.tmp
+*.temp

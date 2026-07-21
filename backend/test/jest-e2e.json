@@ -1,0 +1,37 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/src/$1",
+    "^@modules/(.*)$": "<rootDir>/src/modules/$1",
+    "^@common/(.*)$": "<rootDir>/src/common/$1",
+    "^@config/(.*)$": "<rootDir>/src/config/$1",
+    "^@database/(.*)$": "<rootDir>/src/database/$1",
+    "^@auth/(.*)$": "<rootDir>/src/modules/auth/$1",
+    "^@users/(.*)$": "<rootDir>/src/modules/users/$1",
+    "^@products/(.*)$": "<rootDir>/src/modules/products/$1",
+    "^@stores/(.*)$": "<rootDir>/src/modules/stores/$1",
+    "^@orders/(.*)$": "<rootDir>/src/modules/orders/$1",
+    "^@payments/(.*)$": "<rootDir>/src/modules/payments/$1"
+  },
+  "setupFilesAfterSetup": ["<rootDir>/test/setup.ts"],
+  "coverageDirectory": "<rootDir>/coverage/e2e",
+  "collectCoverageFrom": [
+    "src/**/*.ts",
+    "!src/**/*.module.ts",
+    "!src/**/*.d.ts",
+    "!src/main.ts",
+    "!src/database/migrations/**",
+    "!src/database/seeds/**"
+  ],
+  "coverageReporters": ["text", "text-summary", "lcov", "html"],
+  "verbose": true,
+  "testTimeout": 30000,
+  "detectOpenHandles": true,
+  "forceExit": true
+}

@@ -1,0 +1,191 @@
+# =============================================================================
+# BHD Oman Marketplace - Docker Compose (Development)
+# Hot reload, volume mounts, debug mode - NO nginx
+# =============================================================================
+
+version: "3.9"
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database (Dev)
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: bhd-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-bhd_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-bhd_dev_password}
+      POSTGRES_DB: ${DB_NAME:-bhd_marketplace_dev}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: Asia/Muscat
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - bhd-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-bhd_user} -d ${DB_NAME:-bhd_marketplace_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Redis (Dev)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: bhd-redis-dev
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    networks:
+      - bhd-dev-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Elasticsearch (Dev)
+  # ---------------------------------------------------------------------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: bhd-elasticsearch-dev
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+    ports:
+      - "9200:9200"
+    networks:
+      - bhd-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
+  # Backend API (Dev with Hot Reload)
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: deps
+    container_name: bhd-backend-dev
+    restart: unless-stopped
+    command: >
+      sh -c "
+        npx typeorm-ts-node-commonjs migration:run -d src/data-source.ts 2>/dev/null || true &&
+        npm run start:dev
+      "
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-bhd_user}
+      DB_PASSWORD: ${DB_PASSWORD:-bhd_dev_password}
+      DB_NAME: ${DB_NAME:-bhd_marketplace_dev}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: dev_jwt_secret_not_for_production
+      JWT_REFRESH_SECRET: dev_refresh_secret_not_for_production
+      JWT_EXPIRATION: 1h
+      JWT_REFRESH_EXPIRATION: 7d
+      API_PREFIX: /api/v1
+      FRONTEND_URL: http://localhost:3000
+      CORS_ORIGIN: http://localhost:3000
+      ELASTICSEARCH_NODE: http://elasticsearch:9200
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      EMAIL_FROM: dev@bhdoman.local
+      TZ: Asia/Muscat
+      # Debug
+      DEBUG: "*"
+      LOG_LEVEL: debug
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - uploads-dev:/app/uploads
+    ports:
+      - "3001:3001"
+      # Debug port
+      - "9229:9229"
+    networks:
+      - bhd-dev-network
+    stdin_open: true
+    tty: true
+
+  # ---------------------------------------------------------------------------
+  # Frontend (Dev with Hot Reload)
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: deps
+    container_name: bhd-frontend-dev
+    restart: unless-stopped
+    command: npm run dev
+    depends_on:
+      - app
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_DEFAULT_LOCALE: ar
+      NEXT_PUBLIC_CURRENCY: OMR
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    networks:
+      - bhd-dev-network
+    stdin_open: true
+    tty: true
+
+  # ---------------------------------------------------------------------------
+  # Mailpit (Email catcher for dev)
+  # ---------------------------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: bhd-mailpit-dev
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - bhd-dev-network
+    volumes:
+      - mailpit-data:/data
+
+networks:
+  bhd-dev-network:
+    driver: bridge
+
+volumes:
+  postgres-dev-data:
+  uploads-dev:
+  mailpit-data:

@@ -1,0 +1,110 @@
+# =============================================================================
+# BHD Oman Marketplace - Frontend Dockerfile
+# Multi-stage build for Next.js 14+ application
+# =============================================================================
+
+ARG NODE_VERSION=18-alpine
+
+# =============================================================================
+# STAGE 1: Dependencies
+# Install production dependencies only
+# =============================================================================
+FROM node:${NODE_VERSION} AS deps
+LABEL stage="deps"
+
+# Install libc6-compat for Alpine compatibility with some npm packages
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Copy package files for optimal layer caching
+COPY frontend/package.json frontend/package-lock.json* frontend/pnpm-lock.yaml* ./
+
+# Install dependencies based on lock file
+RUN \
+  if [ -f pnpm-lock.yaml ]; then \
+    npm install -g pnpm && pnpm install --frozen-lockfile --prod=false; \
+  elif [ -f package-lock.json ]; then \
+    npm ci --include=dev; \
+  else \
+    npm install --include=dev; \
+  fi
+
+# =============================================================================
+# STAGE 2: Builder
+# Build the Next.js application
+# =============================================================================
+FROM node:${NODE_VERSION} AS builder
+LABEL stage="builder"
+
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy frontend source
+COPY frontend/ ./
+
+# Build-time environment variables
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_APP_NAME="BHD Marketplace"
+ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_DEFAULT_LOCALE=ar
+ARG NEXT_PUBLIC_SUPPORTED_LOCALES=ar,en
+ARG NEXT_PUBLIC_CURRENCY=OMR
+ARG NEXT_PUBLIC_MAPS_API_KEY
+
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+    NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME} \
+    NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
+    NEXT_PUBLIC_DEFAULT_LOCALE=${NEXT_PUBLIC_DEFAULT_LOCALE} \
+    NEXT_PUBLIC_SUPPORTED_LOCALES=${NEXT_PUBLIC_SUPPORTED_LOCALES} \
+    NEXT_PUBLIC_CURRENCY=${NEXT_PUBLIC_CURRENCY} \
+    NEXT_PUBLIC_MAPS_API_KEY=${NEXT_PUBLIC_MAPS_API_KEY} \
+    NEXT_TELEMETRY_DISABLED=1
+
+# Build the application
+RUN npm run build
+
+# =============================================================================
+# STAGE 3: Production Runner
+# Minimal image for production
+# =============================================================================
+FROM node:${NODE_VERSION} AS runner
+LABEL stage="runner"
+LABEL app="bhd-marketplace-frontend"
+LABEL version="1.0.0"
+LABEL maintainer="dev@bhdoman.com"
+
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Set environment
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+
+# Copy standalone output from builder
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# Create uploads directory with correct permissions
+RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
+
+# Switch to non-root user
+USER nextjs
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"
+
+# Start the application using Node.js standalone server
+CMD ["node", "server.js"]

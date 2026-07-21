@@ -1,0 +1,243 @@
+/*
+  Localizable.strings (Arabic)
+  BHD Marketplace
+*/
+
+// App
+"app.name" = "سوق بي اتش دي";
+"app.tagline" = "سوقك في البحرين";
+
+// Common
+"common.ok" = "موافق";
+"common.cancel" = "إلغاء";
+"common.save" = "حفظ";
+"common.edit" = "تعديل";
+"common.delete" = "حذف";
+"common.done" = "تم";
+"common.retry" = "إعادة المحاولة";
+"common.loading" = "جاري التحميل...";
+"common.seeAll" = "عرض الكل";
+"common.clear" = "مسح";
+"common.showMore" = "عرض المزيد";
+"common.showLess" = "عرض أقل";
+"common.next" = "التالي";
+"common.back" = "رجوع";
+"common.submit" = "إرسال";
+"common.apply" = "تطبيق";
+"common.close" = "إغلاق";
+
+// Tab Bar
+"tab.home" = "الرئيسية";
+"tab.search" = "البحث";
+"tab.cart" = "السلة";
+"tab.orders" = "الطلبات";
+"tab.profile" = "حسابي";
+
+// Home
+"home.categories" = "الأقسام";
+"home.featured" = "منتجات مميزة";
+"home.trending" = "الأكثر مبيعاً";
+"home.newArrivals" = "وصل حديثاً";
+"home.bestSellers" = "الأكثر طلباً";
+"home.flashSale" = "تخفيضات سريعة";
+
+// Search
+"search.title" = "البحث";
+"search.placeholder" = "ابحث عن منتجات...";
+"search.results" = "نتيجة";
+"search.noResults" = "لا توجد نتائج";
+"search.noResultsMessage" = "لم نجد أي منتجات تطابق '%@'";
+"search.recent" = "عمليات البحث الأخيرة";
+"search.popular" = "البحث الشائع";
+
+// Product
+"product.details" = "تفاصيل المنتج";
+"product.description" = "الوصف";
+"product.specifications" = "المواصفات";
+"product.reviews" = "تقييمات العملاء";
+"product.noImage" = "لا توجد صورة";
+"product.inStock" = "متوفر";
+"product.outOfStock" = "غير متوفر";
+"product.freeShipping" = "شحن مجاني";
+"product.deliveryTime" = "التوصيل خلال 1-3 أيام عمل";
+"product.addToCart" = "أضف للسلة";
+"product.buyNow" = "اشتري الآن";
+
+// Cart
+"cart.title" = "سلة التسوق";
+"cart.empty" = "سلتك فارغة";
+"cart.emptyMessage" = "تصفح المنتجات وأضفها إلى سلة التسوق";
+"cart.startShopping" = "ابدأ التسوق";
+"cart.add" = "أضف للسلة";
+"cart.added" = "تمت الإضافة!";
+"cart.addedMessage" = "تم إضافة المنتج إلى السلة";
+"cart.view" = "عرض السلة";
+"cart.checkout" = "إتمام الشراء";
+"cart.subtotal" = "المجموع الفرعي";
+"cart.discount" = "الخصم";
+"cart.shipping" = "الشحن";
+"cart.tax" = "الضريبة";
+"cart.total" = "الإجمالي";
+"cart.items" = "منتجات";
+"cart.item" = "منتج";
+"cart.clear" = "إفراغ السلة";
+"cart.clearConfirm" = "إفراغ السلة؟";
+"cart.clearMessage" = "سيتم إزالة جميع المنتجات من السلة";
+"cart.addPromo" = "أضف كود خصم";
+"cart.promoPlaceholder" = "أدخل كود الخصم";
+
+// Checkout
+"checkout.title" = "إتمام الشراء";
+"checkout.address" = "عنوان التوصيل";
+"checkout.addAddress" = "إضافة عنوان جديد";
+"checkout.payment" = "طريقة الدفع";
+"checkout.notes" = "ملاحظات الطلب";
+"checkout.summary" = "ملخص الطلب";
+"checkout.placeOrder" = "تأكيد الطلب";
+"checkout.placing" = "جاري تأكيد الطلب...";
+"checkout.success" = "تم تأكيد الطلب!";
+"checkout.successMessage" = "تم تأكيد طلبك بنجاح";
+"checkout.done" = "تم";
+
+// Orders
+"orders.title" = "طلباتي";
+"orders.all" = "الكل";
+"orders.items" = "منتجات";
+"orders.cancel" = "إلغاء الطلب";
+"orders.cancelConfirm" = "هل تريد إلغاء هذا الطلب؟";
+"orders.cancelReason" = "سبب الإلغاء";
+"orders.confirmCancel" = "تأكيد الإلغاء";
+"orders.reorder" = "إعادة الطلب";
+"orders.empty" = "لا توجد طلبات";
+"orders.emptyMessage" = "ستظهر طلباتك هنا";
+"orders.returns" = "الإرجاع";
+
+// Order Detail
+"order.details" = "تفاصيل الطلب";
+"order.status" = "حالة الطلب";
+"order.tracking" = "رقم التتبع";
+"order.estimatedDelivery" = "موعد التوصيل المتوقع";
+"order.timeline" = "الجدول الزمني";
+"order.items" = "منتجات الطلب";
+"order.shippingAddress" = "عنوان الشحن";
+"order.payment" = "الدفع";
+"order.summary" = "ملخص الطلب";
+"order.trackExternal" = "تتبع خارجي";
+
+// Order Status
+"order.status.pending" = "قيد الانتظار";
+"order.status.confirmed" = "مؤكد";
+"order.status.processing" = "قيد المعالجة";
+"order.status.shipped" = "تم الشحن";
+"order.status.outForDelivery" = "جاري التوصيل";
+"order.status.delivered" = "تم التوصيل";
+"order.status.cancelled" = "ملغي";
+"order.status.refunded" = "تم الاسترداد";
+
+// Profile
+"profile.title" = "حسابي";
+"profile.edit" = "تعديل الحساب";
+"profile.myOrders" = "طلباتي";
+"profile.personalInfo" = "المعلومات الشخصية";
+"profile.addresses" = "عناويني";
+"profile.wishlist" = "المفضلة";
+"profile.notifications" = "الإشعارات";
+"profile.language" = "اللغة";
+"profile.darkMode" = "الوضع الليلي";
+"profile.currency" = "العملة";
+"profile.support" = "الدعم";
+"profile.help" = "مركز المساعدة";
+"profile.contactUs" = "تواصل معنا";
+"profile.privacy" = "سياسة الخصوصية";
+"profile.terms" = "شروط الخدمة";
+"profile.logout" = "تسجيل الخروج";
+"profile.logoutConfirm" = "هل أنت متأكد من تسجيل الخروج؟";
+"profile.guestTitle" = "أهلاً بك!";
+"profile.guestMessage" = "سجل دخول أو أنشئ حساباً للحصول على تجربة تسوق مخصصة";
+
+// Address
+"address.default" = "افتراضي";
+"address.add" = "إضافة عنوان";
+"address.edit" = "تعديل العنوان";
+
+// Auth
+"auth.login" = "تسجيل الدخول";
+"auth.loginSubtitle" = "أهلاً بعودتك! سجل دخول للمتابعة";
+"auth.register" = "إنشاء حساب";
+"auth.registerTitle" = "إنشاء حساب جديد";
+"auth.registerSubtitle" = "أدخل بياناتك للبدء";
+"auth.email" = "البريد الإلكتروني";
+"auth.password" = "كلمة المرور";
+"auth.passwordPlaceholder" = "أدخل كلمة المرور";
+"auth.confirmPassword" = "تأكيد كلمة المرور";
+"auth.firstName" = "الاسم الأول";
+"auth.lastName" = "الاسم الأخير";
+"auth.firstNamePlaceholder" = "أدخل الاسم الأول";
+"auth.lastNamePlaceholder" = "أدخل الاسم الأخير";
+"auth.phone" = "رقم الهاتف";
+"auth.forgotPassword" = "نسيت كلمة المرور؟";
+"auth.forgotTitle" = "إعادة تعيين كلمة المرور";
+"auth.forgotMessage" = "أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة التعيين";
+"auth.sendReset" = "إرسال رابط إعادة التعيين";
+"auth.resetSent" = "تم إرسال الرابط! تحقق من بريدك";
+"auth.noAccount" = "ليس لديك حساب؟";
+"auth.registerNow" = "سجل الآن";
+"auth.haveAccount" = "لديك حساب بالفعل؟";
+"auth.loginNow" = "تسجيل الدخول";
+"auth.or" = "أو";
+"auth.apple" = "المتابعة مع Apple";
+"auth.google" = "المتابعة مع Google";
+"auth.agreeTo" = "أوافق على";
+"auth.terms" = "شروط الخدمة";
+"auth.and" = "و";
+"auth.privacy" = "سياسة الخصوصية";
+
+// Password Strength
+"password.weak" = "ضعيف";
+"password.fair" = "متوسط";
+"password.good" = "جيد";
+"password.strong" = "قوي";
+
+// Payment
+"payment.creditCard" = "بطاقة الائتمان";
+"payment.debitCard" = "بطاقة السحب";
+"payment.applePay" = "Apple Pay";
+"payment.cod" = "الدفع عند الاستلام";
+"payment.bankTransfer" = "تحويل بنكي";
+
+// Filter
+"filter.title" = "الفلاتر";
+"filter.sortBy" = "ترتيب حسب";
+"filter.priceRange" = "نطاق السعر";
+"filter.from" = "من";
+"filter.to" = "إلى";
+"filter.category" = "القسم";
+"filter.allCategories" = "جميع الأقسام";
+"filter.reset" = "إعادة الضبط";
+"filter.apply" = "تطبيق";
+
+// Sort
+"sort.priceAsc" = "السعر: من الأقل للأعلى";
+"sort.priceDesc" = "السعر: من الأعلى للأقل";
+"sort.newest" = "الأحدث أولاً";
+"sort.popular" = "الأكثر شعبية";
+"sort.rating" = "الأعلى تقييماً";
+
+// Category
+"category.noProducts" = "لا توجد منتجات";
+"category.noProductsMessage" = "لا توجد منتجات في هذا القسم بعد";
+
+// Errors
+"error.title" = "خطأ";
+"error.invalidURL" = "الرابط غير صالح";
+"error.noData" = "لم يتم استلام بيانات";
+"error.decoding" = "فشل في فك تشفير الاستجابة";
+"error.encoding" = "فشل في ترميز الطلب";
+"error.server" = "خطأ في الخادم:";
+"error.network" = "خطأ في الشبكة";
+"error.unauthorized" = "انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى";
+"error.forbidden" = "ليس لديك صلاحية";
+"error.notFound" = "المورد غير موجود";
+"error.rateLimited" = "طلبات كثيرة جداً. يرجى الانتظار %d ثانية";
+"error.cancelled" = "تم إلغاء الطلب";
+"error.unknown" = "حدث خطأ غير معروف";

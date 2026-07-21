@@ -1,0 +1,108 @@
+# =============================================================================
+# BHD Oman Marketplace - Backend Dockerfile
+# Multi-stage build for NestJS application
+# =============================================================================
+
+ARG NODE_VERSION=18-alpine
+
+# =============================================================================
+# STAGE 1: Dependencies
+# Install all dependencies (including dev for build)
+# =============================================================================
+FROM node:${NODE_VERSION} AS deps
+LABEL stage="deps"
+
+# Install build dependencies for native modules
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    libc6-compat
+
+WORKDIR /app
+
+# Copy package files for optimal layer caching
+COPY backend/package.json backend/package-lock.json* backend/pnpm-lock.yaml* ./
+
+# Install dependencies
+RUN \
+  if [ -f pnpm-lock.yaml ]; then \
+    npm install -g pnpm && pnpm install --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then \
+    npm ci; \
+  else \
+    npm install; \
+  fi
+
+# =============================================================================
+# STAGE 2: Builder
+# Build the NestJS application and compile TypeScript
+# =============================================================================
+FROM node:${NODE_VERSION} AS builder
+LABEL stage="builder"
+
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy backend source
+COPY backend/ ./
+
+# Build the application
+RUN npm run build
+
+# Prune dev dependencies after build
+RUN npm prune --production
+
+# =============================================================================
+# STAGE 3: Production Runner
+# Minimal production image
+# =============================================================================
+FROM node:${NODE_VERSION} AS runner
+LABEL stage="runner"
+LABEL app="bhd-marketplace-backend"
+LABEL version="1.0.0"
+LABEL maintainer="dev@bhdoman.com"
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    curl \
+    ca-certificates \
+    tzdata \
+    && cp /usr/share/zoneinfo/Asia/Muscat /etc/localtime \
+    && echo "Asia/Muscat" > /etc/timezone
+
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nestjs && \
+    adduser --system --uid 1001 nestjs
+
+# Set environment variables
+ENV NODE_ENV=production \
+    PORT=3001 \
+    TZ=Asia/Muscat \
+    API_PREFIX=/api/v1 \
+    API_VERSION=v1
+
+# Copy production files
+COPY --from=builder --chown=nestjs:nestjs /app/dist ./dist
+COPY --from=builder --chown=nestjs:nestjs /app/node_modules ./node_modules
+COPY --from=builder --chown=nestjs:nestjs /app/package.json ./
+
+# Create uploads directory with correct permissions
+RUN mkdir -p /app/uploads && chown -R nestjs:nestjs /app/uploads
+
+# Switch to non-root user
+USER nestjs
+
+# Expose port
+EXPOSE 3001
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:3001/api/v1/health || exit 1
+
+# Start the application
+CMD ["node", "dist/main.js"]
