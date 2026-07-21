@@ -24,6 +24,9 @@ import { ProcessPaymentDto } from './dto/process-payment.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { CreatePayoutDto } from './dto/create-payout.dto';
 import { WebhookResponseDto } from './dto/webhook.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -109,7 +112,7 @@ export class PaymentsController {
    */
   @Post('refund')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'store_owner')
+  @Roles('admin', 'seller')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Process refund',
@@ -362,7 +365,7 @@ export class PaymentsController {
    */
   @Post('capture')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'store_owner')
+  @Roles('admin', 'seller')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Capture payment',
@@ -379,44 +382,5 @@ export class PaymentsController {
     }
 
     return this.paymentsService.capturePayment(paymentId, gateway, amount);
-  }
-}
-
-// Guard imports (these would normally be in separate files)
-import { CanActivate, ExecutionContext } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { Observable } from 'rxjs';
-import { SetMetadata } from '@nestjs/common';
-
-export const ROLES_KEY = 'roles';
-export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
-
-@Injectable()
-export class JwtAuthGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
-    // In production: implement JWT validation
-    const request = context.switchToHttp().getRequest();
-    // Mock: always allow for now
-    request.user = { id: 'mock-user-id', roles: ['user'] };
-    return true;
-  }
-}
-
-@Injectable()
-export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
-
-  canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-
-    if (!requiredRoles) {
-      return true;
-    }
-
-    const { user } = context.switchToHttp().getRequest();
-    return requiredRoles.some((role) => user?.roles?.includes(role));
   }
 }

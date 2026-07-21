@@ -8,6 +8,8 @@ import { UsersModule } from '@users/users.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 
 @Module({
   imports: [
@@ -30,8 +32,15 @@ import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy, LocalStrategy, RefreshTokenStrategy],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    LocalStrategy,
+    RefreshTokenStrategy,
+    JwtAuthGuard,
+    RolesGuard,
+  ],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, PassportModule, JwtModule, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}

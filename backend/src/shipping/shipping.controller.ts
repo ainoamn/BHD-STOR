@@ -34,36 +34,9 @@ import { CreateShipmentDto, ShippingCarrier } from './dto/create-shipment.dto';
 import { RateRequestDto, RateComparisonResult } from './dto/rate-request.dto';
 import { TrackingRequestDto, TrackingResult } from './dto/tracking-request.dto';
 import { ShippingAddress } from './dto/create-shipment.dto';
-
-// ---- Inline Guards (normally in separate auth module) ----
-import { Injectable, CanActivate, ExecutionContext, SetMetadata } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-
-export const ROLES_KEY = 'roles';
-export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
-
-@Injectable()
-export class JwtAuthGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest();
-    request.user = { id: 'mock-user-id', roles: ['user'] };
-    return true;
-  }
-}
-
-@Injectable()
-export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
-  canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (!requiredRoles) return true;
-    const { user } = context.switchToHttp().getRequest();
-    return requiredRoles.some((role) => user?.roles?.includes(role));
-  }
-}
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 
 @ApiTags('Shipping')
 @Controller('shipping')
