@@ -9,9 +9,11 @@
 | [`deepseek-followup-2026-07-21.md`](./deepseek-followup-2026-07-21.md) | DeepSeek (متابعة) | يعيد صياغة نقد Cursor؛ جزء منه أصبح قديماً بعد `4e7a7e4` |
 | [`gemini-or-kimi-2026-07-21-report-a.md`](./gemini-or-kimi-2026-07-21-report-a.md) | جيميني / كيمي (فشل جلب المستودع) | افترض **عقارات** بالخطأ |
 | [`gemini-or-kimi-2026-07-21-report-b.md`](./gemini-or-kimi-2026-07-21-report-b.md) | جيميني / كيمي (فشل جلب المستودع) | نسخة ثانية أطول — نفس الخطأ |
-| [`cursor-validation-2026-07-21.md`](./cursor-validation-2026-07-21.md) | Cursor (هذه الجلسة) | تصحيحات مقابل الكود الفعلي |
+| [`cursor-validation-2026-07-21.md`](./cursor-validation-2026-07-21.md) | Cursor (هذه الجلسة) | تصحيحات مقابل الكود الفعلي — محدّث بعد الملصق و`useAnalytics` |
+| [`STATUS-2026-07-21.md`](./STATUS-2026-07-21.md) | لقطة حالة GitHub | ما على `main` وما التالي |
 
 **خطة العمل النشطة:** [`../../ROADMAP.md`](../../ROADMAP.md) فقط.  
+**سجل الجلسة:** [`../SESSION-2026-07-21.md`](../SESSION-2026-07-21.md).  
 **مراجعة هندسية محلية:** [`../FULL_AUDIT.md`](../FULL_AUDIT.md).
 
-> لا تُنفَّذ توصيات التقارير الخارجية قبل مطابقتها مع الكود و`ROADMAP.md`.
+> لا تُنفَّذ توصارير جيميني/كيمي (عقارات). DeepSeek follow-up قديم جزئياً بعد الدفع.
