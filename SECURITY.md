@@ -1,14 +1,8 @@
 # BHD Oman Marketplace - Security Documentation
 
-<div align="center">
-
-![Security](https://img.shields.io/badge/SECURITY-DOCS-E74C3C?style=for-the-badge)
-![OWASP](https://img.shields.io/badge/OWASP-Compliant-2ECC71?style=for-the-badge)
-![SOC2](https://img.shields.io/badge/SOC2-Type%20II-3498DB?style=for-the-badge)
-
-**Comprehensive security documentation and compliance guide**
-
-</div>
+> **صدق الحالة (2026-07-21):** هذا المستند يصف **التصميم المستهدف** ووحدات الأمان الموجودة في `backend/src/security/`.  
+> **لا يوجد حالياً شهادة SOC2 مثبتة.** ORM الفعلي هو **TypeORM** وليس Prisma. MFA/OAuth مذكورة في الكيانات/التوثيق وليست كلها مفعّلة كمنتج.  
+> للتقييم العملي والنواقص الحرجة (مثل `ENCRYPTION_MASTER_KEY`) راجع **[`ROADMAP.md`](./ROADMAP.md)** فقط — لا تكرر تقارير أمنية متضاربة في ملفات أخرى.
 
 ---
 

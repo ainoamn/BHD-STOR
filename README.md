@@ -50,76 +50,81 @@
 
 ## 📋 Table of Contents
 
+- [حالة المشروع](#حالة-المشروع-اقرأ-أولاً)
 - [Overview](#-overview)
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
-- [Architecture](#-architecture)
+- [Features](#-features-honest-status)
+- [Tech Stack](#️-tech-stack)
+- [Architecture](#️-architecture)
 - [Quick Start](#-quick-start)
+- [Roadmap (single source)](#roadmap)
 - [Folder Structure](#-folder-structure)
 - [API Documentation](#-api-documentation)
 - [Contributing](#-contributing)
 - [License](#-license)
-- [Contact](#-contact)
+
+---
+
+## حالة المشروع (اقرأ أولاً)
+
+| البند | الواقع |
+|-------|--------|
+| المستودع | [ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR) |
+| ما هو هذا؟ | منصة سوق عمانية متعددة البائعين (B2B/B2C/…) — **هيكل احترافي واسع** وليس منتج إنتاج مكتمل |
+| التشغيل المعتمد على Windows | `C:\dev\bhd-app` فقط (مسارات عربية تكسر Webpack لـ Next.js) |
+| الخطة والنواقص | **[`ROADMAP.md`](./ROADMAP.md)** — المصدر الوحيد؛ لا تكرر الخطط في ملفات أخرى |
+| أرشيف الخطط القديمة | `docs/plans/` (مرجع تاريخي فقط) |
+| الأمان | طبقات متعددة في الكود (JWT، RBAC، bcrypt، AES-256-GCM، rate limit، CSRF/XSS/CSP، audit) — راجع [`SECURITY.md`](./SECURITY.md) وقسم الأمان في `ROADMAP.md` |
 
 ---
 
 ## 🌍 Overview
 
-**BHD Oman** is a full-featured, multi-vendor e-commerce marketplace platform built specifically for the Omani market. It connects buyers with local sellers, offering a seamless shopping experience with support for both Arabic and English languages, Omani Rial (OMR) currency, and local payment methods.
+**BHD Oman** is a multi-vendor e-commerce marketplace codebase for the Omani market: Arabic/English (RTL/LTR), multi-currency (GCC + USD/EUR/GBP), subscriptions + commission model, seller/admin dashboards, shipping/logistics modules, AI/WhatsApp scaffolds, and mobile/iOS stubs.
 
-**ب_HD_ عمان** هي منصة تجارة إلكترونية متعددة البائعين مصممة خصيصًا للسوق العماني. تربط المشترين بالبائعين المحليين، وتقدم تجربة تسوق سلسة مع دعم اللغتين العربية والإنجليزية، والعملة بالريال العماني، وطرق الدفع المحلية.
+**ب_HD_** كود منصة تجارة إلكترونية عمانية متعددة البائعين. كثير من الشاشات والخدمات **موجودة كملفات**؛ الإطلاق الحقيقي يحتاج اتباع [`ROADMAP.md`](./ROADMAP.md).
 
 ### Key Highlights
 
-- 🌐 **Bilingual** - Full Arabic & English support (RTL/LTR)
-- 🏪 **Multi-Vendor** - Multiple stores on a single platform
-- 💳 **Local Payments** - OmanNet, Thawani, Bank Transfer
-- 🚚 **Local Shipping** - Integration with Omani logistics providers
-- 🤖 **AI-Powered** - Smart recommendations & AI chat assistant
-- 📱 **Mobile-First** - Progressive Web App (PWA) support
-- 🔒 **Enterprise Security** - Bank-grade encryption & compliance
-- 📊 **Real-time Analytics** - Live dashboards & insights
+- 🌐 **Bilingual** — Arabic & English (RTL/LTR)
+- 🏪 **Multi-Vendor** — Stores with B2B/B2C/C2C/hybrid types
+- 💳 **Payments** — Gateway services (Stripe, PayPal, local configs) — need real keys
+- 🚚 **Shipping + logistics** — Carrier adapters + internal fleet module
+- 🤖 **AI / WhatsApp** — Service layer present; needs API keys
+- 📱 **PWA / Mobile / iOS** — Scaffold present
+- 🔒 **Security modules** — Multi-layer Nest security package (see honest assessment in ROADMAP)
+- 📊 **Admin / seller dashboards** — UI present; demo fallbacks on frontend
 
 ---
 
-## ✨ Features
+## ✨ Features (honest status)
 
-### For Buyers 🛍️
+Legend: **Code** = implemented in repo · **Demo** = UI works without full backend · **Needs keys** = integration code exists · **Later** = not launch-critical
 
-| Feature | Description | Status |
-|---------|-------------|--------|
-| 🔍 **Smart Search** | AI-powered search with filters, autocomplete & suggestions | ✅ Live |
-| 🛒 **Shopping Cart** | Persistent cart with coupon support | ✅ Live |
-| ❤️ **Wishlist** | Save & share favorite products | ✅ Live |
-| 📱 **PWA** | Installable mobile app experience | ✅ Live |
-| 💬 **Live Chat** | Real-time chat with sellers | ✅ Live |
-| 🤖 **AI Assistant** | Smart shopping assistant | ✅ Live |
-| 🔔 **Notifications** | Push, email & SMS alerts | ✅ Live |
-| 🌟 **Reviews** | Product ratings & photo reviews | ✅ Live |
+### For Buyers
 
-### For Sellers 🏪
+| Feature | Status |
+|---------|--------|
+| Catalog / home / i18n | Code + Demo |
+| Cart / wishlist UI | Code + Demo |
+| AI assistant / smart cart UI | Code · Needs keys |
+| PWA / notifications | Code · Needs ops |
+| Live chat / reviews APIs | Code · Needs DB + test |
 
-| Feature | Description | Status |
-|---------|-------------|--------|
-| 🏪 **Store Management** | Full CRUD with custom themes | ✅ Live |
-| 📦 **Product Catalog** | Bulk upload, variants, inventory | ✅ Live |
-| 📊 **Analytics** | Sales reports, traffic insights | ✅ Live |
-| 🚚 **Shipping** | Multi-carrier rate comparison | ✅ Live |
-| 💰 **Payments** | Automated payouts to bank accounts | ✅ Live |
-| 🎫 **Coupons** | Flexible discount engine | ✅ Live |
-| 📱 **Mobile Dashboard** | Manage store on the go | ✅ Live |
+### For Sellers
 
-### For Admins 👑
+| Feature | Status |
+|---------|--------|
+| Store / product / order dashboards | Code + Demo |
+| Shipping / payouts | Code · Needs keys |
+| Mobile seller (iOS stub) | Later |
 
-| Feature | Description | Status |
-|---------|-------------|--------|
-| 📊 **Admin Dashboard** | Real-time KPIs & charts | ✅ Live |
-| 👥 **User Management** | Roles, permissions, verification | ✅ Live |
-| 🏪 **Store Moderation** | Approve, suspend, verify stores | ✅ Live |
-| 📦 **Order Management** | Full order lifecycle control | ✅ Live |
-| 💰 **Finance** | Transactions, commissions, payouts | ✅ Live |
-| 🤖 **AI Config** | Manage AI models & prompts | ✅ Live |
-| ⚙️ **Settings** | Platform configuration | ✅ Live |
+### For Admins
+
+| Feature | Status |
+|---------|--------|
+| Users / stores / orders / payments UIs | Code + Demo |
+| Subscriptions / commissions / logistics admin | Code · Needs wiring |
+| Accounting / HR / CRM / drones | Later (feature-flag) |
 
 ---
 
@@ -146,7 +151,7 @@
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" width="16"/> TypeScript | 5.x | Type Safety |
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" width="16"/> PostgreSQL | 16.x | Primary Database |
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg" width="16"/> Redis | 7.x | Cache & Sessions |
-| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/prisma/prisma-original.svg" width="16"/> Prisma ORM | 5.x | Database Access |
+| TypeORM | 0.3.x | Database Access (PostgreSQL) |
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/socketio/socketio-original.svg" width="16"/> Socket.io | 4.x | WebSocket Gateway |
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg" width="16"/> AWS S3 | - | File Storage |
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" width="16"/> Bull MQ | - | Job Queue |
@@ -226,9 +231,19 @@
 2. **Nginx** validates, rate-limits, and routes
 3. **NestJS Guards** authenticate & authorize
 4. **Service Layer** processes business logic
-5. **Prisma ORM** queries PostgreSQL
+5. **TypeORM** queries PostgreSQL
 6. **Redis** caches frequently accessed data
 7. **Response** flows back through the stack
+
+---
+
+## Roadmap
+
+الخطة والنواقص خطوة بخطوة — ملف واحد فقط:
+
+→ **[ROADMAP.md](./ROADMAP.md)**
+
+لا تُحدَّث الخطط في `docs/plans/`؛ تلك ملفات أرشيف.
 
 ---
 
@@ -240,12 +255,19 @@
 - **PostgreSQL** >= 16 ([Download](https://www.postgresql.org/download/))
 - **Redis** >= 7 ([Download](https://redis.io/download))
 - **Git** ([Download](https://git-scm.com/))
+- On Windows: prefer ASCII path `C:\dev\bhd-app` (Arabic folder paths break Next.js webpack)
 
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/bhd-oman/marketplace.git
-cd marketplace
+git clone https://github.com/ainoamn/BHD-STOR.git
+cd BHD-STOR
+```
+
+Or work from the synced local tree:
+
+```bat
+cd /d C:\dev\bhd-app
 ```
 
 ### 2. Start Backend

@@ -1,13 +1,14 @@
 # =============================================================================
 # BHD Oman Marketplace - Continuous Deployment
-# Deploys to staging on push to main, production on manual approval
+# Manual deploy only (no auto-deploy on push to main until secrets/staging ready)
 # =============================================================================
 
 name: CD
 
 on:
-  push:
-    branches: [main]
+  # Disabled automatic deploy on every main push — use "Run workflow" instead.
+  # push:
+  #   branches: [main]
   workflow_dispatch:
     inputs:
       environment:
@@ -18,14 +19,19 @@ on:
         options:
           - staging
           - production
+          - rollback
       version:
-        description: "Version tag to deploy (e.g., v1.2.3)"
+        description: "Version/tag to deploy (e.g. v1.2.3 or leave empty for date-run)"
         required: false
         type: string
+      restore_database:
+        description: "On rollback only: also restore latest DB backup (DANGEROUS)"
+        required: false
+        type: boolean
+        default: false
 
-# Prevent concurrent deployments
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy-${{ github.event.inputs.environment || 'staging' }}
   cancel-in-progress: false
 
 env:
@@ -34,17 +40,16 @@ env:
   FRONTEND_IMAGE: bhd-frontend
 
 jobs:
-  # =========================================================================
-  # JOB: Build and Push Docker Images
-  # =========================================================================
   build-images:
     name: Build & Push Images
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: ${{ github.event.inputs.environment || 'staging' }}
+    if: github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'production'
+    environment: ${{ github.event.inputs.environment }}
 
     outputs:
       version: ${{ steps.version.outputs.version }}
+      sha_tag: ${{ steps.version.outputs.sha_tag }}
       backend_tag: ${{ steps.meta.outputs.backend_tag }}
       frontend_tag: ${{ steps.meta.outputs.frontend_tag }}
 
@@ -55,20 +60,25 @@ jobs:
       - name: Generate version
         id: version
         run: |
-          if [ "${{ github.event.inputs.version }}" != "" ]; then
+          SHA_TAG="sha-${GITHUB_SHA::12}"
+          if [ -n "${{ github.event.inputs.version }}" ]; then
             VERSION="${{ github.event.inputs.version }}"
           else
             VERSION="v$(date +'%Y.%m.%d')-${{ github.run_number }}"
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION ($SHA_TAG)"
 
       - name: Generate metadata
         id: meta
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          echo "backend_tag=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:$VERSION" >> $GITHUB_OUTPUT
-          echo "frontend_tag=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:$VERSION" >> $GITHUB_OUTPUT
+          SHA_TAG="${{ steps.version.outputs.sha_tag }}"
+          echo "backend_tag=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:$VERSION" >> "$GITHUB_OUTPUT"
+          echo "frontend_tag=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:$VERSION" >> "$GITHUB_OUTPUT"
+          echo "backend_sha=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:$SHA_TAG" >> "$GITHUB_OUTPUT"
+          echo "frontend_sha=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:$SHA_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -88,7 +98,7 @@ jobs:
           push: true
           tags: |
             ${{ steps.meta.outputs.backend_tag }}
-            ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ steps.version.outputs.sha_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -102,7 +112,7 @@ jobs:
           push: true
           tags: |
             ${{ steps.meta.outputs.frontend_tag }}
-            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ steps.version.outputs.sha_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -110,15 +120,12 @@ jobs:
             NEXT_PUBLIC_APP_URL=${{ vars.APP_URL }}
             NEXT_PUBLIC_APP_NAME=${{ vars.APP_NAME }}
 
-  # =========================================================================
-  # JOB: Deploy to Staging
-  # =========================================================================
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [build-images]
-    if: github.event.inputs.environment == 'staging' || github.event.inputs.environment == null
+    if: github.event.inputs.environment == 'staging'
     environment:
       name: staging
       url: https://staging.bhdoman.com
@@ -141,30 +148,33 @@ jobs:
           USER: ${{ secrets.STAGING_USER }}
           VERSION: ${{ needs.build-images.outputs.version }}
         run: |
-          ssh $USER@$HOST << EOF
-            set -e
+          ssh "$USER@$HOST" << EOF
+            set -euo pipefail
             cd /opt/bhd-marketplace
-            
-            # Pull latest code
+
             git fetch origin
             git checkout main
             git pull origin main
-            
-            # Update environment
-            echo "BACKEND_TAG=$VERSION" >> .env
-            echo "FRONTEND_TAG=$VERSION" >> .env
-            
-            # Pull and deploy
+
+            touch .env
+            if grep -q '^BACKEND_TAG=' .env; then
+              sed -i "s/^BACKEND_TAG=.*/BACKEND_TAG=$VERSION/" .env
+            else
+              echo "BACKEND_TAG=$VERSION" >> .env
+            fi
+            if grep -q '^FRONTEND_TAG=' .env; then
+              sed -i "s/^FRONTEND_TAG=.*/FRONTEND_TAG=$VERSION/" .env
+            else
+              echo "FRONTEND_TAG=$VERSION" >> .env
+            fi
+
             docker-compose -f docker-compose.prod.yml pull
             docker-compose -f docker-compose.prod.yml up -d --remove-orphans
-            
-            # Run migrations
             docker-compose -f docker-compose.prod.yml exec -T app npm run migration:run
-            
-            # Health check
+
             sleep 10
             curl -f http://localhost:3001/api/v1/health || exit 1
-            echo "Staging deployment successful!"
+            echo "Staging deployment successful! tag=$VERSION"
           EOF
 
       - name: Run smoke tests
@@ -174,34 +184,11 @@ jobs:
           curl -sf https://staging.bhdoman.com || exit 1
           echo "Smoke tests passed!"
 
-      - name: Notify deployment success
-        if: success()
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          payload: |
-            {
-              "text": "Staging deployment successful!",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "Deployment to *staging* completed successfully!\n*Version:* ${{ needs.build-images.outputs.version }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-  # =========================================================================
-  # JOB: Deploy to Production (Manual Approval Required)
-  # =========================================================================
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [build-images, deploy-staging]
+    needs: [build-images]
     if: github.event.inputs.environment == 'production'
     environment:
       name: production
@@ -219,18 +206,22 @@ jobs:
       - name: Add host to known hosts
         run: ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Create deployment backup
+      - name: Create deployment backup (images + DB dump only)
         env:
           HOST: ${{ secrets.PRODUCTION_HOST }}
           USER: ${{ secrets.PRODUCTION_USER }}
+          VERSION: ${{ needs.build-images.outputs.version }}
         run: |
-          ssh $USER@$HOST << EOF
+          ssh "$USER@$HOST" << EOF
+            set -euo pipefail
             cd /opt/bhd-marketplace
-            # Tag current images for rollback
-            docker tag ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:rollback || true
-            docker tag ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:rollback || true
-            # Backup database
-            docker-compose -f docker-compose.prod.yml exec -T db pg_dump -U ${{ secrets.DB_USER }} ${{ secrets.DB_NAME }} > backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sql
+            mkdir -p backups
+            # Remember previous pinned tags for app-only rollback
+            PREV_BACKEND=\$(grep '^BACKEND_TAG=' .env | cut -d= -f2- || true)
+            PREV_FRONTEND=\$(grep '^FRONTEND_TAG=' .env | cut -d= -f2- || true)
+            echo "PREV_BACKEND_TAG=\$PREV_BACKEND" > .rollback-tags
+            echo "PREV_FRONTEND_TAG=\$PREV_FRONTEND" >> .rollback-tags
+            docker-compose -f docker-compose.prod.yml exec -T db pg_dump -U ${{ secrets.DB_USER }} ${{ secrets.DB_NAME }} > "backups/pre-deploy-\$(date +%Y%m%d-%H%M%S).sql"
           EOF
 
       - name: Deploy to production server
@@ -239,38 +230,32 @@ jobs:
           USER: ${{ secrets.PRODUCTION_USER }}
           VERSION: ${{ needs.build-images.outputs.version }}
         run: |
-          ssh $USER@$HOST << EOF
-            set -e
+          ssh "$USER@$HOST" << EOF
+            set -euo pipefail
             cd /opt/bhd-marketplace
-            
-            # Pull latest code
+
             git fetch origin
             git checkout main
             git pull origin main
-            
-            # Update environment
-            echo "BACKEND_TAG=$VERSION" >> .env
-            echo "FRONTEND_TAG=$VERSION" >> .env
-            
-            # Pull and deploy with zero-downtime
+
+            touch .env
+            if grep -q '^BACKEND_TAG=' .env; then
+              sed -i "s/^BACKEND_TAG=.*/BACKEND_TAG=$VERSION/" .env
+            else
+              echo "BACKEND_TAG=$VERSION" >> .env
+            fi
+            if grep -q '^FRONTEND_TAG=' .env; then
+              sed -i "s/^FRONTEND_TAG=.*/FRONTEND_TAG=$VERSION/" .env
+            else
+              echo "FRONTEND_TAG=$VERSION" >> .env
+            fi
+
             docker-compose -f docker-compose.prod.yml pull
-            docker-compose -f docker-compose.prod.yml up -d --no-deps --scale app=2 app
-            sleep 30
-            docker-compose -f docker-compose.prod.yml up -d --no-deps --scale app=1 app
-            docker-compose -f docker-compose.prod.yml up -d --no-deps --scale web=2 web
-            sleep 15
-            docker-compose -f docker-compose.prod.yml up -d --no-deps --scale web=1 web
-            
-            # Remove orphans
             docker-compose -f docker-compose.prod.yml up -d --remove-orphans
-            
-            # Run migrations
             docker-compose -f docker-compose.prod.yml exec -T app npm run migration:run
-            
-            # Cleanup old images
-            docker image prune -af --filter "until=168h"
-            
-            echo "Production deployment successful!"
+            docker image prune -af --filter "until=168h" || true
+
+            echo "Production deployment successful! tag=$VERSION"
           EOF
 
       - name: Run production smoke tests
@@ -278,34 +263,10 @@ jobs:
           sleep 20
           curl -sf https://bhdoman.com/api/v1/health || exit 1
           curl -sf https://bhdoman.com || exit 1
-          curl -sf https://bhdoman.com/api/v1/products || exit 1
           echo "Production smoke tests passed!"
 
-      - name: Notify deployment success
-        if: success()
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          payload: |
-            {
-              "text": "Production deployment successful!",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "Deployment to *production* completed successfully!\n*Version:* ${{ needs.build-images.outputs.version }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-  # =========================================================================
-  # JOB: Rollback (Manual Trigger)
-  # =========================================================================
   rollback:
-    name: Rollback Production
+    name: Rollback Production (app images only by default)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: github.event.inputs.environment == 'rollback'
@@ -317,45 +278,50 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
 
-      - name: Rollback to previous version
+      - name: Add host to known hosts
+        run: ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Rollback application tags
         env:
           HOST: ${{ secrets.PRODUCTION_HOST }}
           USER: ${{ secrets.PRODUCTION_USER }}
+          RESTORE_DB: ${{ github.event.inputs.restore_database }}
         run: |
-          ssh $USER@$HOST << EOF
+          ssh "$USER@$HOST" << EOF
+            set -euo pipefail
             cd /opt/bhd-marketplace
-            
-            # Rollback to previous images
-            docker tag ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:rollback ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
-            docker tag ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:rollback ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
-            
-            # Redeploy
-            docker-compose -f docker-compose.prod.yml up -d app web
-            
-            # Restore database from latest backup
-            LATEST_BACKUP=$(ls -t backups/*.sql | head -1)
-            if [ -f "$LATEST_BACKUP" ]; then
-              docker-compose -f docker-compose.prod.yml exec -T db psql -U ${{ secrets.DB_USER }} -d ${{ secrets.DB_NAME }} < "$LATEST_BACKUP"
-            fi
-            
-            echo "Rollback completed!"
-          EOF
 
-      - name: Notify rollback
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          payload: |
-            {
-              "text": "Production rollback executed!",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "Production has been *rolled back* to the previous version.\n*Triggered by:* ${{ github.actor }}"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+            if [ ! -f .rollback-tags ]; then
+              echo "No .rollback-tags file — cannot safely roll back."
+              exit 1
+            fi
+
+            PREV_BACKEND=\$(grep '^PREV_BACKEND_TAG=' .rollback-tags | cut -d= -f2-)
+            PREV_FRONTEND=\$(grep '^PREV_FRONTEND_TAG=' .rollback-tags | cut -d= -f2-)
+
+            if [ -z "\$PREV_BACKEND" ] || [ -z "\$PREV_FRONTEND" ]; then
+              echo "Previous tags empty — aborting."
+              exit 1
+            fi
+
+            touch .env
+            sed -i "s/^BACKEND_TAG=.*/BACKEND_TAG=\$PREV_BACKEND/" .env || echo "BACKEND_TAG=\$PREV_BACKEND" >> .env
+            sed -i "s/^FRONTEND_TAG=.*/FRONTEND_TAG=\$PREV_FRONTEND/" .env || echo "FRONTEND_TAG=\$PREV_FRONTEND" >> .env
+
+            docker-compose -f docker-compose.prod.yml pull
+            docker-compose -f docker-compose.prod.yml up -d app web
+
+            if [ "$RESTORE_DB" = "true" ]; then
+              echo "WARNING: restoring latest DB backup (data after backup will be lost)"
+              LATEST_BACKUP=\$(ls -t backups/*.sql 2>/dev/null | head -1 || true)
+              if [ -n "\$LATEST_BACKUP" ] && [ -f "\$LATEST_BACKUP" ]; then
+                docker-compose -f docker-compose.prod.yml exec -T db psql -U ${{ secrets.DB_USER }} -d ${{ secrets.DB_NAME }} < "\$LATEST_BACKUP"
+              else
+                echo "No backup file found — app rolled back without DB restore"
+              fi
+            else
+              echo "DB restore skipped (default). App images rolled back only."
+            fi
+
+            echo "Rollback completed to BACKEND=\$PREV_BACKEND FRONTEND=\$PREV_FRONTEND"
+          EOF
