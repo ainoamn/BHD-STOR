@@ -20,9 +20,11 @@ if not exist backend\.env (
   echo backend\.env already exists
 )
 
-REM Fill empty JWT secrets if still blank (dev only)
-powershell -NoProfile -Command ^
-  "$p='backend\.env'; if (Test-Path $p) { $c=Get-Content $p -Raw; $changed=$false; if ($c -match '(?m)^JWT_SECRET=\s*$') { $s=-join ((1..48)|ForEach-Object { '{0:x}' -f (Get-Random -Max 16) }); $c=[regex]::Replace($c,'(?m)^JWT_SECRET=\s*$',(\"JWT_SECRET=$s\")); $changed=$true; Write-Host 'Generated JWT_SECRET' }; if ($c -match '(?m)^JWT_REFRESH_SECRET=\s*$') { $s=-join ((1..48)|ForEach-Object { '{0:x}' -f (Get-Random -Max 16) }); $c=[regex]::Replace($c,'(?m)^JWT_REFRESH_SECRET=\s*$',(\"JWT_REFRESH_SECRET=$s\")); $changed=$true; Write-Host 'Generated JWT_REFRESH_SECRET' }; if ($c -match '(?m)^ENCRYPTION_MASTER_KEY=\s*$') { $s=-join ((1..64)|ForEach-Object { '{0:x}' -f (Get-Random -Max 16) }); $c=[regex]::Replace($c,'(?m)^ENCRYPTION_MASTER_KEY=\s*$',(\"ENCRYPTION_MASTER_KEY=$s\")); $changed=$true; Write-Host 'Generated ENCRYPTION_MASTER_KEY' }; if ($changed) { Set-Content -Path $p -Value $c -NoNewline } }"
+REM Replace empty OR placeholder secrets (dev convenience)
+node scripts\fill-env-secrets.mjs
+if errorlevel 1 (
+  echo WARNING: could not fill secrets automatically
+)
 
 if not exist frontend\.env.local (
   (
@@ -50,5 +52,6 @@ echo        admin@bhdoman.com / Bhd@dmin2024!
 echo        customer@bhdoman.com / Customer@123!
 echo        seller@bhdoman.com / Seller@123!
 echo   5. After API is up: node scripts\smoke-buy-path.mjs
+echo   6. Preflight: node scripts\check-env.mjs
 echo.
 pause

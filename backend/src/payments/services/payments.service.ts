@@ -620,7 +620,17 @@ export class PaymentsService {
         }
 
         case 'telr': {
+          if (!this.telrService.isConfigured()) {
+            throw new BadRequestException('Telr is not configured');
+          }
+          if (!payload?.order_ref && !payload?.tran_ref) {
+            throw new BadRequestException('Missing Telr order reference');
+          }
           const telrResult = await this.telrService.processCallback(payload);
+          if (!telrResult.success && telrResult.error) {
+            // Re-check failures from API are payment failures; missing config already thrown
+            this.logger.warn(`Telr callback not successful: ${telrResult.error}`);
+          }
           result = {
             success: telrResult.success,
             orderId: (telrResult as any).orderId,
@@ -630,12 +640,18 @@ export class PaymentsService {
         }
 
         case 'ccavenue': {
+          if (!this.ccavenueService.isConfigured()) {
+            throw new BadRequestException('CCAvenue is not configured');
+          }
           const encResponse = payload.encResp || payload.enc_response;
           if (!encResponse) {
             throw new BadRequestException('Missing encrypted response');
           }
 
           const ccResult = await this.ccavenueService.verifyPayment(encResponse);
+          if (!ccResult.success && ccResult.error?.toLowerCase().includes('decrypt')) {
+            throw new BadRequestException('CCAvenue response decryption failed');
+          }
           result = {
             success: ccResult.success,
             orderId: ccResult.orderId,

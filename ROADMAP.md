@@ -93,7 +93,7 @@
 
 ### ب) التكاملات
 
-- [~] Stripe / PayPal / Thawani / Oman Net — sandbox + webhooks موقّعة (Stripe/Thawani/PayPal fail-closed؛ Oman Net hash mismatch → 400؛ soft-boot بدون مفاتيح)  
+- [~] Stripe / PayPal / Thawani / Oman Net / Telr / CCAvenue — webhooks موقّعة أو fail-closed (Telr يتطلب إعداد + مرجع؛ CCAvenue يرفض فشل التشفير بـ 400)  
 - [~] Oman Post / Aramex / DHL / FedEx / UPS — محاكٍ موثّق + fail-closed في production بدون مفاتيح (`SHIPPING_ALLOW_MOCK`؛ أدمن يعرض configured)؛ مفاتيح sandbox حقيقية عند التوفر  
 
 - [x] OpenAI — مفتاح + حدود معدل محلية + فشل آمن (503/429 بدل 400؛ soft fallback للـ assistant/embeddings؛ health يعكس configured)  
