@@ -2,9 +2,13 @@ import type { User } from "@/types";
 
 const USER_KEY = "bhd_user";
 
+function cookieOnlyMode(): boolean {
+  // Default true: prefer HttpOnly cookies; set NEXT_PUBLIC_AUTH_BEARER_FALLBACK=true to keep JWT in localStorage
+  return process.env.NEXT_PUBLIC_AUTH_BEARER_FALLBACK !== "true";
+}
+
 /**
- * Persist user profile locally. JWTs are stored in HttpOnly cookies by the API
- * (accessToken / refreshToken). A non-sensitive bhd_session flag helps middleware.
+ * Persist user profile locally. JWTs prefer HttpOnly cookies from the API.
  */
 export function persistAuthSession(
   accessToken: string | null | undefined,
@@ -15,13 +19,12 @@ export function persistAuthSession(
 
   try {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
-    // Keep tokens out of document.cookie (XSS). Optional memory/localStorage
-    // fallback remains in api.ts for Bearer clients / transition.
-    if (accessToken) {
-      localStorage.setItem("bhd_access_token", accessToken);
-    }
-    if (refreshToken) {
-      localStorage.setItem("bhd_refresh_token", refreshToken);
+    if (!cookieOnlyMode()) {
+      if (accessToken) localStorage.setItem("bhd_access_token", accessToken);
+      if (refreshToken) localStorage.setItem("bhd_refresh_token", refreshToken);
+    } else {
+      localStorage.removeItem("bhd_access_token");
+      localStorage.removeItem("bhd_refresh_token");
     }
   } catch {
     // ignore
@@ -29,7 +32,6 @@ export function persistAuthSession(
 
   const maxAge = 60 * 60 * 24 * 7;
   document.cookie = `bhd_session=1; path=/; max-age=${maxAge}; SameSite=Lax`;
-  // Clear legacy JS-readable JWT cookies if present
   document.cookie = "auth-token=; path=/; max-age=0; SameSite=Lax";
   document.cookie = "refresh-token=; path=/; max-age=0; SameSite=Lax";
 }

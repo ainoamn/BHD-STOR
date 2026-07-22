@@ -17,7 +17,7 @@ import { isDemoToken } from '@/lib/demo-token';
 // ---------------------------------------------------------------------------
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+  process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 const AUTH_TOKEN_KEY = 'bhd_access_token';
 const REFRESH_TOKEN_KEY = 'bhd_refresh_token';
@@ -37,12 +37,15 @@ let __refreshSubscribers: Array<(token: string) => void> = [];
  */
 export function setAuthToken(token: string): void {
   __memoryToken = token;
-  try {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(AUTH_TOKEN_KEY, token);
+  // Only persist Bearer token when fallback mode is enabled
+  if (process.env.NEXT_PUBLIC_AUTH_BEARER_FALLBACK === 'true') {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(AUTH_TOKEN_KEY, token);
+      }
+    } catch {
+      // silently ignore localStorage errors (e.g. private mode)
     }
-  } catch {
-    // silently ignore localStorage errors (e.g. private mode)
   }
 }
 

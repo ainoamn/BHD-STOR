@@ -36,8 +36,9 @@ if errorlevel 1 (
 
 if not exist .env.local (
   echo NEXT_PUBLIC_DEMO_MODE=false> .env.local
-  echo NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1>> .env.local
+  echo NEXT_PUBLIC_API_URL=/api/v1>> .env.local
   echo NEXT_PUBLIC_APP_URL=http://localhost:3000>> .env.local
+  echo BACKEND_URL=http://localhost:3001>> .env.local
 )
 
 if exist .next (

@@ -14,10 +14,12 @@ export async function runSeed(dataSource: DataSource): Promise<void> {
   console.log('Starting database seed...');
 
   await seedAdminUser(dataSource);
+  await seedDemoAccounts(dataSource);
   await seedSampleStores(dataSource);
   await seedSampleProducts(dataSource);
   await seedPaymentGateways(dataSource);
   await seedShippingCarriers(dataSource);
+  await seedDefaultCommissionPlan(dataSource);
 
   console.log('Database seed completed successfully!');
 }
@@ -61,6 +63,133 @@ async function seedAdminUser(dataSource: DataSource): Promise<void> {
   ]);
 
   console.log('Admin user seeded successfully');
+}
+
+/**
+ * Seed demo customer + seller (ACTIVE + email verified) for local checkout tests
+ */
+async function seedDemoAccounts(dataSource: DataSource): Promise<void> {
+  console.log('Seeding demo customer/seller accounts...');
+
+  const accounts = [
+    {
+      email: 'customer@bhdoman.com',
+      password: 'Customer@123!',
+      firstName: 'Ahmed',
+      lastName: 'Al Balushi',
+      firstNameAr: 'أحمد',
+      lastNameAr: 'البلوشي',
+      phone: '+96891110001',
+      role: 'customer',
+    },
+    {
+      email: 'seller@bhdoman.com',
+      password: 'Seller@123!',
+      firstName: 'Fatima',
+      lastName: 'Al Hinai',
+      firstNameAr: 'فاطمة',
+      lastNameAr: 'الهنائية',
+      phone: '+96891110002',
+      role: 'seller',
+    },
+  ];
+
+  for (const account of accounts) {
+    const existing = await dataSource.query(
+      `SELECT id FROM users WHERE email = $1 LIMIT 1`,
+      [account.email],
+    );
+    if (existing.length > 0) {
+      console.log(`User ${account.email} already exists, skipping...`);
+      continue;
+    }
+
+    const hashedPassword = hashSync(account.password, SALT_ROUNDS);
+    try {
+      await dataSource.query(
+        `
+        INSERT INTO users
+          (email, password, first_name, last_name, first_name_ar, last_name_ar, phone, role, status, email_verified, phone_verified, metadata)
+        VALUES
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `,
+        [
+          account.email,
+          hashedPassword,
+          account.firstName,
+          account.lastName,
+          account.firstNameAr,
+          account.lastNameAr,
+          account.phone,
+          account.role,
+          'active',
+          true,
+          true,
+          JSON.stringify({ seeded: true, demoPasswordHint: account.role }),
+        ],
+      );
+    } catch {
+      // Schema without Arabic name columns
+      await dataSource.query(
+        `
+        INSERT INTO users
+          (email, password, first_name, last_name, phone, role, status, email_verified, phone_verified, metadata)
+        VALUES
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `,
+        [
+          account.email,
+          hashedPassword,
+          account.firstName,
+          account.lastName,
+          account.phone,
+          account.role,
+          'active',
+          true,
+          true,
+          JSON.stringify({ seeded: true, demoPasswordHint: account.role }),
+        ],
+      );
+    }
+    console.log(`Seeded ${account.role}: ${account.email}`);
+  }
+}
+
+/**
+ * Default 10% marketplace commission plan
+ */
+async function seedDefaultCommissionPlan(dataSource: DataSource): Promise<void> {
+  console.log('Seeding default commission plan...');
+
+  try {
+    const existing = await dataSource.query(
+      `SELECT id FROM commission_plans WHERE name = $1 LIMIT 1`,
+      ['Default Marketplace 10%'],
+    );
+    if (existing.length > 0) {
+      console.log('Default commission plan already exists, skipping...');
+      return;
+    }
+
+    await dataSource.query(
+      `
+      INSERT INTO commission_plans (name, type, rate, "applicableTo", active, "productIds", "categoryIds")
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `,
+      [
+        'Default Marketplace 10%',
+        'percentage',
+        0.1,
+        'all_products',
+        true,
+        '',
+        '',
+      ],
+    );
+    console.log('Default commission plan seeded');
+  } catch (err) {
+    console.warn(`Commission plan seed skipped: ${(err as Error).message}`);
+  }
 }
 
 /**

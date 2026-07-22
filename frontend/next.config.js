@@ -171,10 +171,20 @@ const nextConfig = {
 
   // URL Rewrites
   async rewrites() {
+    const apiTarget =
+      process.env.BACKEND_URL ||
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      'http://localhost:3001';
+
     return [
+      // Same-origin proxy so browser cookies stay first-party on the Next host
+      {
+        source: '/api/v1/:path*',
+        destination: `${apiTarget}/api/v1/:path*`,
+      },
       {
         source: '/api/proxy/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`,
+        destination: `${process.env.NEXT_PUBLIC_API_URL || `${apiTarget}/api/v1`}/:path*`,
       },
       {
         source: '/api/internal/:path*',

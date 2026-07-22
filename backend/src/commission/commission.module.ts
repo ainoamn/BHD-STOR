@@ -1,14 +1,20 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommissionController } from './commission.controller';
 import { CommissionService } from './services/commission.service';
 import { CommissionPlan } from './entities/commission-plan.entity';
 import { Commission } from './entities/commission.entity';
+import { OrderCommissionListener } from './listeners/order-commission.listener';
+import { OrdersModule } from '../orders/orders.module';
+import { Store } from '../stores/entities/store.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CommissionPlan, Commission])],
+  imports: [
+    TypeOrmModule.forFeature([CommissionPlan, Commission, Store]),
+    forwardRef(() => OrdersModule),
+  ],
   controllers: [CommissionController],
-  providers: [CommissionService],
+  providers: [CommissionService, OrderCommissionListener],
   exports: [CommissionService],
 })
 export class CommissionModule {}
