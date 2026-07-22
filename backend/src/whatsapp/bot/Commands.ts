@@ -417,6 +417,8 @@ export const QUICK_REPLIES: Record<string, { command: string; args: string[] }> 
   cmd_checkout: { command: 'checkout', args: [] },
   cmd_support: { command: 'support', args: [] },
   cmd_help: { command: 'help', args: [] },
+  orders_recent: { command: 'order', args: [] },
+  orders_all: { command: 'order', args: [] },
   cmd_stores: { command: 'stores', args: [] },
 
   // Category shortcuts

@@ -294,6 +294,37 @@ export class WhatsAppController {
   }
 
   /**
+   * POST /whatsapp/simulate - Dry-run bot commands without Twilio/Meta send
+   * Useful for local smoke of /order and /track.
+   */
+  @Public()
+  @Post('simulate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Simulate WhatsApp bot command (no outbound provider send)',
+  })
+  async simulateCommand(
+    @Body()
+    body: {
+      phone?: string;
+      message: string;
+      userId?: string;
+      language?: 'en' | 'ar';
+    },
+  ) {
+    if (!body?.message?.trim()) {
+      throw new BadRequestException('message is required');
+    }
+    const phone = (body.phone || '+96890000000').replace(/^whatsapp:/, '');
+    const result = await this.whatsAppService.processCommand(phone, body.message.trim());
+    return {
+      success: true,
+      phone,
+      ...result,
+    };
+  }
+
+  /**
    * GET /whatsapp/health - Health check
    */
   @Get('health')

@@ -96,7 +96,7 @@
 - [ ] Stripe / PayPal / Thawani / Oman Net — sandbox + webhooks موقّعة  
 - [ ] Oman Post / Aramex / DHL — مفاتيح حقيقية أو محاكٍ موثّق  
 - [ ] OpenAI — مفتاح + حدود معدل + فشل آمن عند انقطاع الخدمة  
-- [ ] WhatsApp (Twilio/Meta) — webhook تحقق + أوامر `/track` `/order`
+- [x] WhatsApp (Twilio/Meta) — webhook تحقق + أوامر `/track` `/order` مربوطة بطلبات/شحنات حية + `POST /whatsapp/simulate`  
 
 ### ج) اللوجستيات الداخلية (شركة شحن داخل المنصة)
 

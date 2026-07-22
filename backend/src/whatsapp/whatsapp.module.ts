@@ -6,9 +6,12 @@ import { WhatsAppService } from './whatsapp.service';
 import { WhatsAppController } from './whatsapp.controller';
 import { WhatsAppGateway } from './whatsapp.gateway';
 import { BotEngine } from './bot/BotEngine';
+import { WhatsAppCommerceResolver } from './bot/WhatsAppCommerceResolver';
 import { OpenAIService } from '../ai/services/openai.service';
 import { SearchService } from '../ai/services/search.service';
 import { AiModule } from '../ai/ai.module';
+import { OrdersModule } from '../orders/orders.module';
+import { LogisticsModule } from '../logistics/logistics.module';
 
 /**
  * WhatsApp Module for BHD Oman E-Commerce Marketplace
@@ -16,10 +19,9 @@ import { AiModule } from '../ai/ai.module';
  * Provides:
  * - WhatsApp Business API integration (Twilio & Meta)
  * - Bot engine with NLP and command routing
+ * - Live /order and /track against orders + logistics
  * - Real-time WebSocket gateway for admin live chat
  * - Webhook handlers for incoming messages
- * - Template message management
- * - Conversation tracking and analytics
  */
 @Module({
   imports: [
@@ -29,18 +31,16 @@ import { AiModule } from '../ai/ai.module';
     }),
     ConfigModule,
     RedisModule,
-    // Import AiModule for OpenAI and Search services
     forwardRef(() => AiModule),
+    forwardRef(() => OrdersModule),
+    forwardRef(() => LogisticsModule),
   ],
   controllers: [WhatsAppController],
   providers: [
-    // Core WhatsApp service
     WhatsAppService,
-    // Bot engine for processing messages
     BotEngine,
-    // WebSocket gateway for real-time admin chat
+    WhatsAppCommerceResolver,
     WhatsAppGateway,
-    // AI services (also provided by AiModule, but registered here for standalone use)
     OpenAIService,
     SearchService,
   ],

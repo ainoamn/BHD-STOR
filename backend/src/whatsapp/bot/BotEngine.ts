@@ -12,6 +12,7 @@ import {
   findCommand,
   getWelcomeMessage,
 } from './Commands';
+import { WhatsAppCommerceResolver } from './WhatsAppCommerceResolver';
 
 export interface BotSession {
   phone: string;
@@ -42,6 +43,7 @@ export class BotEngine {
     @InjectRedis() private readonly redis: Redis,
     private readonly openaiService: OpenAIService,
     private readonly searchService: SearchService,
+    private readonly commerceResolver: WhatsAppCommerceResolver,
   ) {}
 
   /**
@@ -223,7 +225,8 @@ export class BotEngine {
         delete session.context.awaiting;
       }
 
-      return response;
+      // Resolve /order and /track against live marketplace data
+      return this.commerceResolver.enrich(response, session);
     } catch (error) {
       this.logger.error(`Command execution failed: ${error.message}`);
       return this.getErrorResponse(session.language);
@@ -345,11 +348,36 @@ export class BotEngine {
       case 'track': {
         // User provided tracking number
         const trackingNumber = message.trim();
-        return {
-          message: `📍 Tracking shipment *${trackingNumber}*...`,
-          type: 'order_status',
-          actions: [{ type: 'track_shipment', payload: { trackingNumber, userId: session.userId } }],
-        };
+        return this.commerceResolver.enrich(
+          {
+            message: `📍 Tracking shipment *${trackingNumber}*...`,
+            type: 'order_status',
+            actions: [
+              {
+                type: 'track_shipment',
+                payload: { trackingNumber, userId: session.userId },
+              },
+            ],
+          },
+          session,
+        );
+      }
+
+      case 'order': {
+        const orderId = message.trim();
+        return this.commerceResolver.enrich(
+          {
+            message: `📦 Checking order *${orderId}*...`,
+            type: 'order_status',
+            actions: [
+              {
+                type: 'get_order_status',
+                payload: { orderId, userId: session.userId },
+              },
+            ],
+          },
+          session,
+        );
       }
 
       case 'products': {
