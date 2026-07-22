@@ -14,7 +14,11 @@ export interface TelrPaymentResult {
 
 export interface TelrPaymentStatus {
   success: boolean;
+  /** True only after a successful Telr API check response */
+  verified?: boolean;
   transactionId?: string;
+  /** Marketplace order id from Telr cart (ivp_cart) — never trust webhook body */
+  orderId?: string;
   status?: string;
   amount?: number;
   currency?: string;
@@ -146,6 +150,13 @@ export class TelrService {
    */
   async checkPayment(transactionId: string): Promise<TelrPaymentStatus> {
     this.ensureConfigured();
+    if (!transactionId || typeof transactionId !== 'string') {
+      return {
+        success: false,
+        verified: false,
+        error: 'Missing Telr order_ref',
+      };
+    }
     try {
       const payload = {
         ivp_method: 'check',
@@ -164,13 +175,26 @@ export class TelrService {
 
       if (data.order) {
         const order = data.order;
+        const statusCode = String(order.status?.code ?? '');
+        const paid = statusCode === '3' || statusCode === '1'; // 3 = paid, 1 = authorized
+        const cartOrderId =
+          order.cartid ||
+          order.cart ||
+          order.cartId ||
+          order.order?.cartid ||
+          (typeof order.description === 'string' &&
+          order.description.startsWith('Order ')
+            ? order.description.replace(/^Order\s+/, '').trim()
+            : undefined);
 
         this.logger.log(`Telr payment status for ${transactionId}: ${order.status?.code}`);
 
         return {
-          success: order.status?.code === '3' || order.status?.code === '1', // 3 = paid, 1 = authorized
+          success: paid,
+          verified: true,
           transactionId: order.transaction?.ref || transactionId,
-          status: order.status?.text || 'unknown',
+          orderId: cartOrderId ? String(cartOrderId) : undefined,
+          status: order.status?.text || statusCode || 'unknown',
           amount: parseFloat(order.amount) || 0,
           currency: order.currency,
           lastFour: order.transaction?.lastfour,
@@ -180,6 +204,7 @@ export class TelrService {
 
       return {
         success: false,
+        verified: true,
         transactionId,
         error: 'Payment not found',
       };
@@ -187,6 +212,7 @@ export class TelrService {
       this.logger.error(`Telr payment check failed for ${transactionId}: ${error.message}`, error.stack);
       return {
         success: false,
+        verified: false,
         transactionId,
         error: error.response?.data?.error?.message || error.message,
       };
@@ -194,37 +220,36 @@ export class TelrService {
   }
 
   /**
-   * Process callback from Telr
+   * Process callback from Telr — always re-check with Telr API (never trust payload status).
    */
   async processCallback(data: any): Promise<TelrPaymentStatus> {
     this.ensureConfigured();
     try {
-      const { order_ref, status, amount, currency, tran_ref, auth_code, last_four } = data;
+      const order_ref =
+        data?.order_ref ||
+        data?.order?.ref ||
+        data?.OrderRef ||
+        null;
 
-      this.logger.log(`Telr callback received: ref ${order_ref}, status: ${status}`);
+      this.logger.log(
+        `Telr callback received: ref ${order_ref}, payload status: ${data?.status}`,
+      );
 
-      // Telr status codes: 1=authorized, 2=invalid, 3=paid, -1=cancelled, -2=declined
-      const isSuccessful = status === '3' || status === '1';
-
-      if (isSuccessful) {
-        // Verify by checking the payment
-        const checkResult = await this.checkPayment(order_ref);
-        return checkResult;
+      if (!order_ref) {
+        return {
+          success: false,
+          verified: false,
+          error: 'Missing Telr order_ref',
+        };
       }
 
-      return {
-        success: false,
-        transactionId: tran_ref || order_ref,
-        status: this.mapStatusCode(status),
-        amount: parseFloat(amount) || 0,
-        currency: currency || 'OMR',
-        authCode: auth_code,
-        lastFour: last_four,
-      };
+      // Fail-closed: ignore forged status/amount from client body
+      return await this.checkPayment(String(order_ref));
     } catch (error) {
       this.logger.error(`Telr callback processing failed: ${error.message}`, error.stack);
       return {
         success: false,
+        verified: false,
         error: error.message,
       };
     }

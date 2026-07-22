@@ -13,8 +13,8 @@
 طبقات Auth والتشفير وملكية المدفوعات/الطلبات **قوية نسبياً** بعد سلسلة إصلاحات P0 الأخيرة.  
 في هذه الجولة أُغلق أيضاً: **IDOR تحديث حالة الطلب**، **تقييد returnUrl للدفع وتسجيل الدخول**، و**إزالة fallback ثابت لـ WhatsApp verify token**.
 
-ما زال مفتوحاً للإنتاج الحقيقي: تحقق توقيع Telr، Redis للـ throttle، وتشغيل smoke على Docker.  
-**CSRF أصبح مفعّلاً عالمياً** (`CsrfGuard` APP_GUARD) مع استثناء webhooks.
+ما زال مفتوحاً للإنتاج الحقيقي: Redis للـ throttle، وتشغيل smoke على Docker.  
+**CSRF** و**Telr fail-closed** مفعّلان.
 
 | المحور | الحكم |
 |--------|--------|
@@ -50,7 +50,7 @@
 | 6 | ملكية الدفع/الاسترداد | `payments.service.ts` | P0 | ✅ |
 | 7 | تحديث حالة الطلب بدون ملكية (IDOR) | `orders.controller.ts` `PATCH :id/status` | P0 | ✅ **أُصلح 2026-07-23** (`updateStatusForRequester` + `assertOrderManageAccess`) |
 | 8 | Webhooks Stripe/PayPal/Thawani fail-closed | `payments.service.ts` | P0 | ✅ |
-| 9 | Telr بدون تحقق توقيع قوي | `payments.service.ts` case telr | P1 | ⚠️ مفتوح |
+| 9 | Telr بدون تحقق توقيع قوي | `payments.service.ts` case telr | P1 | ✅ **أُصلح 2026-07-23** (يتطلب `order_ref` + تأكيد عبر Telr API قبل paid · رفض غير المُتحقَّق بـ 400) |
 | 10 | Throttle على webhook | `ThrottlerGuard` + `WEBHOOK` | P1 | ✅ منطق / ⚠️ مخزن in-memory |
 | 11 | CSRF غير مفعّل عالمياً | `security/csrf` | P1 | ✅ **أُصلح 2026-07-23** (`APP_GUARD` + استثناء webhooks دفع/واتساب + FE header) |
 | 12 | Open redirect بعد login | `auth/login/page.tsx` | P1 | ✅ **أُصلح** (مسارات نسبية فقط) |
@@ -96,7 +96,7 @@
 
 1. Docker + Postgres + Redis → `npm run smoke`.  
 2. ~~تفعيل CSRF~~ → تم.  
-3. تحقق توقيع/تأكيد Telr عبر API.  
+3. ~~تحقق توقيع/تأكيد Telr عبر API~~ → تم (checkPayment إجباري).  
 4. Throttle على Redis.  
 5. مفاتيح sandbox Stripe/Thawani حقيقية + اختبار webhook.  
 6. عدم تفعيل `NEXT_PUBLIC_DEMO_MODE` في صورة الإنتاج.
@@ -111,4 +111,4 @@
 
 ---
 
-*آخر تحديث: 2026-07-23 — تدقيق + CSRF عالمي + إغلاق IDOR/returnUrl/واتساب.*
+*آخر تحديث: 2026-07-23 — CSRF عالمي + Telr fail-closed.*

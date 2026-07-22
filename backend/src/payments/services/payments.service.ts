@@ -694,17 +694,34 @@ export class PaymentsService {
           if (!this.telrService.isConfigured()) {
             throw new BadRequestException('Telr is not configured');
           }
-          if (!payload?.order_ref && !payload?.tran_ref) {
-            throw new BadRequestException('Missing Telr order reference');
+          const orderRef =
+            payload?.order_ref ||
+            payload?.order?.ref ||
+            payload?.OrderRef;
+          if (!orderRef) {
+            throw new BadRequestException(
+              'Missing Telr order_ref (tran_ref alone is not accepted)',
+            );
           }
+
           const telrResult = await this.telrService.processCallback(payload);
-          if (!telrResult.success && telrResult.error) {
-            // Re-check failures from API are payment failures; missing config already thrown
-            this.logger.warn(`Telr callback not successful: ${telrResult.error}`);
+
+          // Unverified API/check failures must not soft-ACK (forged callbacks)
+          if (telrResult.verified === false) {
+            throw new BadRequestException(
+              `Telr verification failed: ${telrResult.error || 'unable to confirm with Telr API'}`,
+            );
           }
+
+          if (telrResult.success && !telrResult.orderId) {
+            throw new BadRequestException(
+              'Telr payment verified but cart/order id is missing from Telr response',
+            );
+          }
+
           result = {
             success: telrResult.success,
-            orderId: (telrResult as any).orderId,
+            orderId: telrResult.orderId,
             action: telrResult.success ? 'payment_completed' : 'payment_failed',
           };
           break;
