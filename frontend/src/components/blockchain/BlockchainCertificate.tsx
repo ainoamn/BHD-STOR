@@ -18,7 +18,7 @@ import {
   AlertTriangle,
   FileText,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Progress } from '@/components/ui/progress';
 import { getCertificate } from '@/services/blockchain.service';
 

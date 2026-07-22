@@ -144,7 +144,7 @@ export async function trackProgress(
   action: string,
   value?: number,
 ): Promise<UserAchievement[]> {
-  const response = await apiClient.post(`${BASE_PATH}/track-progress`, {
+  const response = await apiClient.post<UserAchievement[]>(`${BASE_PATH}/track-progress`, {
     userId,
     action,
     value: value ?? 1,
@@ -153,7 +153,9 @@ export async function trackProgress(
 }
 
 export async function checkAchievements(userId: string): Promise<UserAchievement[]> {
-  const response = await apiClient.post(`${BASE_PATH}/check-achievements/${userId}`);
+  const response = await apiClient.post<UserAchievement[]>(
+    `${BASE_PATH}/check-achievements/${userId}`,
+  );
   return response.data;
 }
 
@@ -185,7 +187,7 @@ export async function getUserBadges(userId: string): Promise<UserBadge[]> {
 }
 
 export async function equipBadge(userId: string, badgeId: string): Promise<UserBadge> {
-  const response = await apiClient.post(`${BASE_PATH}/equip-badge`, {
+  const response = await apiClient.post<UserBadge>(`${BASE_PATH}/equip-badge`, {
     userId,
     badgeId,
   });
@@ -207,10 +209,13 @@ export async function joinChallenge(
   userId: string,
   challengeId: string,
 ): Promise<ChallengeParticipant> {
-  const response = await apiClient.post(`${BASE_PATH}/join-challenge`, {
-    userId,
-    challengeId,
-  });
+  const response = await apiClient.post<ChallengeParticipant>(
+    `${BASE_PATH}/join-challenge`,
+    {
+      userId,
+      challengeId,
+    },
+  );
   return response.data;
 }
 
@@ -240,7 +245,7 @@ export async function awardPoints(
   points: number,
   reason: string,
 ): Promise<LeaderboardEntry> {
-  const response = await apiClient.post(`${BASE_PATH}/award-points`, {
+  const response = await apiClient.post<LeaderboardEntry>(`${BASE_PATH}/award-points`, {
     userId,
     points,
     reason,

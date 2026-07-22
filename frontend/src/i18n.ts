@@ -67,9 +67,6 @@ export default getRequestConfig(async ({ locale }) => {
           hour: 'numeric',
           minute: 'numeric',
         },
-        relative: {
-          style: 'long',
-        },
       },
       number: {
         currency: {

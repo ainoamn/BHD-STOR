@@ -6,8 +6,8 @@ import { useTranslations } from "next-intl";
 import { Package, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/hooks/useCart";

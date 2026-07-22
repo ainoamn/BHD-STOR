@@ -6,8 +6,6 @@ import {
   QueryClientProvider,
   QueryCache,
   MutationCache,
-  Query,
-  Mutation,
 } from '@tanstack/react-query';
 
 // ------------------------------------------------------------------
@@ -95,10 +93,11 @@ function createQueryClient(): QueryClient {
       },
     },
     queryCache: new QueryCache({
-      onError: (error: Error, query: Query<unknown, Error, unknown, readonly unknown[]>) => {
+      onError: (error, query) => {
         // Log query errors
         const queryKey = query.queryKey;
-        const errorMessage = error?.message || 'An unknown error occurred';
+        const errorMessage =
+          error instanceof Error ? error.message : 'An unknown error occurred';
 
         // Show toast for critical errors (not for background refetches)
         if (query.state.data === undefined) {
@@ -114,10 +113,11 @@ function createQueryClient(): QueryClient {
       },
     }),
     mutationCache: new MutationCache({
-      onError: (error: Error, variables: unknown, _context: unknown, mutation: Mutation<unknown, Error, unknown, unknown>) => {
+      onError: (error, variables, _onMutateResult, mutation) => {
         // Log mutation errors
         const mutationKey = mutation.options.mutationKey;
-        const errorMessage = error?.message || 'An unknown error occurred';
+        const errorMessage =
+          error instanceof Error ? error.message : 'An unknown error occurred';
 
         showToastError(`Action failed: ${errorMessage}`);
 
@@ -129,7 +129,7 @@ function createQueryClient(): QueryClient {
           );
         }
       },
-      onSuccess: (_data: unknown, _variables: unknown, _context: unknown, mutation: Mutation<unknown, Error, unknown, unknown>) => {
+      onSuccess: (_data, _variables, _onMutateResult, mutation) => {
         const mutationKey = mutation.options.mutationKey;
 
         if (process.env.NODE_ENV === 'development') {

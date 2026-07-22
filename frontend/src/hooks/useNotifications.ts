@@ -72,7 +72,7 @@ export function useUnreadCount(): UseQueryResult<number, Error> {
  * Mark a specific notification as read with optimistic update.
  */
 export function useMarkAsRead(): UseMutationResult<
-  Notification,
+  void,
   Error,
   string
 > {
@@ -153,7 +153,7 @@ export function useMarkAsRead(): UseMutationResult<
  * Mark all notifications as read with optimistic update.
  */
 export function useMarkAllAsRead(): UseMutationResult<
-  { message: string },
+  void,
   Error,
   void
 > {

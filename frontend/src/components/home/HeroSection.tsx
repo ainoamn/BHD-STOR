@@ -2,7 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { useInView } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Search, TrendingUp, Store, ShoppingBag, Users } from "lucide-react";

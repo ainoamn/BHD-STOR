@@ -4,9 +4,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { useReturn, useUpdateReturnStatus } from '@/hooks/useReturns';
 import { ReturnTimeline } from '@/components/returns/ReturnTimeline';
 import { ReturnPolicyDisplay } from '@/components/returns/ReturnPolicy';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import {

@@ -9,7 +9,8 @@ export { DroneCard } from './DroneCard';
 export type { DroneCardProps, DroneStatus, DroneType } from './DroneCard';
 
 export { MissionControl } from './MissionControl';
-export type { MissionControlProps, Mission, MissionStatus } from './MissionControl';
+export type { Mission, MissionStatus } from './MissionControl';
+export type { MissionControlProps } from './MissionControl';
 
 export { FlightPath } from './FlightPath';
 export type { FlightPathProps, Waypoint } from './FlightPath';

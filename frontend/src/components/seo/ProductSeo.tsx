@@ -202,17 +202,25 @@ export default function ProductSeo({
         },
       }),
       ...(reviews.length > 0 && {
-        review: reviewsJsonLd.map((r) => ({
-          "@type": "Review",
-          author: { "@type": "Person", name: r.author?.name },
-          reviewRating: {
-            "@type": "Rating",
-            ratingValue: r.reviewRating?.ratingValue,
-            bestRating: 5,
-          },
-          reviewBody: r.reviewBody,
-          datePublished: r.datePublished,
-        })),
+        review: reviewsJsonLd.map((r) => {
+          const review = r as {
+            author?: { name?: string };
+            reviewRating?: { ratingValue?: number | string };
+            reviewBody?: string;
+            datePublished?: string;
+          };
+          return {
+            "@type": "Review",
+            author: { "@type": "Person", name: review.author?.name },
+            reviewRating: {
+              "@type": "Rating",
+              ratingValue: review.reviewRating?.ratingValue,
+              bestRating: 5,
+            },
+            reviewBody: review.reviewBody,
+            datePublished: review.datePublished,
+          };
+        }),
       }),
     },
     breadcrumbJsonLd,

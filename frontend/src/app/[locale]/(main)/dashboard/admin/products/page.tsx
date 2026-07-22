@@ -6,11 +6,11 @@ import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { useDebounce } from "use-debounce";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 import {
   Select,
   SelectContent,
@@ -119,7 +119,11 @@ export default function AdminProductsPage() {
   const updateStatusMutation = useAdminUpdateProductStatus();
   const moderateReviewMutation = useAdminModerateReview();
 
-  const products: ProductItem[] = productsData?.products ?? [];
+  const products: ProductItem[] = (productsData?.products ?? []).map((p) => ({
+    ...p,
+    rating: 0,
+    reviewsCount: 0,
+  }));
   const totalProducts = productsData?.total ?? 0;
   const totalPages = Math.ceil(totalProducts / limit);
   const categories = productsData?.categories ?? [];

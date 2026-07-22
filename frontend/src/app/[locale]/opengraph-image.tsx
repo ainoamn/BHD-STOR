@@ -1,6 +1,4 @@
 import { ImageResponse } from "next/og";
-import { readFile } from "fs/promises";
-import { join } from "path";
 
 // Route segment config
 export const runtime = "edge";
@@ -24,23 +22,16 @@ const PRICE_COLOR = "#006400";
 
 async function loadFont(): Promise<ArrayBuffer | null> {
   try {
-    // Try to load Tajawal font from local or CDN
-    const fontPath = join(process.cwd(), "public", "fonts", "Tajawal-Bold.ttf");
-    return await readFile(fontPath);
-  } catch {
-    // Fallback: try to fetch from Google Fonts CDN
-    try {
-      const response = await fetch(
-        "https://fonts.gstatic.com/s/tajawal/v9/Iurf6YBjOoCadl9OjTYYr8iQBhw.ttf"
-      );
-      if (response.ok) {
-        return await response.arrayBuffer();
-      }
-    } catch {
-      // Will use system font fallback
+    const response = await fetch(
+      "https://fonts.gstatic.com/s/tajawal/v9/Iurf6YBjOoCadl9OjTYYr8iQBhw.ttf"
+    );
+    if (response.ok) {
+      return await response.arrayBuffer();
     }
-    return null;
+  } catch {
+    // Will use system font fallback
   }
+  return null;
 }
 
 // ─── OG Image Generation ─────────────────────────────────────────────

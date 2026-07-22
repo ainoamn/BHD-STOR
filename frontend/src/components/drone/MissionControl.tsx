@@ -50,7 +50,7 @@ export interface Mission {
   }>;
 }
 
-interface MissionControlProps {
+export interface MissionControlProps {
   mission: Mission;
   onLaunch?: (missionId: string) => void;
   onAbort?: (missionId: string, reason: string) => void;

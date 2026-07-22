@@ -56,7 +56,7 @@ export function useOrders(
 export function useOrder(id: string): UseQueryResult<Order, Error> {
   return useQuery({
     queryKey: orderKeys.detail(id),
-    queryFn: () => ordersService.getOrderById(id),
+    queryFn: () => ordersService.getOrder(id),
     staleTime: 1000 * 60 * 1, // 1 minute
     gcTime: 1000 * 60 * 5,
     enabled: !!id,
@@ -95,7 +95,7 @@ export function useCreateOrder(): UseMutationResult<
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateOrderData) => ordersService.createOrder(data),
+    mutationFn: async (data: CreateOrderData) => (await ordersService.createOrder(data)).order,
     onSuccess: () => {
       // Invalidate orders list so the new order appears
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
@@ -119,7 +119,7 @@ export function useCancelOrder(): UseMutationResult<
 
   return useMutation({
     mutationFn: ({ orderId, reason }: { orderId: string; reason?: string }) =>
-      ordersService.cancelOrder(orderId, reason),
+      ordersService.cancelOrder(orderId, reason ?? 'Cancelled by user'),
     onSuccess: (updatedOrder) => {
       // Update the specific order cache
       queryClient.setQueryData(

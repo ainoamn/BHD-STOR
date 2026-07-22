@@ -8,7 +8,7 @@ import { Eye, EyeOff, AlertCircle } from "lucide-react";
 /*                               Input                                 */
 /* ------------------------------------------------------------------ */
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   helperText?: string;

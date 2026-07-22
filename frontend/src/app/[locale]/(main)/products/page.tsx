@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Package, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProducts } from "@/hooks/useProducts";
 import { TrendingProducts } from "@/components/home/TrendingProducts";

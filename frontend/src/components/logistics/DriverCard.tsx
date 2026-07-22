@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/progress";
 import { Star, Package, Phone, TrendingUp, User } from "lucide-react";
 import { cn } from "@/lib/utils";

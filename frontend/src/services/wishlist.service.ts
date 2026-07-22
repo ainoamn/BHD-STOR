@@ -5,6 +5,36 @@
 import { api } from './api';
 import { Product } from '../types';
 
+export interface WishlistItem {
+  id: string;
+  productId: string;
+  name: string;
+  price: number;
+  image: string;
+  addedAt: string;
+  product?: Product;
+}
+
+export interface Wishlist {
+  items: WishlistItem[];
+  totalItems: number;
+}
+
+function toWishlist(products: Product[]): Wishlist {
+  return {
+    items: products.map((p) => ({
+      id: p.id,
+      productId: p.id,
+      name: p.name,
+      price: p.price,
+      image: p.images?.[0]?.url ?? '',
+      addedAt: p.createdAt ?? new Date().toISOString(),
+      product: p,
+    })),
+    totalItems: products.length,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Local types
 // ---------------------------------------------------------------------------
@@ -106,9 +136,9 @@ export async function clearWishlist(): Promise<{ message: string }> {
 }
 
 export const wishlistService = {
-  getWishlist,
-  addToWishlist,
-  removeFromWishlist,
+  getWishlist: async () => toWishlist(await getWishlist()),
+  addToWishlist: async (productId: string) => toWishlist(await addToWishlist(productId)),
+  removeFromWishlist: async (productId: string) => toWishlist(await removeFromWishlist(productId)),
   isInWishlist,
   toggleWishlist,
   moveToCart,

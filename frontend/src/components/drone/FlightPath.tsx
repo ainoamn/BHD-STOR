@@ -17,7 +17,7 @@ export interface Waypoint {
   action?: string;
 }
 
-interface FlightPathProps {
+export interface FlightPathProps {
   waypoints: Waypoint[];
   width?: number;
   height?: number;

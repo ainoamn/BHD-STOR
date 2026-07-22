@@ -6,11 +6,11 @@ import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { useDebounce } from "use-debounce";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table,
@@ -116,7 +116,7 @@ export default function AdminStoresPage() {
 
   const handleVerify = (storeId: string, action: "approve" | "reject") => {
     verifyMutation.mutate(
-      { storeId, action },
+      { storeId, verified: action === "approve" },
       {
         onSuccess: () => {
           toast.success(

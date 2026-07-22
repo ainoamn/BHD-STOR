@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 /*                               Types                                 */
 /* ------------------------------------------------------------------ */
 
-export type BadgeVariant = "default" | "success" | "warning" | "error" | "info" | "gold" | "outline";
+export type BadgeVariant = "default" | "secondary" | "destructive" | "success" | "warning" | "error" | "info" | "gold" | "outline";
 export type BadgeSize = "sm" | "md" | "lg";
 
 /* ------------------------------------------------------------------ */
@@ -30,6 +30,8 @@ interface BadgeProps {
 
 const variantStyles: Record<BadgeVariant, string> = {
   default: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  secondary: "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
+  destructive: "bg-red-50 text-[#C41E3A] dark:bg-red-900/30 dark:text-red-400",
   success: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
   warning: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
   error: "bg-red-50 text-[#C41E3A] dark:bg-red-900/30 dark:text-red-400",
@@ -50,6 +52,8 @@ const sizeStyles: Record<BadgeSize, string> = {
 
 const variantDotColors: Record<BadgeVariant, string> = {
   default: "bg-gray-400",
+  secondary: "bg-gray-500",
+  destructive: "bg-[#C41E3A]",
   success: "bg-emerald-500",
   warning: "bg-amber-500",
   error: "bg-[#C41E3A]",

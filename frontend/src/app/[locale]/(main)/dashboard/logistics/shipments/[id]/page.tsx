@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/textarea";
 import { ShipmentStatusBadge } from "@/components/logistics/ShipmentStatusBadge";
-import { ShipmentTimeline } from "@/components/logistics/ShipmentTimeline";
+import { ShipmentTimeline, type TimelineEvent } from "@/components/logistics/ShipmentTimeline";
 import { DeliveryMap } from "@/components/logistics/DeliveryMap";
 import { Label } from "@/components/ui/label";
 import {
@@ -305,7 +305,7 @@ export default function ShipmentDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ShipmentTimeline events={shipmentData.timeline} />
+              <ShipmentTimeline events={shipmentData.timeline as TimelineEvent[]} />
             </CardContent>
           </Card>
 

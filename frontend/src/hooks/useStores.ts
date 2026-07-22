@@ -49,7 +49,7 @@ export function useStores(
       if (isDemoMode()) {
         const { demoStores } = await import("@/lib/demo-data");
         return {
-          data: demoStores as Store[],
+          data: demoStores as unknown as Store[],
           meta: {
             currentPage: 1,
             totalPages: 1,
@@ -95,7 +95,7 @@ export function useStoreBySlug(slug: string): UseQueryResult<Store, Error> {
         const { getDemoStoreBySlug } = await import("@/lib/demo-data");
         const store = getDemoStoreBySlug(slug);
         if (!store) throw new Error("Store not found");
-        return store as Store;
+        return store as unknown as Store;
       }
       return storesService.getStoreBySlug(slug);
     },
@@ -143,7 +143,7 @@ export function useFeaturedStores(): UseQueryResult<Store[], Error> {
     queryFn: async () => {
       if (isDemoMode()) {
         const { demoStores } = await import("@/lib/demo-data");
-        return demoStores as Store[];
+        return demoStores as unknown as Store[];
       }
       return storesService.getFeaturedStores();
     },

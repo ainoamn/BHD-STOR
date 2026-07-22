@@ -6,11 +6,11 @@ import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { useDebounce } from "use-debounce";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 import {
   Select,
   SelectContent,
@@ -109,7 +109,14 @@ export default function AdminUsersPage() {
 
   const updateUserMutation = useAdminUpdateUser();
 
-  const users: UserItem[] = usersData?.users ?? [];
+  const users: UserItem[] = (usersData?.users ?? []).map((u) => ({
+    id: u.id,
+    name: `${u.firstName} ${u.lastName}`.trim() || u.email,
+    email: u.email,
+    role: u.role,
+    status: u.status,
+    createdAt: u.createdAt,
+  }));
   const totalUsers = usersData?.total ?? 0;
   const totalPages = Math.ceil(totalUsers / limit);
 
@@ -140,7 +147,7 @@ export default function AdminUsersPage() {
 
   const handleUpdateUser = (userId: string, data: Partial<UserItem>) => {
     updateUserMutation.mutate(
-      { id: userId, ...data },
+      { userId, data: data as any },
       {
         onSuccess: () => {
           toast.success(t("updateSuccess"));
@@ -163,7 +170,7 @@ export default function AdminUsersPage() {
     }
 
     const updates = selectedUsers.map((id) =>
-      updateUserMutation.mutateAsync({ id, status: action })
+      updateUserMutation.mutateAsync({ userId: id, data: { status: action } as any })
     );
 
     Promise.all(updates)

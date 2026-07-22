@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 import { MapPin, Navigation } from "lucide-react";
 import { cn } from "@/lib/utils";
 

@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useReferralCode, useApplyReferral } from '@/hooks/useLoyalty';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
 import {
   Users,

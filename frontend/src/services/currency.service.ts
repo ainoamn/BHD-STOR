@@ -5,6 +5,15 @@
 import { api } from './api';
 import { Currency } from '../types';
 
+export type { Currency };
+
+export interface ConversionResult {
+  amount: number;
+  from: string;
+  to: string;
+  result: number;
+}
+
 // ---------------------------------------------------------------------------
 // Currency Endpoints
 // ---------------------------------------------------------------------------
@@ -120,7 +129,10 @@ export async function getExchangeRates(
 export const currencyService = {
   getCurrencies,
   getActiveCurrencies,
-  convert,
+  convert: async (amount: number, from: string, to: string): Promise<ConversionResult> => {
+    const result = await convert(amount, from, to);
+    return { amount, from, to, result };
+  },
   getDefaultCurrency,
   getUserCurrency,
   setUserCurrency,

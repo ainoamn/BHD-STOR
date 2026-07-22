@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Store } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { api } from "@/services/api";
 
 /**

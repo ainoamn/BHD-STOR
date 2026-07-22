@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Grid3X3 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCategories } from "@/hooks/useCategories";
 

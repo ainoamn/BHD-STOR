@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, ShieldCheck, ShieldAlert, Search, Loader2, Fingerprint, Lock, Hash, FileCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { verifyShipment } from '@/services/blockchain.service';
 
 interface VerificationResult {

@@ -62,7 +62,7 @@ export default function OfflineIndicator({
 
   // Check for pending sync actions
   useEffect(() => {
-    if (!showSyncStatus) return;
+    if (!showSyncStatus) return undefined;
 
     const checkPendingActions = async () => {
       try {
@@ -89,6 +89,8 @@ export default function OfflineIndicator({
       const interval = setInterval(checkPendingActions, 5000);
       return () => clearInterval(interval);
     }
+
+    return undefined;
   }, [isOnline, showSyncStatus]);
 
   // Trigger background sync
@@ -108,13 +110,21 @@ export default function OfflineIndicator({
         "sync-orders",
       ];
 
-      await Promise.all(
-        syncTags.map((tag) =>
-          registration.sync
-            .register(tag)
-            .catch((err) => console.log(`[Sync] ${tag} failed:`, err))
-        )
-      );
+      const syncManager = (
+        registration as ServiceWorkerRegistration & {
+          sync?: { register: (tag: string) => Promise<void> };
+        }
+      ).sync;
+
+      if (syncManager) {
+        await Promise.all(
+          syncTags.map((tag) =>
+            syncManager
+              .register(tag)
+              .catch((err: unknown) => console.log(`[Sync] ${tag} failed:`, err))
+          )
+        );
+      }
 
       // Wait a bit then check status
       setTimeout(() => {

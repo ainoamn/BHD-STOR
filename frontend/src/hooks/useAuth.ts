@@ -222,7 +222,10 @@ export function useUpdateAvatar(): UseMutationResult<
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (formData: FormData) => authService.updateAvatar(formData),
+    mutationFn: async (formData: FormData) => {
+      await authService.updateAvatar(formData);
+      return authService.getMe();
+    },
     onSuccess: (updatedUser) => {
       queryClient.setQueryData(authKeys.user(), updatedUser);
       queryClient.invalidateQueries({ queryKey: authKeys.user() });

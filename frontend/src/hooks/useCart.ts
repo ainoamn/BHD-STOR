@@ -77,18 +77,26 @@ export function useCartTotals(): CartTotals | null {
 
   return useMemo(() => {
     if (!cart) return null;
-    return cart.totals ?? {
-      subtotal: cart.items.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0,
-      ),
-      discount: cart.discount ?? 0,
-      tax: cart.tax ?? 0,
-      shipping: cart.shipping ?? 0,
-      total: cart.items.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0,
-      ) - (cart.discount ?? 0) + (cart.tax ?? 0) + (cart.shipping ?? 0),
+    const subtotal =
+      cart.subtotal ??
+      cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const discountTotal = cart.discountTotal ?? cart.discount ?? cart.totals?.discount ?? 0;
+    const taxTotal = cart.taxTotal ?? cart.tax ?? cart.totals?.tax ?? 0;
+    const shippingTotal = cart.shippingTotal ?? cart.shipping ?? cart.totals?.shipping ?? 0;
+    const grandTotal =
+      cart.grandTotal ??
+      cart.totals?.total ??
+      subtotal - discountTotal + taxTotal + shippingTotal;
+
+    return {
+      subtotal,
+      discountTotal,
+      taxTotal,
+      shippingTotal,
+      grandTotal,
+      currency: cart.currency,
+      itemCount: cart.itemCount ?? cart.items.reduce((sum, item) => sum + item.quantity, 0),
+      savings: discountTotal + (cart.couponDiscount ?? 0),
     };
   }, [cart]);
 }
@@ -110,7 +118,7 @@ export function useAddToCart(): UseMutationResult<
 
   return useMutation({
     mutationFn: ({ productId, quantity, variantId }: AddToCartVariables) =>
-      cartService.addToCart({ productId, quantity, variantId }),
+      cartService.addToCart({ productId, quantity: quantity ?? 1, variantId }),
     onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: cartKeys.detail() });
 
@@ -134,13 +142,20 @@ export function useAddToCart(): UseMutationResult<
         } else {
           const optimisticItem: CartItem = {
             id: `optimistic-${Date.now()}`,
+            cartId: previousCart.id,
             productId: variables.productId,
             variantId: variables.variantId,
             name: 'Loading...',
+            sku: '',
             price: 0,
             quantity: variables.quantity ?? 1,
+            maxQuantity: 99,
+            total: 0,
+            currency: previousCart.currency || 'OMR',
+            storeId: '',
             image: '',
             stock: 0,
+            addedAt: new Date().toISOString(),
           };
           newItems = [...previousCart.items, optimisticItem];
         }

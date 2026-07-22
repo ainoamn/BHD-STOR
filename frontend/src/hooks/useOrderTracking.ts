@@ -95,9 +95,10 @@ export function useTrackByTrackingNumber(trackingNumber: string | null) {
     },
     enabled: !!trackingNumber && trackingNumber.length > 5,
     staleTime: 1000 * 60 * 2,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Refetch more frequently if not delivered
-      if (data?.status === 'delivered' || data?.status === 'cancelled' || data?.status === 'returned') {
+      const status = query.state.data?.status;
+      if (status === 'delivered' || status === 'cancelled' || status === 'returned') {
         return false; // Stop refetching for terminal states
       }
       return 1000 * 60 * 3; // Every 3 minutes

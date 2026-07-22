@@ -6,11 +6,11 @@ import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDebounce } from "use-debounce";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 import {
   Select,
   SelectContent,
@@ -161,7 +161,7 @@ export default function AdminOrdersPage() {
     if (!selectedOrder || !statusToUpdate) return;
 
     updateStatusMutation.mutate(
-      { orderId: selectedOrder.id, status: statusToUpdate },
+      { orderId: selectedOrder.id, data: { status: statusToUpdate } },
       {
         onSuccess: () => {
           toast.success(t("statusUpdateSuccess"));

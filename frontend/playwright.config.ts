@@ -53,9 +53,6 @@ export default defineConfig({
     // Base URL to use in actions like `await page.goto('/')`
     baseURL: process.env.BASE_URL || 'http://localhost:3000',
 
-    // API URL for backend requests
-    apiURL: process.env.API_URL || 'http://localhost:3001/api/v1',
-
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
 

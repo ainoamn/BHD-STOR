@@ -1,6 +1,6 @@
 import type { Product } from "@/types";
 
-export const demoProducts: Product[] = [
+export const demoProducts = [
   {
     id: "1",
     name: "Omani Dates Premium",
@@ -107,7 +107,7 @@ export const demoProducts: Product[] = [
     reviewsCount: 34,
     stock: 18,
   },
-] as Product[];
+] as unknown as Product[];
 
 export const demoStores = [
   {
@@ -186,5 +186,7 @@ export function getDemoProductsByStoreName(storeName: string) {
     (s) => s.name === storeName || s.nameAr === storeName
   );
   const names = store ? [store.name, store.nameAr].filter(Boolean) : [storeName];
-  return demoProducts.filter((p) => names.includes(p.storeName));
+  return demoProducts.filter(
+    (p) => p.storeName != null && names.includes(p.storeName),
+  );
 }

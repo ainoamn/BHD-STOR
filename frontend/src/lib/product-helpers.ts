@@ -17,11 +17,15 @@ export function toPaginatedProducts(products: Product[]) {
 
 export function normalizeProduct(product: Product): Product & Record<string, unknown> {
   const p = product as Product & Record<string, unknown>;
+  const categoryName =
+    typeof p.category === "string"
+      ? p.category
+      : p.category?.name || "عام";
   return {
     ...p,
     stock: p.stock ?? 100,
-    category: (p.category as string) || "عام",
-    storeName: (p.storeName as string) || "متجر BHD",
+    category: categoryName,
+    storeName: p.storeName || "متجر BHD",
     reviewsCount: (p.reviewsCount as number) ?? (p.reviewCount as number) ?? 0,
     slug: p.slug || String(p.id),
   };

@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useReturns, useDeleteReturn } from '@/hooks/useReturns';
 import { ReturnCard } from '@/components/returns/ReturnCard';
 import { ReturnStatus } from '@/services/returns.service';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   RotateCcw,

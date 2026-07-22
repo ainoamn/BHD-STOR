@@ -9,7 +9,7 @@
 
 import React, { useMemo } from 'react';
 
-interface BatteryIndicatorProps {
+export interface BatteryIndicatorProps {
   level: number; // 0-100
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;

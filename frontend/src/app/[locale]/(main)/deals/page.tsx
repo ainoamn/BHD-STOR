@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Tag } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFeaturedProducts } from "@/hooks/useProducts";
 import { TrendingProducts } from "@/components/home/TrendingProducts";

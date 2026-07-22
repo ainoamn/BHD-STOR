@@ -5,10 +5,10 @@ import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 
@@ -69,7 +69,7 @@ export function AIAssistant() {
   ]);
 
   const chatMutation = useChat();
-  const { data: recommendations } = useRecommendations(isOpen);
+  const { data: recommendations } = useRecommendations(isOpen ? 10 : 0);
 
   // Auto-scroll to bottom
   useEffect(() => {

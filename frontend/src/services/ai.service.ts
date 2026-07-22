@@ -442,3 +442,45 @@ export async function generateReplySuggestion(
   }>('/ai/generate/reply', { message, context });
   return response.data.data;
 }
+
+export interface ChatRequest {
+  message: string;
+  context?: ChatContext;
+  history?: Array<{ role: string; content: string }>;
+}
+
+export type Recommendation = Product;
+export type SmartCartSuggestion = Product;
+export type SemanticSearchResult = Product;
+export interface TranslationResult {
+  translatedText: string;
+  from: string;
+  to: string;
+}
+
+export const aiService = {
+  chat: (request: ChatRequest) => chat(request.message, request.context),
+  getRecommendations: (limit = 10, filters?: RecommendationFilters) =>
+    getRecommendations(limit, filters),
+  getSmartCartSuggestions: (
+    cartItems: Array<{ productId: string; name: string; category?: string }>,
+  ) =>
+    getSmartCartSuggestions(
+      cartItems.map((item) => ({
+        id: item.productId,
+        productId: item.productId,
+        name: item.name,
+        quantity: 1,
+        price: 0,
+      })) as unknown as CartItem[],
+    ),
+  semanticSearch: async (query: string) => {
+    const result = await semanticSearch(query);
+    return result.products as SemanticSearchResult[];
+  },
+  translate: async (text: string, from: string, to: string): Promise<TranslationResult> => {
+    const translatedText = await translate(text, from, to);
+    return { translatedText, from, to };
+  },
+  analyzeSentiment,
+};

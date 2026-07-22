@@ -5,6 +5,26 @@
 import { api } from './api';
 import { Notification } from '../types';
 
+export type { Notification };
+
+export interface NotificationFilters {
+  page?: number;
+  limit?: number;
+  unreadOnly?: boolean;
+}
+
+export interface PaginatedNotifications {
+  items: Notification[];
+  data: Notification[];
+  unreadCount: number;
+  meta?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Local types
 // ---------------------------------------------------------------------------
@@ -184,3 +204,27 @@ export function subscribeToRealtimeNotifications(
     eventSource.close();
   };
 }
+
+export const notificationsService = {
+  getNotifications: async (filters: NotificationFilters = {}): Promise<PaginatedNotifications> => {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+    const data = await getNotifications(page, limit);
+    return {
+      items: data,
+      data,
+      unreadCount: data.filter((n) => !n.isRead).length,
+      meta: { page, limit, total: data.length, totalPages: 1 },
+    };
+  },
+  markAsRead,
+  markAllAsRead,
+  getUnreadCount,
+  deleteNotification,
+  deleteReadNotifications,
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  subscribePush,
+  unsubscribePush,
+  subscribeToRealtimeNotifications,
+};

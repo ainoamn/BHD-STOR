@@ -202,7 +202,7 @@ export function useReviews(
 ): UseQueryResult<Review[], Error> {
   return useQuery({
     queryKey: productKeys.reviews(productId),
-    queryFn: () => productsService.getReviews(productId),
+    queryFn: async () => (await productsService.getReviews(productId)).data,
     staleTime: 1000 * 60 * 2,
     gcTime: 1000 * 60 * 10,
     enabled: !!productId,
@@ -216,12 +216,13 @@ export function useReviews(
 export function useCreateReview(): UseMutationResult<
   Review,
   Error,
-  CreateReviewData
+  CreateReviewData & { productId: string }
 > {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateReviewData) => productsService.createReview(data),
+    mutationFn: ({ productId, ...data }: CreateReviewData & { productId: string }) =>
+      productsService.createReview(productId, data),
     onSuccess: (_newReview, variables) => {
       // Invalidate the reviews list for this product
       queryClient.invalidateQueries({

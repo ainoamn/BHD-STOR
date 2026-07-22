@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { LogisticsSidebar } from "@/components/logistics/LogisticsSidebar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
 import {
   Tooltip,
   TooltipContent,

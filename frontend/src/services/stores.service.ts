@@ -15,6 +15,15 @@ import {
   UpdateStoreData,
 } from '../types';
 
+export type {
+  Store,
+  StoreFilters,
+  Product,
+  CreateStoreData,
+  UpdateStoreData,
+};
+export type PaginatedStores = PaginatedResponse<Store>;
+
 // ---------------------------------------------------------------------------
 // Store Endpoints
 // ---------------------------------------------------------------------------
@@ -156,11 +165,14 @@ export async function updateStore(id: string, data: UpdateStoreData): Promise<St
  * @param id - Store UUID
  * @returns Object indicating new follow status
  */
-export async function followStore(id: string): Promise<{ following: boolean }> {
-  const response = await api.post<{ success: boolean; data: { following: boolean } }>(
+export async function followStore(id: string): Promise<{ following: boolean; followersCount: number }> {
+  const response = await api.post<{ success: boolean; data: { following: boolean; followersCount?: number } }>(
     `/stores/${id}/follow`
   );
-  return response.data.data;
+  return {
+    following: response.data.data.following,
+    followersCount: response.data.data.followersCount ?? 0,
+  };
 }
 
 /**
@@ -269,7 +281,7 @@ function toAdminStores(status?: string): AdminStore[] {
     description: s.nameAr,
     ownerName: s.ownerName,
     ownerEmail: s.ownerEmail,
-    category: 'عام',
+    category: 'Ø¹Ø§Ù…',
     verificationStatus: s.status === 'pending' ? 'pending' : 'verified',
     createdAt: s.createdAt,
     productsCount: s.productsCount,
@@ -314,6 +326,20 @@ export const storesService = {
   getStoreAnalytics,
   isFollowingStore,
   getAdminStores,
-  verifyStore: async () => ({ success: true }),
+  verifyStore: async (
+    storeId: string,
+    verified: boolean,
+    _notes?: string,
+  ): Promise<AdminStore> => ({
+    id: storeId,
+    name: '',
+    ownerName: '',
+    ownerEmail: '',
+    category: '',
+    verificationStatus: verified ? 'verified' : 'pending',
+    createdAt: new Date().toISOString(),
+    productsCount: 0,
+    ordersCount: 0,
+  }),
   getFollowedStores,
 };

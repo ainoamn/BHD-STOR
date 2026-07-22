@@ -222,6 +222,51 @@ export function useAdminProducts(
   });
 }
 
+/**
+ * Hook: useAdminUpdateProductStatus
+ * Mutation to update a product's status as admin.
+ */
+export function useAdminUpdateProductStatus(): UseMutationResult<
+  AdminProduct,
+  Error,
+  { productId: string; status: string }
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ productId, status }: { productId: string; status: string }) =>
+      productsService.updateAdminProductStatus(productId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.products.all() });
+    },
+  });
+}
+
+/**
+ * Hook: useAdminModerateReview
+ * Mutation to approve/reject a product review as admin.
+ */
+export function useAdminModerateReview(): UseMutationResult<
+  { id: string; status: string },
+  Error,
+  { reviewId: string; action: 'approve' | 'reject' }
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      reviewId,
+      action,
+    }: {
+      reviewId: string;
+      action: 'approve' | 'reject';
+    }) => productsService.moderateAdminReview(reviewId, action),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.products.all() });
+    },
+  });
+}
+
 // ------------------------------------------------------------------
 // Admin Orders Management
 // ------------------------------------------------------------------

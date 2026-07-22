@@ -2,8 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { Package, Heart, Settings, Shield, Store } from "lucide-react";
 
 export default function DashboardPage() {

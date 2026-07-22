@@ -13,6 +13,15 @@ import {
   OrderStatusEvent,
 } from '../types';
 
+export type {
+  Order,
+  OrderFilters,
+  CreateOrderData,
+};
+export type { OrderStatus } from '../types';
+export type PaginatedOrders = PaginatedResponse<Order>;
+export type OrderHistoryItem = OrderStatusEvent;
+
 // ---------------------------------------------------------------------------
 // Local types
 // ---------------------------------------------------------------------------
@@ -110,7 +119,7 @@ function toAdminOrders(): AdminOrder[] {
       {
         id: `item-${o.id}`,
         productId: '1',
-        productName: 'منتج تجريبي',
+        productName: 'Ù…Ù†ØªØ¬ ØªØ¬Ø±ÙŠØ¨ÙŠ',
         quantity: o.itemsCount,
         price: o.total / o.itemsCount,
         total: o.total,
@@ -123,9 +132,9 @@ function toAdminOrders(): AdminOrder[] {
     status: o.status,
     paymentStatus: 'paid',
     shippingAddress: {
-      street: 'شارع السلطان قابوس',
-      city: 'مسقط',
-      governorate: 'مسقط',
+      street: 'Ø´Ø§Ø±Ø¹ Ø§Ù„Ø³Ù„Ø·Ø§Ù† Ù‚Ø§Ø¨ÙˆØ³',
+      city: 'Ù…Ø³Ù‚Ø·',
+      governorate: 'Ù…Ø³Ù‚Ø·',
     },
     createdAt: o.createdAt,
     updatedAt: o.createdAt,
@@ -362,5 +371,30 @@ export const ordersService = {
   confirmReceipt,
   getOrderStats,
   getAdminOrders,
-  updateOrderStatus: async () => ({ success: true }),
+  updateOrderStatus: async (
+    orderId: string,
+    data: UpdateOrderStatusData,
+  ): Promise<AdminOrder> => ({
+    id: orderId,
+    orderNumber: '',
+    customerId: '',
+    customerName: '',
+    customerEmail: '',
+    storeId: '',
+    storeName: '',
+    items: [],
+    total: 0,
+    subtotal: 0,
+    shipping: 0,
+    discount: 0,
+    status: data.status,
+    paymentStatus: '',
+    shippingAddress: {
+      street: '',
+      city: '',
+      governorate: '',
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }),
 };

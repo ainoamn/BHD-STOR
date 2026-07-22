@@ -76,6 +76,7 @@ export interface User {
   firstName: string;
   lastName: string;
   fullName: string;
+  name?: string;
   avatar?: string;
   role: UserRole;
   status: UserStatus;
@@ -84,6 +85,7 @@ export interface User {
   addresses: Address[];
   preferences?: UserPreferences;
   storeId?: string; // for vendors
+  store?: { id: string; name?: string; slug?: string };
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;
@@ -148,6 +150,8 @@ export interface Store {
   rating: number;
   reviewCount: number;
   followerCount: number;
+  followersCount?: number;
+  isFollowing?: boolean;
   productCount: number;
   contactEmail?: string;
   contactPhone?: string;
@@ -192,11 +196,13 @@ export interface CreateStoreData {
   name: string;
   slug?: string;
   description?: string;
-  logo?: File;
-  banner?: File;
+  logo?: File | string;
+  banner?: File | string;
   contactEmail?: string;
   contactPhone?: string;
-  address?: Omit<Address, 'id'>;
+  phone?: string;
+  ownerId?: string;
+  address?: Omit<Address, 'id'> | string;
   socialLinks?: Store['socialLinks'];
   businessHours?: BusinessHours;
   returnPolicy?: string;
@@ -240,6 +246,7 @@ export type ProductCondition = 'new' | 'used' | 'refurbished';
 export interface Product {
   id: string;
   name: string;
+  nameAr?: string;
   slug: string;
   description: string;
   shortDescription?: string;
@@ -254,15 +261,21 @@ export interface Product {
   reservedQuantity: number;
   lowStockThreshold: number;
   isLowStock: boolean;
+  /** UI/demo convenience alias for quantity */
+  stock?: number;
+  /** Primary image URL (UI/demo convenience) */
+  image?: string;
   images: ProductImage[];
   categoryId: string;
-  category?: Category;
+  category?: Category | string;
   storeId: string;
   store?: Store;
+  storeName?: string;
   attributes: ProductAttribute[];
   variants: ProductVariant[];
   rating: number;
   reviewCount: number;
+  reviewsCount?: number;
   soldCount: number;
   viewCount: number;
   weight?: number;
@@ -276,6 +289,7 @@ export interface Product {
   tags: string[];
   isFeatured: boolean;
   isTrending: boolean;
+  isOnSale?: boolean;
   metaTitle?: string;
   metaDescription?: string;
   seoKeywords?: string[];
@@ -497,6 +511,16 @@ export interface Cart {
   itemCount: number;
   expiresAt?: string;
   updatedAt: string;
+  discount?: number;
+  tax?: number;
+  shipping?: number;
+  totals?: {
+    subtotal: number;
+    discount: number;
+    tax: number;
+    shipping: number;
+    total: number;
+  };
 }
 
 export interface CartItem {
@@ -517,6 +541,7 @@ export interface CartItem {
   storeId: string;
   storeName?: string;
   addedAt: string;
+  stock?: number;
 }
 
 export interface AddToCartData {
@@ -817,6 +842,7 @@ export interface Notification {
   message: string;
   image?: string;
   isRead: boolean;
+  readAt?: string;
   actionUrl?: string;
   actionLabel?: string;
   metadata?: Record<string, unknown>;
@@ -838,6 +864,8 @@ export interface Currency {
   isActive: boolean;
   isDefault: boolean;
   sortOrder: number;
+  locale?: string;
+  symbolPosition?: 'before' | 'after';
 }
 
 export interface CurrencyConversion {

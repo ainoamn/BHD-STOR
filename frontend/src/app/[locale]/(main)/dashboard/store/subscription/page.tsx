@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Check, CreditCard, Percent } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/hooks/useAuth";
 import { isSellerRole } from "@/lib/auth-helpers";
 import { api } from "@/services/api";

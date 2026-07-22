@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { isAdminRole } from "@/lib/auth-helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminAnalytics } from "@/hooks/useAdmin";
+import type { AdminAnalyticsPeriod } from "@/services/analytics.service";
 
 import {
   TrendingUp,
@@ -63,8 +64,6 @@ const COLORS = [
   "#ef4444",
 ];
 
-type Period = "day" | "week" | "month" | "year";
-
 function AnalyticsSkeleton() {
   return (
     <div className="space-y-6">
@@ -96,7 +95,7 @@ export default function AdminAnalyticsPage() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const [period, setPeriod] = useState<Period>("month");
+  const [period, setPeriod] = useState<AdminAnalyticsPeriod>("month");
 
   const {
     data: analytics,
@@ -179,8 +178,7 @@ export default function AdminAnalyticsPage() {
     },
   ];
 
-  const periods: { value: Period; label: string }[] = [
-    { value: "day", label: t("periods.day") },
+  const periods: { value: AdminAnalyticsPeriod; label: string }[] = [
     { value: "week", label: t("periods.week") },
     { value: "month", label: t("periods.month") },
     { value: "year", label: t("periods.year") },
@@ -202,7 +200,7 @@ export default function AdminAnalyticsPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             {t("refresh")}
           </Button>
-          <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
+          <Tabs value={period} onValueChange={(v) => setPeriod(v as AdminAnalyticsPeriod)}>
             <TabsList>
               {periods.map((p) => (
                 <TabsTrigger key={p.value} value={p.value}>

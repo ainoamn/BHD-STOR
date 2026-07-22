@@ -3,8 +3,8 @@
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, Package, ShoppingCart, Star } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProductBySlug } from "@/hooks/useProducts";
 import { useCurrency } from "@/hooks/useCurrency";

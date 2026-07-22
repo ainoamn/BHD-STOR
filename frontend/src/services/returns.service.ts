@@ -177,42 +177,45 @@ export const returnsService = {
   },
 
   update: async (id: string, data: Partial<CreateReturnData>): Promise<ReturnRequest> => {
-    const res = await apiClient.put(`/returns/${id}`, data);
+    const res = await apiClient.put<ReturnRequest>(`/returns/${id}`, data);
     return res.data;
   },
 
   updateStatus: async (id: string, status: ReturnStatus, notes?: string): Promise<ReturnRequest> => {
-    const res = await apiClient.patch(`/returns/${id}/status`, { status, notes });
+    const res = await apiClient.patch<ReturnRequest>(`/returns/${id}/status`, { status, notes });
     return res.data;
   },
 
   approve: async (id: string, refundAmount?: number): Promise<ReturnRequest> => {
-    const res = await apiClient.post(`/returns/${id}/approve`, { refundAmount });
+    const res = await apiClient.post<ReturnRequest>(`/returns/${id}/approve`, { refundAmount });
     return res.data;
   },
 
   reject: async (id: string, reason: string): Promise<ReturnRequest> => {
-    const res = await apiClient.post(`/returns/${id}/reject`, { reason });
+    const res = await apiClient.post<ReturnRequest>(`/returns/${id}/reject`, { reason });
     return res.data;
   },
 
   schedulePickup: async (id: string, date: string, driverId?: string): Promise<ReturnRequest> => {
-    const res = await apiClient.post(`/returns/${id}/schedule-pickup`, { date, driverId });
+    const res = await apiClient.post<ReturnRequest>(`/returns/${id}/schedule-pickup`, {
+      date,
+      driverId,
+    });
     return res.data;
   },
 
   processRefund: async (id: string): Promise<ReturnRequest> => {
-    const res = await apiClient.post(`/returns/${id}/process-refund`);
+    const res = await apiClient.post<ReturnRequest>(`/returns/${id}/process-refund`);
     return res.data;
   },
 
   processExchange: async (id: string): Promise<ReturnRequest> => {
-    const res = await apiClient.post(`/returns/${id}/process-exchange`);
+    const res = await apiClient.post<ReturnRequest>(`/returns/${id}/process-exchange`);
     return res.data;
   },
 
   markReceived: async (id: string): Promise<ReturnRequest> => {
-    const res = await apiClient.post(`/returns/${id}/mark-received`);
+    const res = await apiClient.post<ReturnRequest>(`/returns/${id}/mark-received`);
     return res.data;
   },
 
@@ -221,20 +224,26 @@ export const returnsService = {
   },
 
   getPolicy: async (storeId: string): Promise<ReturnPolicy> => {
-    const res = await apiClient.get(`/returns/policy/${storeId}`);
+    const res = await apiClient.get<ReturnPolicy>(`/returns/policy/${storeId}`);
     return res.data;
   },
 
   updatePolicy: async (storeId: string, data: Partial<ReturnPolicy>): Promise<ReturnPolicy> => {
-    const res = await apiClient.put(`/returns/policy/${storeId}`, data);
+    const res = await apiClient.put<ReturnPolicy>(`/returns/policy/${storeId}`, data);
     return res.data;
   },
 
-  checkEligibility: async (orderId: string, productId: string): Promise<{
+  checkEligibility: async (
+    orderId: string,
+    productId: string,
+  ): Promise<{
     eligible: boolean;
     reason?: string;
   }> => {
-    const res = await apiClient.post('/returns/check-eligibility', { orderId, productId });
+    const res = await apiClient.post<{ eligible: boolean; reason?: string }>(
+      '/returns/check-eligibility',
+      { orderId, productId },
+    );
     return res.data;
   },
 };

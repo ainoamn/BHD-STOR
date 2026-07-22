@@ -2,9 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { ReturnRequest, ReturnStatus, ReturnType, ReturnReason } from '@/services/returns.service';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { 
   RotateCcw, 
   ArrowLeftRight, 

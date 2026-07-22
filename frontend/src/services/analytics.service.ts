@@ -90,11 +90,25 @@ export interface AdminDashboardStats {
   storesChange: number;
   totalOrders: number;
   ordersChange: number;
+  totalProducts?: number;
 }
 
 export interface AdminAnalyticsData {
   salesChart: Array<{ date: string; revenue: number; orders: number }>;
   categoryBreakdown: Array<{ name: string; value: number; color?: string }>;
+  summary?: {
+    totalRevenue?: number;
+    revenueChange?: number;
+    totalOrders?: number;
+    ordersChange?: number;
+    newUsers?: number;
+    usersChange?: number;
+    newStores?: number;
+    storesChange?: number;
+  };
+  topProducts?: Array<{ name: string; revenue: number }>;
+  revenueBreakdown?: Array<{ name: string; value: number }>;
+  platformGrowth?: Array<{ date: string; users: number; stores: number }>;
 }
 
 // ---------------------------------------------------------------------------

@@ -13,6 +13,8 @@ import type {
   ProcessPaymentData,
   PaymentGateway,
   RefundData,
+  PaymentInitResponse,
+  Refund,
 } from '@/services/payments.service';
 
 // ------------------------------------------------------------------
@@ -41,7 +43,7 @@ export function usePaymentHistory(
 ): UseQueryResult<PaginatedPayments, Error> {
   return useQuery({
     queryKey: paymentKeys.list(filters),
-    queryFn: () => paymentsService.getPaymentHistory(filters),
+    queryFn: () => paymentsService.getPaymentHistory(filters.page ?? 1, filters.limit ?? 10),
     staleTime: 1000 * 60 * 2, // 2 minutes
     gcTime: 1000 * 60 * 10,
     placeholderData: (previousData) => previousData,
@@ -55,7 +57,7 @@ export function usePaymentHistory(
 export function usePayment(id: string): UseQueryResult<Payment, Error> {
   return useQuery({
     queryKey: paymentKeys.detail(id),
-    queryFn: () => paymentsService.getPaymentById(id),
+    queryFn: () => paymentsService.getPaymentDetails(id),
     staleTime: 1000 * 60 * 3,
     gcTime: 1000 * 60 * 10,
     enabled: !!id,
@@ -84,7 +86,7 @@ export function useGateways(): UseQueryResult<PaymentGateway[], Error> {
  * Mutation to process a payment transaction.
  */
 export function useProcessPayment(): UseMutationResult<
-  Payment,
+  PaymentInitResponse,
   Error,
   ProcessPaymentData
 > {
@@ -107,14 +109,15 @@ export function useProcessPayment(): UseMutationResult<
  * Mutation to request a refund for a payment.
  */
 export function useCreateRefund(): UseMutationResult<
-  Payment,
+  Refund,
   Error,
   RefundData
 > {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: RefundData) => paymentsService.createRefund(data),
+    mutationFn: (data: RefundData) =>
+      paymentsService.createRefund(data.paymentId, data.amount, data.reason),
     onSuccess: (_refund, variables) => {
       // Invalidate the specific payment
       queryClient.invalidateQueries({
@@ -122,12 +125,8 @@ export function useCreateRefund(): UseMutationResult<
       });
       // Invalidate payment history
       queryClient.invalidateQueries({ queryKey: paymentKeys.lists() });
-      // Invalidate related order
-      if (variables.orderId) {
-        queryClient.invalidateQueries({
-          queryKey: ['orders', 'detail', variables.orderId],
-        });
-      }
+      // Invalidate related orders
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
   });
 }

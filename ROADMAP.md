@@ -114,7 +114,7 @@ Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification 
 
 ### هـ) جودة وهندسة
 
-- [~] `npm run build` ناجح لـ frontend وbackend (`backend`: `nest build` عبر SWC بدون typeCheck؛ frontend لم يُتحقق بعد في هذه الجولة)  
+- [~] `npm run build` ناجح لـ frontend وbackend (`backend`: SWC؛ `frontend`: `next build` ناجح بعد UI stubs + توحيد casing + إصلاحات أنواع)  
 - [ ] اختبارات وحدة/تكامل تعمل على CI  
 - [ ] لا مسارات API حساسة بدون Auth  
 - [ ] أسرار فقط عبر `.env` (لا تُرفع إلى Git)

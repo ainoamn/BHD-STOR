@@ -2,9 +2,9 @@
 
 import { useTranslations } from "next-intl";
 import { Package, Clock, CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import { demoCustomerOrders } from "@/lib/demo-admin-data";
 

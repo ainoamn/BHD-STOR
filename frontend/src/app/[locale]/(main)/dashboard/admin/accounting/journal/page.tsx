@@ -115,7 +115,7 @@ export default function JournalPage() {
         <div className="mb-8">
           <JournalEntryForm
             onSuccess={(entry) => {
-              setEntries([entry, ...entries]);
+              setEntries([entry as JournalEntry, ...entries]);
               setShowForm(false);
             }}
           />

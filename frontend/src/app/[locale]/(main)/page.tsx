@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
@@ -236,7 +236,7 @@ export default function HomePage() {
           </div>
         ) : (
           <FeaturedStores
-            stores={featuredStores ?? []}
+            stores={(featuredStores ?? []) as any}
             title={t("featuredStores.title")}
             viewAllHref="/stores"
           />
@@ -260,7 +260,7 @@ export default function HomePage() {
           </div>
         ) : (
           <TrendingProducts
-            products={featuredProducts ?? []}
+            products={(featuredProducts ?? []) as any}
             title={t("trendingProducts.title")}
             viewAllHref="/products"
           />

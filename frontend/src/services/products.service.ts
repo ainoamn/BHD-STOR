@@ -14,6 +14,15 @@ import {
   CreateReviewData,
 } from '../types';
 
+export type {
+  Product,
+  ProductFilters,
+  Review,
+  CreateReviewData,
+};
+export type PaginatedProducts = PaginatedResponse<Product>;
+export type ReviewData = CreateReviewData;
+
 // ---------------------------------------------------------------------------
 // Additional local types
 // ---------------------------------------------------------------------------
@@ -375,6 +384,51 @@ export async function getAdminProducts(
   return response.data.data;
 }
 
+export async function updateAdminProductStatus(
+  productId: string,
+  status: string,
+): Promise<AdminProduct> {
+  if (isDemoMode()) {
+    const product = demoAdminProducts.find((p) => p.id === productId);
+    if (!product) {
+      throw new Error('Product not found');
+    }
+    product.status = status as typeof product.status;
+    return {
+      id: product.id,
+      name: product.nameAr || product.name,
+      nameAr: product.nameAr,
+      slug: product.slug,
+      storeName: product.storeName,
+      price: product.price,
+      stock: product.stock,
+      status: product.status,
+      category: product.category,
+      createdAt: product.createdAt,
+    };
+  }
+  const response = await api.put<{ success: boolean; data: AdminProduct }>(
+    `/admin/products/${productId}/status`,
+    { status },
+  );
+  return response.data.data;
+}
+
+export async function moderateAdminReview(
+  reviewId: string,
+  action: 'approve' | 'reject',
+): Promise<{ id: string; status: string }> {
+  if (isDemoMode()) {
+    return { id: reviewId, status: action === 'approve' ? 'approved' : 'rejected' };
+  }
+  const status = action === 'approve' ? 'approved' : 'rejected';
+  const response = await api.put<{
+    success: boolean;
+    data: { id: string; status: string };
+  }>(`/admin/products/reviews/${reviewId}/moderate`, { status });
+  return response.data.data;
+}
+
 export const productsService = {
   getProducts,
   getProductById: getProduct,
@@ -394,4 +448,6 @@ export const productsService = {
   markReviewHelpful,
   getReviewSummary,
   getAdminProducts,
+  updateAdminProductStatus,
+  moderateAdminReview,
 };

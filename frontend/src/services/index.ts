@@ -82,7 +82,7 @@ export {
   updateStore,
   followStore,
   getFeaturedStores,
-  getStoreAnalytics,
+  getStoreAnalytics as getVendorStoreAnalytics,
   isFollowingStore,
   getFollowedStores,
 } from './stores.service';

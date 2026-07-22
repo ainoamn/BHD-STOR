@@ -5,9 +5,9 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import Image from "next/image";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
 import {
   DropdownMenu,
   DropdownMenuContent,

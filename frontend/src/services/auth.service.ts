@@ -14,6 +14,17 @@ import {
   UpdateUserData,
 } from '../types';
 
+export type {
+  RegisterData,
+  AuthResponse,
+  User,
+  UpdateUserData,
+};
+export type LoginCredentials = LoginData;
+export type ForgotPasswordData = { email: string };
+export type ResetPasswordData = { token: string; password: string };
+export type UpdateProfileData = UpdateUserData;
+
 // ---------------------------------------------------------------------------
 // Types specific to auth responses
 // ---------------------------------------------------------------------------

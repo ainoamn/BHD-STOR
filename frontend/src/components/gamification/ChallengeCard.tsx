@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Users, Trophy, Target, Calendar, Zap, Check, Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 
 export enum ChallengeType {
   DAILY = 'daily',
@@ -17,7 +17,7 @@ interface Challenge {
   name: string;
   nameAr: string;
   description: string;
-  type: ChallengeType;
+  type: ChallengeType | 'daily' | 'weekly' | 'special';
   condition: Record<string, unknown>;
   rewardPoints: number;
   rewardBadgeId: string | null;
@@ -81,7 +81,8 @@ function useCountdown(endDate: string) {
 }
 
 export function ChallengeCard({ challenge, isJoined, progress = 0, onJoin }: ChallengeCardProps) {
-  const config = typeConfig[challenge.type] || typeConfig[ChallengeType.DAILY];
+  const config =
+    typeConfig[challenge.type as ChallengeType] || typeConfig[ChallengeType.DAILY];
   const timeLeft = useCountdown(challenge.endDate);
   const [joining, setJoining] = useState(false);
 

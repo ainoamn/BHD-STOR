@@ -62,20 +62,50 @@ interface ShippingRateData {
 export function useShippingRates(
   data: ShippingRateData | null,
 ): UseQueryResult<ShippingRate[], Error> {
+  const requestData: ShippingRateRequest | null = data
+    ? {
+        origin: {
+          fullName: '',
+          phone: '',
+          line1: '',
+          country: data.origin.country,
+          city: data.origin.city,
+          postalCode: data.origin.postalCode,
+        },
+        destination: {
+          fullName: '',
+          phone: '',
+          line1: '',
+          country: data.destination.country,
+          city: data.destination.city,
+          postalCode: data.destination.postalCode,
+        },
+        weight: data.items.reduce(
+          (sum, item) => sum + item.weight * item.quantity,
+          0,
+        ),
+        weightUnit: 'kg',
+        items: data.items.map((item, index) => ({
+          productId: `item-${index}`,
+          quantity: item.quantity,
+          weight: item.weight,
+        })),
+      }
+    : null;
+
   return useQuery({
-    queryKey: shippingKeys.rate(data ?? ({} as ShippingRateRequest)),
+    queryKey: shippingKeys.rate(requestData ?? ({} as ShippingRateRequest)),
     queryFn: () => {
-      if (!data) throw new Error('Shipping rate data is required');
-      const requestData: ShippingRateRequest = {
-        origin: data.origin,
-        destination: data.destination,
-        items: data.items,
-      };
+      if (!requestData) throw new Error('Shipping rate data is required');
       return shippingService.getShippingRates(requestData);
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 15,
-    enabled: !!data && !!data.origin && !!data.destination && data.items.length > 0,
+    enabled:
+      !!requestData &&
+      !!data?.origin &&
+      !!data?.destination &&
+      data.items.length > 0,
     retry: 1,
   });
 }
@@ -90,7 +120,8 @@ export function useTrackShipment(
 ): UseQueryResult<TrackingInfo, Error> {
   return useQuery({
     queryKey: shippingKeys.tracking(trackingNumber, carrier),
-    queryFn: () => shippingService.trackShipment(trackingNumber, carrier),
+    queryFn: () =>
+      shippingService.trackShipment(trackingNumber, carrier ?? ''),
     staleTime: 1000 * 60 * 2, // 2 minutes
     gcTime: 1000 * 60 * 10,
     enabled: !!trackingNumber && trackingNumber.trim().length > 0,

@@ -1,9 +1,9 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/progress";
 import { RouteMap } from "@/components/logistics/RouteMap";
 import { ShipmentStatusBadge } from "@/components/logistics/ShipmentStatusBadge";

@@ -11,6 +11,21 @@ import {
   PaginatedResponse,
 } from '../types';
 
+export type {
+  Payment,
+  ProcessPaymentData,
+  PaymentGateway,
+  Refund,
+};
+export type RefundData = Refund;
+export type PaginatedPayments = PaginatedResponse<Payment>;
+export interface PaymentFilters {
+  page?: number;
+  limit?: number;
+  status?: string;
+  method?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Local types
 // ---------------------------------------------------------------------------
@@ -390,5 +405,27 @@ export const paymentsService = {
   verifyCBPayment,
   getWalletBalance,
   getWalletTransactions,
-  getAdminPayments: getPaymentHistory,
+  getAdminPayments: async (
+    filters: AdminPaymentFilters = {},
+  ): Promise<PaginatedAdminPayments> => {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const history = await getPaymentHistory(page, limit);
+    return {
+      data: history.data.map((p) => ({
+        id: p.id,
+        orderId: p.orderId,
+        amount: p.amount,
+        status: String(p.status),
+        paymentMethod: p.method,
+        createdAt: p.createdAt,
+      })),
+      meta: {
+        page: history.meta.currentPage,
+        limit: history.meta.perPage,
+        total: history.meta.totalCount,
+        totalPages: history.meta.totalPages,
+      },
+    };
+  },
 };

@@ -88,11 +88,11 @@ export async function createShipmentRecord(
   shipmentId: string,
   data: Record<string, unknown>,
 ): Promise<BlockchainRecord> {
-  const response = await apiClient.post(`${BASE_PATH}/record`, {
+  const response = await apiClient.post<BlockchainRecord>(`${BASE_PATH}/record`, {
     shipmentId,
     data,
   });
-  return response.data.data;
+  return response.data;
 }
 
 // Update shipment status on blockchain
@@ -101,40 +101,40 @@ export async function updateShipmentStatus(
   status: number,
   location: string,
 ): Promise<StatusUpdate> {
-  const response = await apiClient.post(`${BASE_PATH}/status`, {
+  const response = await apiClient.post<StatusUpdate>(`${BASE_PATH}/status`, {
     shipmentId,
     status,
     location,
   });
-  return response.data.data;
+  return response.data;
 }
 
 // Get full shipment history
 export async function getShipmentHistory(shipmentId: string): Promise<ShipmentHistory> {
-  const response = await apiClient.get(`${BASE_PATH}/${shipmentId}/history`);
-  return response.data.data;
+  const response = await apiClient.get<ShipmentHistory>(`${BASE_PATH}/${shipmentId}/history`);
+  return response.data;
 }
 
 // Verify shipment record integrity
 export async function verifyShipment(shipmentId: string): Promise<VerificationResult> {
-  const response = await apiClient.get(`${BASE_PATH}/${shipmentId}/verify`);
-  return response.data.data;
+  const response = await apiClient.get<VerificationResult>(`${BASE_PATH}/${shipmentId}/verify`);
+  return response.data;
 }
 
 // Get authenticity certificate
 export async function getCertificate(shipmentId: string): Promise<CertificateData> {
-  const response = await apiClient.get(`${BASE_PATH}/${shipmentId}/certificate`);
-  return response.data.data;
+  const response = await apiClient.get<CertificateData>(`${BASE_PATH}/${shipmentId}/certificate`);
+  return response.data;
 }
 
 // Get shipment details
 export async function getShipment(shipmentId: string): Promise<BlockchainRecord | null> {
-  const response = await apiClient.get(`${BASE_PATH}/${shipmentId}`);
-  return response.data.data;
+  const response = await apiClient.get<BlockchainRecord | null>(`${BASE_PATH}/${shipmentId}`);
+  return response.data;
 }
 
 // Health check
 export async function getBlockchainHealth(): Promise<HealthCheckResult> {
-  const response = await apiClient.get(`${BASE_PATH}/health`);
-  return response.data.data;
+  const response = await apiClient.get<HealthCheckResult>(`${BASE_PATH}/health`);
+  return response.data;
 }

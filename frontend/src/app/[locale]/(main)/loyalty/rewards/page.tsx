@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useRewards, usePointsBalance } from '@/hooks/useLoyalty';
 import { RewardCard } from '@/components/loyalty/RewardCard';
 import { RewardType } from '@/services/loyalty.service';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Gift,

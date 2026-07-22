@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Heart } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 
 export default function WishlistPage() {

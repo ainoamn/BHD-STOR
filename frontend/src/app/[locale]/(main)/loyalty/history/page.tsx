@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useTransactions } from '@/hooks/useLoyalty';
 import { PointsHistory } from '@/components/loyalty/PointsHistory';
 import { PointsTransactionType } from '@/services/loyalty.service';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/Badge';
 import {
   ArrowLeft,
   Clock,

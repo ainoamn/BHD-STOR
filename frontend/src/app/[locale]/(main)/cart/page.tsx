@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { Package, ShoppingBag, Trash2, Plus, Minus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {

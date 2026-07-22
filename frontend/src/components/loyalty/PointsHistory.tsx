@@ -1,8 +1,8 @@
 'use client';
 
 import { PointsTransaction, PointsTransactionType } from '@/services/loyalty.service';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   ArrowDownLeft,

@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { Star, MapPin, Package, ChevronRight, Store } from "lucide-react";
 
 interface Store {
