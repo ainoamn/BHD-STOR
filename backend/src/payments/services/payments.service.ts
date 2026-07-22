@@ -570,7 +570,13 @@ export class PaymentsService {
         }
 
         case 'oman_net': {
+          if (!this.omanNetService.isConfigured()) {
+            throw new BadRequestException('Oman Net is not configured');
+          }
           const omanResult = await this.omanNetService.processCallback(payload);
+          if (!omanResult.success && omanResult.error?.includes('Hash verification')) {
+            throw new BadRequestException('Oman Net callback signature verification failed');
+          }
           result = {
             success: omanResult.success,
             orderId: omanResult.orderId,

@@ -12,6 +12,7 @@ import { HttpExceptionFilter } from '@common/filters/http-exception.filter';
 import { TransformInterceptor } from '@common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from '@common/interceptors/logging.interceptor';
 import { WinstonLoggerService } from '@common/services/logger.service';
+import { assertProductionSecrets } from './config/assert-production-secrets';
 
 async function bootstrap() {
   const logger = new WinstonLoggerService();
@@ -23,6 +24,7 @@ async function bootstrap() {
   });
 
   const configService = app.get(ConfigService);
+  assertProductionSecrets(configService);
   const port = configService.get<number>('PORT', 3001);
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
   const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3000');

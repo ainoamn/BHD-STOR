@@ -101,6 +101,18 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         'analytics:*',
         'settings:*',
       ],
+      super_admin: [
+        'users:*',
+        'stores:*',
+        'products:*',
+        'orders:*',
+        'payments:*',
+        'shipping:*',
+        'subscriptions:*',
+        'analytics:*',
+        'settings:*',
+        'system:*',
+      ],
       seller: [
         'stores:manage',
         'products:manage',

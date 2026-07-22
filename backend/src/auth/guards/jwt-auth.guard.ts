@@ -27,24 +27,26 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       return true;
     }
 
-    // Add custom JWT auth logic
     const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers.authorization;
+    const authHeader = request.headers.authorization as string | undefined;
+    const cookieToken =
+      request.cookies?.accessToken ||
+      request.cookies?.authToken ||
+      null;
 
-    if (!authHeader) {
+    if (authHeader) {
+      const [type, token] = authHeader.split(' ');
+      if (type !== 'Bearer' || !token) {
+        throw new UnauthorizedException({
+          statusCode: 401,
+          message: 'Invalid authorization header format. Expected: Bearer <token>',
+          error: 'Unauthorized',
+        });
+      }
+    } else if (!cookieToken) {
       throw new UnauthorizedException({
         statusCode: 401,
-        message: 'Access token is required',
-        error: 'Unauthorized',
-      });
-    }
-
-    const [type, token] = authHeader.split(' ');
-
-    if (type !== 'Bearer' || !token) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        message: 'Invalid authorization header format. Expected: Bearer <token>',
+        message: 'Access token is required (Bearer header or accessToken cookie)',
         error: 'Unauthorized',
       });
     }
