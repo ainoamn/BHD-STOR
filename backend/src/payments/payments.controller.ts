@@ -321,7 +321,7 @@ export class PaymentsController {
   @Get('gateways/list')
   @ApiOperation({
     summary: 'List supported gateways (legacy)',
-    description: 'Active DB gateways + factory configuration status.',
+    description: 'Active DB gateways only (no internal config diagnostics).',
   })
   @ApiResponse({ status: 200, description: 'List of supported gateways' })
   async getSupportedGateways() {
@@ -330,7 +330,6 @@ export class PaymentsController {
       success: true,
       data: gateways,
       gateways: this.gatewayFactory.getSupportedGateways(),
-      configurations: this.gatewayFactory.validateGatewayConfig(),
     };
   }
 

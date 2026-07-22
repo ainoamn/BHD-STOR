@@ -296,6 +296,7 @@ export class WhatsAppController {
   /**
    * POST /whatsapp/simulate - Dry-run bot commands without Twilio/Meta send
    * Useful for local smoke of /order and /track.
+   * Disabled in production unless WHATSAPP_ALLOW_SIMULATE=true.
    */
   @Public()
   @Post('simulate')
@@ -312,6 +313,12 @@ export class WhatsAppController {
       language?: 'en' | 'ar';
     },
   ) {
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    const allow =
+      process.env.WHATSAPP_ALLOW_SIMULATE === 'true' || nodeEnv !== 'production';
+    if (!allow) {
+      throw new UnauthorizedException('WhatsApp simulate is disabled in production');
+    }
     if (!body?.message?.trim()) {
       throw new BadRequestException('message is required');
     }
