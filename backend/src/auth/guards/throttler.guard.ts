@@ -40,6 +40,11 @@ const THROTTLE_CONFIGS: Record<ThrottleLevel, ThrottleConfig> = {
     windowMs: 60 * 60 * 1000,
     maxRequests: 3,
   },
+  // Payment/shipping webhooks: 120 requests per minute
+  [ThrottleLevel.WEBHOOK]: {
+    windowMs: 60 * 1000,
+    maxRequests: 120,
+  },
 };
 
 // In-memory store for rate limiting (use Redis in production)

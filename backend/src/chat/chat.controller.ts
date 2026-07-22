@@ -23,6 +23,7 @@ import {
 import { ChatService } from './chat.service';
 import { SendMessageDto, MarkAsReadDto, ConversationFilterDto } from './dto/send-message.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { requireRequestUserId } from '../auth/utils/request-user';
 
 @ApiTags('Chat')
 @Controller('chat')
@@ -38,7 +39,7 @@ export class ChatController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Receiver not found' })
   async sendMessage(@Body() dto: SendMessageDto, @Request() req) {
-    const message = await this.chatService.sendMessage(req.user.userId, dto);
+    const message = await this.chatService.sendMessage(requireRequestUserId(req.user), dto);
     return {
       success: true,
       message: 'Message sent successfully',
@@ -63,7 +64,7 @@ export class ChatController {
     @Query('limit') limit: number = 20,
   ) {
     const result = await this.chatService.getConversations(
-      req.user.userId,
+      requireRequestUserId(req.user),
       +page,
       +limit,
     );
@@ -92,7 +93,7 @@ export class ChatController {
     @Request() req,
   ) {
     const conversation = await this.chatService.getConversation(
-      req.user.userId,
+      requireRequestUserId(req.user),
       conversationId,
     );
     return {
@@ -119,7 +120,7 @@ export class ChatController {
     @Query('limit') limit: number = 50,
   ) {
     const result = await this.chatService.getMessages(
-      req.user.userId,
+      requireRequestUserId(req.user),
       conversationId,
       +page,
       +limit,
@@ -150,7 +151,7 @@ export class ChatController {
     @Param('messageId', ParseUUIDPipe) messageId: string,
     @Request() req,
   ) {
-    const message = await this.chatService.markAsRead(req.user.userId, messageId);
+    const message = await this.chatService.markAsRead(requireRequestUserId(req.user), messageId);
     return {
       success: true,
       message: 'Message marked as read',
@@ -173,7 +174,7 @@ export class ChatController {
     @Param('conversationId', ParseUUIDPipe) conversationId: string,
     @Request() req,
   ) {
-    await this.chatService.markConversationAsRead(req.user.userId, conversationId);
+    await this.chatService.markConversationAsRead(requireRequestUserId(req.user), conversationId);
     return {
       success: true,
       message: 'All messages marked as read',
@@ -187,7 +188,7 @@ export class ChatController {
   @ApiResponse({ status: 200, description: 'Unread count retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getUnreadCount(@Request() req) {
-    const count = await this.chatService.getUnreadCount(req.user.userId);
+    const count = await this.chatService.getUnreadCount(requireRequestUserId(req.user));
     return {
       success: true,
       data: { count },
@@ -205,7 +206,7 @@ export class ChatController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getUnreadCountsByConversation(@Request() req) {
     const counts = await this.chatService.getUnreadCountsByConversation(
-      req.user.userId,
+      requireRequestUserId(req.user),
     );
     return {
       success: true,
@@ -227,7 +228,7 @@ export class ChatController {
     @Param('messageId', ParseUUIDPipe) messageId: string,
     @Request() req,
   ) {
-    await this.chatService.deleteMessage(req.user.userId, messageId);
+    await this.chatService.deleteMessage(requireRequestUserId(req.user), messageId);
     return {
       success: true,
       message: 'Message deleted successfully',

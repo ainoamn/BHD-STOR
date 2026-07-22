@@ -8,14 +8,15 @@
  *   API_BASE=http://localhost:3001/api/v1 node scripts/smoke-buy-path.mjs
  */
 const API_BASE = (process.env.API_BASE || 'http://localhost:3001/api/v1').replace(/\/$/, '');
+const ROOT_BASE = API_BASE.replace(/\/api\/v1$/, '') || 'http://localhost:3001';
 const EMAIL = process.env.SMOKE_EMAIL || 'customer@bhdoman.com';
 const PASSWORD = process.env.SMOKE_PASSWORD || 'Customer@123!';
 
-async function req(method, path, body, auth) {
+async function req(method, path, body, auth, base = API_BASE) {
   const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
   if (auth?.cookie) headers.Cookie = auth.cookie;
   if (auth?.bearer) headers.Authorization = `Bearer ${auth.bearer}`;
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${base}${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -58,6 +59,25 @@ function extractAccessToken(payload) {
 async function main() {
   console.log(`Smoke buy-path against ${API_BASE}`);
 
+  const live = await req('GET', '/health', null, null, ROOT_BASE);
+  if (!live.ok) {
+    console.error('HEALTH_FAILED', live.status, live.data);
+    process.exit(1);
+  }
+  console.log('OK health', live.data?.status || live.status);
+
+  const ready = await req('GET', '/health/ready', null, null, ROOT_BASE);
+  if (ready.ok && ready.data?.status === 'ready') {
+    console.log('OK ready', ready.data.status);
+  } else {
+    console.warn(
+      'WARN ready',
+      ready.status,
+      ready.data?.status || 'not_ready',
+      ready.data?.checks || ready.data,
+    );
+  }
+
   let cookie = '';
   let bearer = '';
   const login = await req('POST', '/auth/login', { email: EMAIL, password: PASSWORD });
@@ -73,9 +93,6 @@ async function main() {
   }
   const auth = { cookie, bearer };
   console.log('OK login', bearer ? '(bearer)' : '(cookie)');
-
-  const health = await req('GET', '/health');
-  console.log('OK health', health.data?.status || health.status);
 
   const products = await req('GET', '/products?limit=1', null, auth);
   const productList =

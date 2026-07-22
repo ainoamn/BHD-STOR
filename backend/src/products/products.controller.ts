@@ -31,6 +31,7 @@ import { CreateProductDto, ProductStatus } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductFilterDto } from './dto/product-filter.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { requireRequestUserId } from '../auth/utils/request-user';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
@@ -54,7 +55,7 @@ export class ProductsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Store or category not found' })
   async create(@Body() dto: CreateProductDto, @Request() req) {
-    const product = await this.productsService.create(req.user.userId, dto);
+    const product = await this.productsService.create(requireRequestUserId(req.user), dto);
     return {
       success: true,
       message: 'Product created successfully',

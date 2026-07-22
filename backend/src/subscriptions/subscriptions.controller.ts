@@ -22,6 +22,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { PlanTier } from './entities/subscription-plan.entity';
+import { requireRequestUserId } from '../auth/utils/request-user';
 
 @ApiTags('Subscriptions')
 @Controller('subscriptions')
@@ -51,7 +52,9 @@ export class SubscriptionsController {
   @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Current seller monetization choice' })
   async getMine(@Request() req) {
-    const data = await this.subscriptionsService.getMyMonetization(req.user.userId);
+    const data = await this.subscriptionsService.getMyMonetization(
+      requireRequestUserId(req.user),
+    );
     return { success: true, data };
   }
 
@@ -64,7 +67,7 @@ export class SubscriptionsController {
   })
   async choose(@Body() dto: ChooseMonetizationDto, @Request() req) {
     const data = await this.subscriptionsService.chooseMonetization(
-      req.user.userId,
+      requireRequestUserId(req.user),
       dto,
     );
     return { success: true, message: 'Monetization updated', data };
@@ -76,17 +79,22 @@ export class SubscriptionsController {
   @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Subscribe to a plan (alias of choose subscription)' })
   async subscribe(@Body() dto: SubscribeDto, @Request() req) {
-    const data = await this.subscriptionsService.subscribe(req.user.userId, {
-      plan: dto.plan as string,
-      billingCycle: dto.billingCycle as string,
-    });
+    const data = await this.subscriptionsService.subscribe(
+      requireRequestUserId(req.user),
+      {
+        plan: dto.plan as string,
+        billingCycle: dto.billingCycle as string,
+      },
+    );
     return { success: true, message: 'Subscribed', data };
   }
 
   @Get('my-subscription')
   @ApiBearerAuth()
   async mySubscription(@Request() req) {
-    const data = await this.subscriptionsService.getMySubscription(req.user.userId);
+    const data = await this.subscriptionsService.getMySubscription(
+      requireRequestUserId(req.user),
+    );
     return { success: true, data };
   }
 
@@ -94,7 +102,10 @@ export class SubscriptionsController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   async cancel(@Body() dto: CancelSubscriptionDto, @Request() req) {
-    const data = await this.subscriptionsService.cancel(req.user.userId, dto.reason);
+    const data = await this.subscriptionsService.cancel(
+      requireRequestUserId(req.user),
+      dto.reason,
+    );
     return { success: true, message: 'Switched to commission mode', data };
   }
 
@@ -102,9 +113,12 @@ export class SubscriptionsController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   async upgrade(@Body() dto: UpgradeSubscriptionDto, @Request() req) {
-    const data = await this.subscriptionsService.upgrade(req.user.userId, {
-      newPlan: dto.newPlan as string,
-    });
+    const data = await this.subscriptionsService.upgrade(
+      requireRequestUserId(req.user),
+      {
+        newPlan: dto.newPlan as string,
+      },
+    );
     return { success: true, data };
   }
 }

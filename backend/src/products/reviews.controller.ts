@@ -24,6 +24,7 @@ import {
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { requireRequestUserId } from '../auth/utils/request-user';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
@@ -44,7 +45,7 @@ export class ReviewsController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   @ApiResponse({ status: 409, description: 'Already reviewed this product' })
   async create(@Body() dto: CreateReviewDto, @Request() req) {
-    const review = await this.reviewsService.create(req.user.userId, dto);
+    const review = await this.reviewsService.create(requireRequestUserId(req.user), dto);
     return {
       success: true,
       message: 'Review created successfully',
@@ -103,7 +104,7 @@ export class ReviewsController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
   ) {
-    const result = await this.reviewsService.findByUser(req.user.userId, +page, +limit);
+    const result = await this.reviewsService.findByUser(requireRequestUserId(req.user), +page, +limit);
     return {
       success: true,
       data: result.data,
@@ -125,7 +126,7 @@ export class ReviewsController {
     @Param('productId', ParseUUIDPipe) productId: string,
     @Request() req,
   ) {
-    const canReview = await this.reviewsService.canReview(req.user.userId, productId);
+    const canReview = await this.reviewsService.canReview(requireRequestUserId(req.user), productId);
     return {
       success: true,
       data: { canReview },
@@ -159,7 +160,7 @@ export class ReviewsController {
     @Body() dto: Partial<CreateReviewDto>,
     @Request() req,
   ) {
-    const review = await this.reviewsService.update(id, req.user.userId, dto);
+    const review = await this.reviewsService.update(id, requireRequestUserId(req.user), dto);
     return {
       success: true,
       message: 'Review updated successfully',
@@ -178,7 +179,7 @@ export class ReviewsController {
   @ApiResponse({ status: 403, description: 'Can only delete own reviews' })
   @ApiResponse({ status: 404, description: 'Review not found' })
   async remove(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    await this.reviewsService.remove(id, req.user.userId);
+    await this.reviewsService.remove(id, requireRequestUserId(req.user));
     return {
       success: true,
       message: 'Review deleted successfully',

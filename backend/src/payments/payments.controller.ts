@@ -26,8 +26,10 @@ import { CreatePayoutDto } from './dto/create-payout.dto';
 import { WebhookResponseDto } from './dto/webhook.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ThrottlerGuard } from '../auth/guards/throttler.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { Throttle, ThrottleLevel } from '../common/decorators/throttle.decorator';
 import { requireRequestUserId } from '../auth/utils/request-user';
 
 @ApiTags('Payments')
@@ -138,6 +140,8 @@ export class PaymentsController {
    * Receive webhooks from payment gateways (public endpoint - no auth)
    */
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle(ThrottleLevel.WEBHOOK)
   @Post('webhook/:gateway')
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint(false)

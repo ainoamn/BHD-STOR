@@ -4,7 +4,7 @@
 > الخطط التاريخية في `docs/plans/` محفوظة للأرشيف فقط — لا تُكرَّر هنا ولا تُحدَّث كخطط عمل نشطة.  
 > المستودع الرسمي: [github.com/ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR)
 
-آخر مراجعة: 2026-07-22 · المسار المعتمد: `C:\dev\bhd-app`
+آخر مراجعة: 2026-07-23 · المسار المعتمد: `C:\dev\bhd-app`
 
 ---
 
@@ -115,8 +115,9 @@ Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification 
 ### هـ) جودة وهندسة
 
 - [~] `npm run build` ناجح لـ frontend وbackend (`backend`: SWC؛ `frontend`: `next build` ناجح بعد UI stubs + توحيد casing + إصلاحات أنواع)  
-- [~] اختبارات وحدة/تكامل تعمل على CI (CI يبني BE/FE؛ أُضيفت unit tests لـ request-user وassertProductionSecrets؛ باقي الاختبارات غير حاجزة)  
-- [~] لا مسارات API حساسة بدون Auth (JWT+Roles حراس عالميون؛ webhook دفع/واتساب عامة عمداً؛ `POST /whatsapp/simulate` معطّل في production إلا بـ `WHATSAPP_ALLOW_SIMULATE`؛ قائمة gateways العامة لا تكشف تشخيص الإعداد)  
+- [~] اختبارات وحدة/تكامل تعمل على CI (CI يبني BE/FE؛ unit tests لـ request-user وassertProductionSecrets؛ `npm run test:security` / `npm run smoke` / `npm run check:env`)  
+- [~] لا مسارات API حساسة بدون Auth (JWT+Roles حراس عالميون؛ webhook دفع/واتساب عامة عمداً مع `ThrottlerGuard`+`WEBHOOK`؛ `POST /whatsapp/simulate` معطّل في production إلا بـ `WHATSAPP_ALLOW_SIMULATE`؛ قائمة gateways العامة لا تكشف تشخيص الإعداد)  
+- [x] توحيد هوية JWT في controllers عبر `requireRequestUserId` (سلة/مفضلة/دردشة/إشعارات/متاجر/منتجات/مراجعات/اشتراكات/دفع)  
 - [~] أسرار فقط عبر `.env` (لا تُرفع إلى Git؛ `setup-env.bat` ينشئ `.env` محلياً؛ `docker-compose.infra.yml` لـ Postgres/Redis)  
 
 ---

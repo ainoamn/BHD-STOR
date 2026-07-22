@@ -20,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { WishlistService } from './wishlist.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { requireRequestUserId } from '../auth/utils/request-user';
 
 @ApiTags('Wishlist')
 @Controller('wishlist')
@@ -33,7 +34,7 @@ export class WishlistController {
   @ApiResponse({ status: 200, description: 'Wishlist retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getWishlist(@Request() req) {
-    const wishlist = await this.wishlistService.getWishlist(req.user.userId);
+    const wishlist = await this.wishlistService.getWishlist(requireRequestUserId(req.user));
     return {
       success: true,
       data: wishlist,
@@ -53,7 +54,7 @@ export class WishlistController {
     @Param('productId', ParseUUIDPipe) productId: string,
     @Request() req,
   ) {
-    const wishlist = await this.wishlistService.addToWishlist(req.user.userId, productId);
+    const wishlist = await this.wishlistService.addToWishlist(requireRequestUserId(req.user), productId);
     return {
       success: true,
       message: 'Product added to wishlist',
@@ -74,7 +75,7 @@ export class WishlistController {
     @Param('productId', ParseUUIDPipe) productId: string,
     @Request() req,
   ) {
-    const wishlist = await this.wishlistService.removeFromWishlist(req.user.userId, productId);
+    const wishlist = await this.wishlistService.removeFromWishlist(requireRequestUserId(req.user), productId);
     return {
       success: true,
       message: 'Product removed from wishlist',
@@ -93,7 +94,7 @@ export class WishlistController {
     @Param('productId', ParseUUIDPipe) productId: string,
     @Request() req,
   ) {
-    const inWishlist = await this.wishlistService.isInWishlist(req.user.userId, productId);
+    const inWishlist = await this.wishlistService.isInWishlist(requireRequestUserId(req.user), productId);
     return {
       success: true,
       data: { inWishlist },
@@ -111,7 +112,7 @@ export class WishlistController {
     @Param('productId', ParseUUIDPipe) productId: string,
     @Request() req,
   ) {
-    const result = await this.wishlistService.toggleWishlist(req.user.userId, productId);
+    const result = await this.wishlistService.toggleWishlist(requireRequestUserId(req.user), productId);
     return {
       success: true,
       message: result.inWishlist
@@ -128,7 +129,7 @@ export class WishlistController {
   @ApiResponse({ status: 200, description: 'Count retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getWishlistCount(@Request() req) {
-    const count = await this.wishlistService.getWishlistCount(req.user.userId);
+    const count = await this.wishlistService.getWishlistCount(requireRequestUserId(req.user));
     return {
       success: true,
       data: { count },
@@ -143,7 +144,7 @@ export class WishlistController {
   @ApiResponse({ status: 200, description: 'Wishlist cleared' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async clearWishlist(@Request() req) {
-    await this.wishlistService.clearWishlist(req.user.userId);
+    await this.wishlistService.clearWishlist(requireRequestUserId(req.user));
     return {
       success: true,
       message: 'Wishlist cleared successfully',

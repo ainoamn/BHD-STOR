@@ -6,6 +6,8 @@ export enum ThrottleLevel {
   LENIENT = 'lenient',
   LOGIN = 'login',
   REGISTER = 'register',
+  /** Public webhooks (Stripe bursts) — higher ceiling than STRICT */
+  WEBHOOK = 'webhook',
 }
 
 export const THROTTLE_KEY = 'throttle';

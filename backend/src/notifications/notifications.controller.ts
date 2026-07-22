@@ -23,6 +23,7 @@ import {
 } from '@nestjs/swagger';
 import { NotificationsService, NotificationType } from './notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { requireRequestUserId } from '../auth/utils/request-user';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
@@ -51,7 +52,7 @@ export class NotificationsController {
     @Query('unreadOnly') unreadOnly: boolean = false,
   ) {
     const result = await this.notificationsService.getNotifications(
-      req.user.userId,
+      requireRequestUserId(req.user),
       +page,
       +limit,
       unreadOnly,
@@ -79,7 +80,7 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Unread count retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getUnreadCount(@Request() req) {
-    const count = await this.notificationsService.getUnreadCount(req.user.userId);
+    const count = await this.notificationsService.getUnreadCount(requireRequestUserId(req.user));
     return {
       success: true,
       data: { count },
@@ -99,7 +100,7 @@ export class NotificationsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Request() req,
   ) {
-    const notification = await this.notificationsService.markAsRead(req.user.userId, id);
+    const notification = await this.notificationsService.markAsRead(requireRequestUserId(req.user), id);
     return {
       success: true,
       message: 'Notification marked as read',
@@ -115,7 +116,7 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'All notifications marked as read' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async markAllAsRead(@Request() req) {
-    const result = await this.notificationsService.markAllAsRead(req.user.userId);
+    const result = await this.notificationsService.markAllAsRead(requireRequestUserId(req.user));
     return {
       success: true,
       message: `${result.markedCount} notifications marked as read`,
@@ -136,7 +137,7 @@ export class NotificationsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Request() req,
   ) {
-    await this.notificationsService.deleteNotification(req.user.userId, id);
+    await this.notificationsService.deleteNotification(requireRequestUserId(req.user), id);
     return {
       success: true,
       message: 'Notification deleted',
@@ -154,7 +155,7 @@ export class NotificationsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getNotificationPreferences(@Request() req) {
     const preferences = await this.notificationsService.getNotificationPreferences(
-      req.user.userId,
+      requireRequestUserId(req.user),
     );
     return {
       success: true,

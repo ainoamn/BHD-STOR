@@ -31,6 +31,7 @@ import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { StoreFilterDto, StoreStatus } from './dto/store-filter.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { requireRequestUserId } from '../auth/utils/request-user';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
@@ -54,7 +55,7 @@ export class StoresController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 409, description: 'User already owns a store' })
   async create(@Body() dto: CreateStoreDto, @Request() req) {
-    const store = await this.storesService.create(req.user.userId, dto);
+    const store = await this.storesService.create(requireRequestUserId(req.user), dto);
     return {
       success: true,
       message: 'Store created successfully',
@@ -82,14 +83,14 @@ export class StoresController {
   }
 
   /**
-   * Public barcode/serial scan — opens that store only.
+   * Public barcode/serial scan â€” opens that store only.
    */
   @Public()
   @Get('scan/:code')
   @ApiOperation({
     summary: 'Resolve store by serial or barcode code',
     description:
-      'Used when a customer scans a store sticker. Returns the store slug/path for deep-link — never the marketplace home.',
+      'Used when a customer scans a store sticker. Returns the store slug/path for deep-link â€” never the marketplace home.',
   })
   @ApiParam({ name: 'code', example: 'BHD26-A1B2C3' })
   @ApiResponse({ status: 200, description: 'Store resolved' })
@@ -104,7 +105,7 @@ export class StoresController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get my store (includes serial, barcode code, scan URL)' })
   async findMine(@Request() req) {
-    const store = await this.storesService.findMine(req.user.userId);
+    const store = await this.storesService.findMine(requireRequestUserId(req.user));
     return { success: true, data: store };
   }
 
@@ -155,7 +156,7 @@ export class StoresController {
     @Body() dto: UpdateStoreDto,
     @Request() req,
   ) {
-    const isOwner = await this.storesService.checkOwnership(id, req.user.userId);
+    const isOwner = await this.storesService.checkOwnership(id, requireRequestUserId(req.user));
     if (!isOwner && req.user.role !== UserRole.ADMIN) {
       return {
         success: false,
@@ -181,7 +182,7 @@ export class StoresController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Store not found' })
   async remove(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    const isOwner = await this.storesService.checkOwnership(id, req.user.userId);
+    const isOwner = await this.storesService.checkOwnership(id, requireRequestUserId(req.user));
     if (!isOwner && req.user.role !== UserRole.ADMIN) {
       return {
         success: false,
@@ -235,7 +236,7 @@ export class StoresController {
     @UploadedFile() file: Express.Multer.File,
     @Request() req,
   ) {
-    const isOwner = await this.storesService.checkOwnership(id, req.user.userId);
+    const isOwner = await this.storesService.checkOwnership(id, requireRequestUserId(req.user));
     if (!isOwner) {
       return { success: false, message: 'Permission denied' };
     }
@@ -270,7 +271,7 @@ export class StoresController {
     @UploadedFile() file: Express.Multer.File,
     @Request() req,
   ) {
-    const isOwner = await this.storesService.checkOwnership(id, req.user.userId);
+    const isOwner = await this.storesService.checkOwnership(id, requireRequestUserId(req.user));
     if (!isOwner) {
       return { success: false, message: 'Permission denied' };
     }
@@ -309,7 +310,7 @@ export class StoresController {
     @Param('id', ParseUUIDPipe) id: string,
     @Request() req,
   ) {
-    const result = await this.storesService.followStore(req.user.userId, id);
+    const result = await this.storesService.followStore(requireRequestUserId(req.user), id);
     return {
       success: true,
       message: result.following ? 'Store followed successfully' : 'Store unfollowed successfully',

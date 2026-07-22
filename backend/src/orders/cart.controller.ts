@@ -24,6 +24,7 @@ import {
 import { CartService } from './cart.service';
 import { CartItemDto } from './dto/cart-item.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { requireRequestUserId } from '../auth/utils/request-user';
 
 @ApiTags('Cart')
 @Controller('cart')
@@ -37,7 +38,7 @@ export class CartController {
   @ApiResponse({ status: 200, description: 'Cart retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getCart(@Request() req) {
-    const cart = await this.cartService.getCart(req.user.userId);
+    const cart = await this.cartService.getCart(requireRequestUserId(req.user));
     return {
       success: true,
       data: cart,
@@ -53,7 +54,7 @@ export class CartController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Product not found' })
   async addItem(@Body() dto: CartItemDto, @Request() req) {
-    const cart = await this.cartService.addItem(req.user.userId, dto);
+    const cart = await this.cartService.addItem(requireRequestUserId(req.user), dto);
     return {
       success: true,
       message: 'Item added to cart',
@@ -76,7 +77,7 @@ export class CartController {
     @Body('quantity') quantity: number,
     @Request() req,
   ) {
-    const cart = await this.cartService.updateItem(req.user.userId, itemId, +quantity);
+    const cart = await this.cartService.updateItem(requireRequestUserId(req.user), itemId, +quantity);
     return {
       success: true,
       message: 'Cart item updated',
@@ -94,7 +95,7 @@ export class CartController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Cart item not found' })
   async removeItem(@Param('itemId', ParseUUIDPipe) itemId: string, @Request() req) {
-    const cart = await this.cartService.removeItem(req.user.userId, itemId);
+    const cart = await this.cartService.removeItem(requireRequestUserId(req.user), itemId);
     return {
       success: true,
       message: 'Item removed from cart',
@@ -110,7 +111,7 @@ export class CartController {
   @ApiResponse({ status: 200, description: 'Cart cleared' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async clearCart(@Request() req) {
-    await this.cartService.clearCart(req.user.userId);
+    await this.cartService.clearCart(requireRequestUserId(req.user));
     return {
       success: true,
       message: 'Cart cleared successfully',
@@ -126,7 +127,7 @@ export class CartController {
   @ApiResponse({ status: 400, description: 'Invalid coupon code' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async applyCoupon(@Body('code') code: string, @Request() req) {
-    const cart = await this.cartService.applyCoupon(req.user.userId, code);
+    const cart = await this.cartService.applyCoupon(requireRequestUserId(req.user), code);
     return {
       success: true,
       message: 'Coupon applied successfully',
@@ -142,7 +143,7 @@ export class CartController {
   @ApiResponse({ status: 200, description: 'Coupon removed' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async removeCoupon(@Request() req) {
-    const cart = await this.cartService.removeCoupon(req.user.userId);
+    const cart = await this.cartService.removeCoupon(requireRequestUserId(req.user));
     return {
       success: true,
       message: 'Coupon removed successfully',
@@ -157,7 +158,7 @@ export class CartController {
   @ApiResponse({ status: 200, description: 'Cart totals retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getCartTotals(@Request() req) {
-    const totals = await this.cartService.getCartTotals(req.user.userId);
+    const totals = await this.cartService.getCartTotals(requireRequestUserId(req.user));
     return {
       success: true,
       data: totals,
@@ -175,7 +176,7 @@ export class CartController {
     @Body('items') items: CartItemDto[],
     @Request() req,
   ) {
-    const cart = await this.cartService.mergeGuestCart(req.user.userId, items);
+    const cart = await this.cartService.mergeGuestCart(requireRequestUserId(req.user), items);
     return {
       success: true,
       message: 'Guest cart merged successfully',
