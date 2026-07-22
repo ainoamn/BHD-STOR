@@ -6,9 +6,12 @@ import { CommissionService } from '../services/commission.service';
 import { Commission } from '../entities/commission.entity';
 import { OrdersService } from '../../orders/orders.service';
 import { Store } from '../../stores/entities/store.entity';
+import { User, CommissionType } from '../../users/entities/user.entity';
 
 /**
  * Creates marketplace commission rows when an order is paid (or COD-confirmed).
+ * Skips per-order commission when the seller chose a pure subscription mode
+ * with 0% transaction fee.
  */
 @Injectable()
 export class OrderCommissionListener {
@@ -21,6 +24,8 @@ export class OrderCommissionListener {
     private readonly commissionRepo: Repository<Commission>,
     @InjectRepository(Store)
     private readonly storeRepo: Repository<Store>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
   ) {}
 
   @OnEvent('order.paid', { async: true })
@@ -48,6 +53,17 @@ export class OrderCommissionListener {
       const sellerId = store?.ownerId;
       if (!sellerId) {
         this.logger.warn(`Store ${storeId} has no owner — skip commission`);
+        return;
+      }
+
+      const seller = await this.userRepo.findOne({ where: { id: sellerId } });
+      if (
+        seller?.commissionType === CommissionType.SUBSCRIPTION &&
+        Number(seller.commissionRate ?? 0) === 0
+      ) {
+        this.logger.log(
+          `Seller ${sellerId} on subscription with 0% fee — skip order commission`,
+        );
         return;
       }
 

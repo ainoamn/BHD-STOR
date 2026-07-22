@@ -7,10 +7,11 @@ import { Commission } from './entities/commission.entity';
 import { OrderCommissionListener } from './listeners/order-commission.listener';
 import { OrdersModule } from '../orders/orders.module';
 import { Store } from '../stores/entities/store.entity';
+import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CommissionPlan, Commission, Store]),
+    TypeOrmModule.forFeature([CommissionPlan, Commission, Store, User]),
     forwardRef(() => OrdersModule),
   ],
   controllers: [CommissionController],

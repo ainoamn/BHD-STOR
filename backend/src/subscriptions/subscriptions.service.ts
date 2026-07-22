@@ -2,353 +2,213 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Subscription, SubscriptionStatus } from './entities/subscription.entity';
-import { SubscriptionPlan } from './entities/subscription-plan.entity';
-import { User } from '../users/entities/user.entity';
-import { SubscribeDto, UpgradeSubscriptionDto } from './dto/subscribe.dto';
-import { SubscriptionPlanType, BillingCycle } from './dto/create-subscription-plan.dto';
+import {
+  SubscriptionPlanEntity,
+  PlanTier,
+} from './entities/subscription-plan.entity';
+import { User, CommissionType, SubscriptionPlan as UserPlan } from '../users/entities/user.entity';
+import {
+  ChooseMonetizationDto,
+  MonetizationMode,
+} from './dto/choose-monetization.dto';
 
-export interface SubscriptionWithPlan extends Subscription {
-  planDetails?: SubscriptionPlan;
-}
-
-export interface FeatureAccessResult {
-  hasAccess: boolean;
-  feature: string;
-  currentPlan: SubscriptionPlanType;
-  requiredPlan?: SubscriptionPlanType;
-  message: string;
-}
+const DEFAULT_PLANS: Array<Partial<SubscriptionPlanEntity>> = [
+  {
+    name: 'Starter',
+    nameAr: 'البداية',
+    tier: PlanTier.FREE,
+    description: 'Start listing with a low fee.',
+    descriptionAr: 'ابدأ بعرض منتجاتك برسوم منخفضة.',
+    priceMonthly: 0,
+    priceYearly: 0,
+    productLimit: 10,
+    storageLimitMb: 100,
+    transactionFeePercent: 5,
+    sortOrder: 1,
+    isActive: true,
+    features: [{ feature: 'products', limit: 10 }],
+  },
+  {
+    name: 'Elite',
+    nameAr: 'النخبة',
+    tier: PlanTier.BASIC,
+    description: 'For small shops growing on BHD.',
+    descriptionAr: 'للمتاجر الصغيرة النامية على المنصة.',
+    priceMonthly: 9.9,
+    priceYearly: 99,
+    productLimit: 100,
+    storageLimitMb: 1024,
+    transactionFeePercent: 3.5,
+    sortOrder: 2,
+    isActive: true,
+    features: [{ feature: 'products', limit: 100 }],
+  },
+  {
+    name: 'Excellence',
+    nameAr: 'التميز',
+    tier: PlanTier.PREMIUM,
+    description: 'Advanced tools and lower fees.',
+    descriptionAr: 'أدوات متقدمة ورسوم أقل.',
+    priceMonthly: 29.9,
+    priceYearly: 299,
+    productLimit: 1000,
+    storageLimitMb: 10240,
+    transactionFeePercent: 2,
+    sortOrder: 3,
+    isActive: true,
+    features: [{ feature: 'products', limit: 1000 }],
+  },
+  {
+    name: 'Leadership',
+    nameAr: 'الريادة',
+    tier: PlanTier.ENTERPRISE,
+    description: 'Full platform access with dedicated support.',
+    descriptionAr: 'وصول كامل ودعم مخصص.',
+    priceMonthly: 99.9,
+    priceYearly: 999,
+    productLimit: 0,
+    storageLimitMb: 102400,
+    transactionFeePercent: 0,
+    sortOrder: 4,
+    isActive: true,
+    features: [{ feature: 'unlimited', limit: 0 }],
+  },
+];
 
 @Injectable()
 export class SubscriptionsService {
+  private readonly logger = new Logger(SubscriptionsService.name);
+
   constructor(
-    @InjectRepository(Subscription)
-    private readonly subscriptionRepository: Repository<Subscription>,
-    @InjectRepository(SubscriptionPlan)
-    private readonly planRepository: Repository<SubscriptionPlan>,
+    @InjectRepository(SubscriptionPlanEntity)
+    private readonly planRepository: Repository<SubscriptionPlanEntity>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
 
-  /**
-   * Get all subscription plans with features
-   */
-  async getPlans(): Promise<SubscriptionPlan[]> {
+  async getPlans(): Promise<SubscriptionPlanEntity[]> {
+    await this.ensureDefaultPlans();
     return this.planRepository.find({
       where: { isActive: true },
-      order: { tier: 'ASC', price: 'ASC' },
+      order: { sortOrder: 'ASC' },
     });
   }
 
-  /**
-   * Get a specific plan by type
-   */
-  async getPlanByType(planType: SubscriptionPlanType): Promise<SubscriptionPlan> {
+  async getPlanByTier(tier: PlanTier): Promise<SubscriptionPlanEntity> {
+    await this.ensureDefaultPlans();
     const plan = await this.planRepository.findOne({
-      where: { plan: planType, isActive: true },
+      where: { tier, isActive: true },
     });
-
     if (!plan) {
-      throw new NotFoundException(`Plan "${planType}" not found`);
+      throw new NotFoundException(`Plan tier "${tier}" not found`);
     }
-
     return plan;
   }
 
-  /**
-   * Subscribe user to a plan
-   */
-  async subscribe(userId: string, dto: SubscribeDto): Promise<Subscription> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['subscription'],
-    });
+  async ensureDefaultPlans(): Promise<void> {
+    const count = await this.planRepository.count();
+    if (count > 0) return;
 
-    if (!user) {
-      throw new NotFoundException('User not found');
+    for (const def of DEFAULT_PLANS) {
+      await this.planRepository.save(this.planRepository.create(def));
     }
-
-    const plan = await this.getPlanByType(dto.plan);
-
-    // Check if user already has an active subscription
-    if (user.subscription && user.subscription.status === SubscriptionStatus.ACTIVE) {
-      if (user.subscription.plan === dto.plan) {
-        throw new ConflictException('You are already subscribed to this plan');
-      }
-      // Cancel existing subscription first
-      await this.cancel(userId, 'Upgrading to new plan');
-    }
-
-    // Calculate period dates
-    const startDate = new Date();
-    const endDate = this.calculateEndDate(startDate, dto.billingCycle);
-
-    // Calculate price based on billing cycle
-    const price = this.calculatePrice(plan.price, dto.billingCycle);
-
-    const subscription = this.subscriptionRepository.create({
-      user,
-      plan: dto.plan,
-      billingCycle: dto.billingCycle,
-      status: SubscriptionStatus.ACTIVE,
-      startDate,
-      endDate,
-      price,
-      isAutoRenew: true,
-      features: plan.features || [],
-      productLimit: plan.productLimit || -1,
-      storageLimit: plan.storageLimit || 0,
-      commissionRate: plan.commissionRate || 0,
-    });
-
-    return this.subscriptionRepository.save(subscription);
+    this.logger.log('Seeded 4 default seller subscription plans');
   }
 
-  /**
-   * Cancel subscription
-   */
-  async cancel(userId: string, reason?: string): Promise<Subscription> {
-    const subscription = await this.getSubscription(userId);
+  async getMyMonetization(userId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
 
-    if (subscription.status !== SubscriptionStatus.ACTIVE) {
-      throw new BadRequestException('No active subscription to cancel');
-    }
+    const plans = await this.getPlans();
+    const currentPlan =
+      plans.find((p) => p.tier === (user.subscriptionPlan as unknown as PlanTier)) ||
+      null;
 
-    subscription.status = SubscriptionStatus.CANCELLED;
-    subscription.cancelReason = reason || 'User cancelled';
-    subscription.cancelledAt = new Date();
-    subscription.isAutoRenew = false;
-
-    return this.subscriptionRepository.save(subscription);
-  }
-
-  /**
-   * Renew subscription
-   */
-  async renew(userId: string): Promise<Subscription> {
-    const subscription = await this.getSubscription(userId);
-
-    if (subscription.status !== SubscriptionStatus.ACTIVE &&
-        subscription.status !== SubscriptionStatus.EXPIRED) {
-      throw new BadRequestException('Subscription cannot be renewed');
-    }
-
-    const plan = await this.getPlanByType(subscription.plan);
-
-    const startDate = new Date();
-    const endDate = this.calculateEndDate(startDate, subscription.billingCycle);
-    const price = this.calculatePrice(plan.price, subscription.billingCycle);
-
-    subscription.status = SubscriptionStatus.ACTIVE;
-    subscription.startDate = startDate;
-    subscription.endDate = endDate;
-    subscription.price = price;
-    subscription.cancelledAt = null;
-    subscription.cancelReason = null;
-    subscription.isAutoRenew = true;
-
-    return this.subscriptionRepository.save(subscription);
-  }
-
-  /**
-   * Check if user has access to a feature
-   */
-  async checkFeatureAccess(
-    userId: string,
-    feature: string,
-  ): Promise<FeatureAccessResult> {
-    try {
-      const subscription = await this.getSubscription(userId);
-      const features = subscription.features || [];
-
-      const hasAccess = features.includes(feature) ||
-        subscription.plan === SubscriptionPlanType.ENTERPRISE;
-
-      return {
-        hasAccess,
-        feature,
-        currentPlan: subscription.plan,
-        message: hasAccess
-          ? 'Feature is available'
-          : `Feature "${feature}" is not available on your current plan`,
-      };
-    } catch {
-      return {
-        hasAccess: false,
-        feature,
-        currentPlan: SubscriptionPlanType.FREE,
-        message: 'No active subscription. Please subscribe to access this feature.',
-      };
-    }
-  }
-
-  /**
-   * Get current subscription for user
-   */
-  async getSubscription(userId: string): Promise<Subscription> {
-    const subscription = await this.subscriptionRepository.findOne({
-      where: { user: { id: userId } },
-      order: { createdAt: 'DESC' },
-    });
-
-    if (!subscription) {
-      throw new NotFoundException('No subscription found for this user');
-    }
-
-    // Check if subscription expired
-    if (
-      subscription.status === SubscriptionStatus.ACTIVE &&
-      subscription.endDate < new Date()
-    ) {
-      subscription.status = SubscriptionStatus.EXPIRED;
-      await this.subscriptionRepository.save(subscription);
-    }
-
-    return subscription;
-  }
-
-  /**
-   * Get subscription status for user
-   */
-  async getSubscriptionStatus(userId: string): Promise<{
-    hasSubscription: boolean;
-    plan: SubscriptionPlanType | null;
-    status: SubscriptionStatus | null;
-    isActive: boolean;
-    daysRemaining: number;
-  }> {
-    try {
-      const subscription = await this.getSubscription(userId);
-      const daysRemaining = Math.max(
-        0,
-        Math.ceil(
-          (subscription.endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-        ),
-      );
-
-      return {
-        hasSubscription: true,
-        plan: subscription.plan,
-        status: subscription.status,
-        isActive: subscription.status === SubscriptionStatus.ACTIVE && daysRemaining > 0,
-        daysRemaining,
-      };
-    } catch {
-      return {
-        hasSubscription: false,
-        plan: null,
-        status: null,
-        isActive: false,
-        daysRemaining: 0,
-      };
-    }
-  }
-
-  /**
-   * Upgrade subscription plan
-   */
-  async upgrade(userId: string, dto: UpgradeSubscriptionDto): Promise<Subscription> {
-    const currentSubscription = await this.getSubscription(userId);
-
-    // Check if upgrade is valid (new plan should be higher tier)
-    const planHierarchy: Record<SubscriptionPlanType, number> = {
-      [SubscriptionPlanType.FREE]: 1,
-      [SubscriptionPlanType.BASIC]: 2,
-      [SubscriptionPlanType.STANDARD]: 3,
-      [SubscriptionPlanType.PREMIUM]: 4,
-      [SubscriptionPlanType.ENTERPRISE]: 5,
+    return {
+      mode: user.commissionType || CommissionType.PERCENTAGE,
+      subscriptionPlan: user.subscriptionPlan || UserPlan.FREE,
+      commissionRate: Number(user.commissionRate ?? 10),
+      currentPlan,
+      plans,
     };
+  }
 
-    const currentTier = planHierarchy[currentSubscription.plan] || 0;
-    const newTier = planHierarchy[dto.newPlan] || 0;
+  async chooseMonetization(userId: string, dto: ChooseMonetizationDto) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
 
-    if (newTier <= currentTier) {
-      throw new BadRequestException(
-        `Cannot upgrade from ${currentSubscription.plan} to ${dto.newPlan}. Use downgrade instead.`,
-      );
+    if (dto.mode === MonetizationMode.PERCENTAGE) {
+      const percent = dto.commissionPercent ?? 10;
+      user.commissionType = CommissionType.PERCENTAGE;
+      user.commissionRate = percent;
+      user.subscriptionPlan = UserPlan.FREE;
+      await this.userRepository.save(user);
+      return this.getMyMonetization(userId);
     }
 
-    // Cancel current and subscribe to new
-    await this.cancel(userId, `Upgrading to ${dto.newPlan}`);
+    if (!dto.planTier) {
+      throw new BadRequestException('planTier is required when mode=subscription');
+    }
 
-    return this.subscribe(userId, {
-      plan: dto.newPlan,
-      billingCycle: currentSubscription.billingCycle,
-      paymentMethodId: dto.paymentMethodId,
+    const plan = await this.getPlanByTier(dto.planTier);
+    user.commissionType = CommissionType.SUBSCRIPTION;
+    user.subscriptionPlan = plan.tier as unknown as UserPlan;
+    // Subscription sellers: per-order fee from plan (often 0–5%), stored as percent
+    user.commissionRate = Number(plan.transactionFeePercent ?? 0);
+    await this.userRepository.save(user);
+
+    return this.getMyMonetization(userId);
+  }
+
+  // Compatibility stubs for older controller routes
+  async getPlanByType(planType: string) {
+    const tier = planType as PlanTier;
+    if (!Object.values(PlanTier).includes(tier)) {
+      throw new NotFoundException(`Plan "${planType}" not found`);
+    }
+    return this.getPlanByTier(tier);
+  }
+
+  async subscribe(userId: string, dto: { plan: string; billingCycle?: string }) {
+    return this.chooseMonetization(userId, {
+      mode: MonetizationMode.SUBSCRIPTION,
+      planTier: dto.plan as PlanTier,
     });
   }
 
-  /**
-   * Downgrade subscription plan
-   */
-  async downgrade(userId: string, dto: UpgradeSubscriptionDto): Promise<Subscription> {
-    const currentSubscription = await this.getSubscription(userId);
+  async getMySubscription(userId: string) {
+    return this.getMyMonetization(userId);
+  }
 
-    const planHierarchy: Record<SubscriptionPlanType, number> = {
-      [SubscriptionPlanType.FREE]: 1,
-      [SubscriptionPlanType.BASIC]: 2,
-      [SubscriptionPlanType.STANDARD]: 3,
-      [SubscriptionPlanType.PREMIUM]: 4,
-      [SubscriptionPlanType.ENTERPRISE]: 5,
+  async cancel(userId: string, _reason?: string) {
+    return this.chooseMonetization(userId, {
+      mode: MonetizationMode.PERCENTAGE,
+      commissionPercent: 10,
+    });
+  }
+
+  async renew(userId: string) {
+    return this.getMyMonetization(userId);
+  }
+
+  async upgrade(userId: string, dto: { newPlan: string }) {
+    return this.chooseMonetization(userId, {
+      mode: MonetizationMode.SUBSCRIPTION,
+      planTier: dto.newPlan as PlanTier,
+    });
+  }
+
+  async checkFeatureAccess(userId: string, _feature: string) {
+    const m = await this.getMyMonetization(userId);
+    return {
+      hasAccess: true,
+      feature: _feature,
+      currentPlan: m.subscriptionPlan,
+      message: 'Access granted for MVP',
     };
-
-    const currentTier = planHierarchy[currentSubscription.plan] || 0;
-    const newTier = planHierarchy[dto.newPlan] || 0;
-
-    if (newTier >= currentTier) {
-      throw new BadRequestException(
-        `Cannot downgrade from ${currentSubscription.plan} to ${dto.newPlan}. Use upgrade instead.`,
-      );
-    }
-
-    await this.cancel(userId, `Downgrading to ${dto.newPlan}`);
-
-    return this.subscribe(userId, {
-      plan: dto.newPlan,
-      billingCycle: currentSubscription.billingCycle,
-      paymentMethodId: dto.paymentMethodId,
-    });
-  }
-
-  /**
-   * Calculate subscription end date based on billing cycle
-   */
-  private calculateEndDate(startDate: Date, billingCycle: BillingCycle): Date {
-    const endDate = new Date(startDate);
-
-    switch (billingCycle) {
-      case BillingCycle.MONTHLY:
-        endDate.setMonth(endDate.getMonth() + 1);
-        break;
-      case BillingCycle.QUARTERLY:
-        endDate.setMonth(endDate.getMonth() + 3);
-        break;
-      case BillingCycle.ANNUAL:
-        endDate.setFullYear(endDate.getFullYear() + 1);
-        break;
-    }
-
-    return endDate;
-  }
-
-  /**
-   * Calculate price based on billing cycle with discounts
-   */
-  private calculatePrice(basePrice: number, billingCycle: BillingCycle): number {
-    switch (billingCycle) {
-      case BillingCycle.MONTHLY:
-        return basePrice;
-      case BillingCycle.QUARTERLY:
-        return Math.round(basePrice * 3 * 0.9 * 100) / 100; // 10% discount
-      case BillingCycle.ANNUAL:
-        return Math.round(basePrice * 12 * 0.75 * 100) / 100; // 25% discount
-      default:
-        return basePrice;
-    }
   }
 }

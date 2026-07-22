@@ -26,7 +26,8 @@ import { Product } from '../products/entities/product.entity';
 import { Order } from '../orders/entities/order.entity';
 import { OrderItem } from '../orders/entities/order-item.entity';
 import { Payment } from '../payments/entities/payment.entity';
-import { Subscription, SubscriptionPlan } from '../subscriptions/entities/subscription.entity';
+import { Subscription } from '../subscriptions/entities/subscription.entity';
+import { SubscriptionPlanEntity } from '../subscriptions/entities/subscription-plan.entity';
 import { Review } from '../reviews/entities/review.entity';
 import { ActivityLog } from '../activity/entities/activity-log.entity';
 import { Payout } from '../payments/entities/payout.entity';
@@ -41,7 +42,7 @@ import { Payout } from '../payments/entities/payout.entity';
       OrderItem,
       Payment,
       Subscription,
-      SubscriptionPlan,
+      SubscriptionPlanEntity,
       Review,
       ActivityLog,
       Payout,

@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
-import { Subscription, SubscriptionPlan } from '../../subscriptions/entities/subscription.entity';
+import { Repository } from 'typeorm';
+import { Subscription } from '../../subscriptions/entities/subscription.entity';
+import { SubscriptionPlanEntity } from '../../subscriptions/entities/subscription-plan.entity';
 
 export interface SubscriberQueryDto {
   page?: number;
@@ -20,130 +21,63 @@ export class AdminSubscriptionsService {
   constructor(
     @InjectRepository(Subscription)
     private readonly subscriptionRepository: Repository<Subscription>,
-    @InjectRepository(SubscriptionPlan)
-    private readonly planRepository: Repository<SubscriptionPlan>,
+    @InjectRepository(SubscriptionPlanEntity)
+    private readonly planRepository: Repository<SubscriptionPlanEntity>,
   ) {}
 
   async findAllPlans() {
     const plans = await this.planRepository.find({
-      order: { price: 'ASC' },
-      relations: ['subscriptions'],
+      order: { sortOrder: 'ASC', priceMonthly: 'ASC' },
     });
-
-    return {
-      success: true,
-      data: plans,
-    };
+    return { success: true, data: plans };
   }
 
-  async createPlan(data: Partial<SubscriptionPlan>) {
+  async createPlan(data: Partial<SubscriptionPlanEntity>) {
     const plan = this.planRepository.create(data);
-    await this.planRepository.save(plan);
-
-    this.logger.log(`Subscription plan created: ${plan.name}`);
-
-    return {
-      success: true,
-      message: 'Subscription plan created successfully',
-      data: plan,
-    };
+    const saved = await this.planRepository.save(plan);
+    this.logger.log(`Created subscription plan: ${saved.id}`);
+    return { success: true, data: saved };
   }
 
-  async updatePlan(id: string, data: Partial<SubscriptionPlan>) {
+  async updatePlan(id: string, data: Partial<SubscriptionPlanEntity>) {
     const plan = await this.planRepository.findOne({ where: { id } });
-
-    if (!plan) {
-      throw new NotFoundException({
-        success: false,
-        message: `Subscription plan with ID ${id} not found`,
-      });
-    }
-
-    await this.planRepository.update(id, data);
-
-    const updatedPlan = await this.planRepository.findOne({
-      where: { id },
-      relations: ['subscriptions'],
-    });
-
-    return {
-      success: true,
-      message: 'Subscription plan updated successfully',
-      data: updatedPlan,
-    };
+    if (!plan) throw new NotFoundException(`Plan ${id} not found`);
+    Object.assign(plan, data);
+    const saved = await this.planRepository.save(plan);
+    return { success: true, data: saved };
   }
 
-  async getSubscribers(query: SubscriberQueryDto) {
-    const page = Number(query.page) || 1;
-    const limit = Number(query.limit) || 20;
-    const skip = (page - 1) * limit;
+  async deletePlan(id: string) {
+    const plan = await this.planRepository.findOne({ where: { id } });
+    if (!plan) throw new NotFoundException(`Plan ${id} not found`);
+    plan.isActive = false;
+    await this.planRepository.save(plan);
+    return { success: true, message: 'Plan deactivated' };
+  }
 
-    const where: any = {};
-
-    if (query.status) {
-      where.status = query.status;
-    }
-
-    if (query.planId) {
-      where.planId = query.planId;
-    }
-
-    const [subscriptions, total] = await this.subscriptionRepository.findAndCount({
-      where,
-      order: { [query.sortBy || 'createdAt']: query.sortOrder || 'DESC' },
-      skip,
+  async findSubscribers(query: SubscriberQueryDto) {
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+    const [data, total] = await this.subscriptionRepository.findAndCount({
+      skip: (page - 1) * limit,
       take: limit,
-      relations: ['user', 'plan'],
+      order: { createdAt: 'DESC' },
     });
-
     return {
       success: true,
-      data: subscriptions,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
   async getStats() {
-    const [
-      totalPlans,
-      activePlans,
-      totalSubscriptions,
-      activeSubscriptions,
-      cancelledSubscriptions,
-      expiredSubscriptions,
-    ] = await Promise.all([
-      this.planRepository.count(),
-      this.planRepository.count({ where: { isActive: true } }),
-      this.subscriptionRepository.count(),
-      this.subscriptionRepository.count({ where: { status: 'active' } }),
-      this.subscriptionRepository.count({ where: { status: 'cancelled' } }),
-      this.subscriptionRepository.count({ where: { status: 'expired' } }),
-    ]);
-
-    // Revenue from subscriptions
-    const revenueData = await this.subscriptionRepository
-      .createQueryBuilder('sub')
-      .leftJoin('sub.plan', 'plan')
-      .select('SUM(plan.price)', 'total')
-      .where('sub.status = :status', { status: 'active' })
-      .getRawOne();
-
+    const plans = await this.planRepository.count({ where: { isActive: true } });
+    const activeSubs = await this.subscriptionRepository.count({
+      where: { status: 'active' as any },
+    });
     return {
       success: true,
-      data: {
-        totalPlans,
-        activePlans,
-        totalSubscriptions,
-        activeSubscriptions,
-        cancelledSubscriptions,
-        expiredSubscriptions,
-        monthlyRevenue: Number(revenueData?.total || 0),
-      },
+      data: { activePlans: plans, activeSubscriptions: activeSubs },
     };
   }
 }

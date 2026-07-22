@@ -16,7 +16,6 @@ import { Type } from 'class-transformer';
 export enum SubscriptionPlanType {
   FREE = 'free',
   BASIC = 'basic',
-  STANDARD = 'standard',
   PREMIUM = 'premium',
   ENTERPRISE = 'enterprise',
 }
