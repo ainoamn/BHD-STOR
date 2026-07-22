@@ -4,6 +4,7 @@ import { Repository, Like, Between } from 'typeorm';
 import { Payment } from '../../payments/entities/payment.entity';
 import { Payout } from '../../payments/entities/payout.entity';
 import { Order } from '../../orders/entities/order.entity';
+import { PaymentsService } from '../../payments/services/payments.service';
 
 export interface PaymentQueryDto {
   page?: number;
@@ -28,7 +29,22 @@ export class AdminPaymentsService {
     private readonly payoutRepository: Repository<Payout>,
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
+    private readonly paymentsService: PaymentsService,
   ) {}
+
+  async listGateways() {
+    const data = await this.paymentsService.listAllGatewaysForAdmin();
+    return { success: true, data };
+  }
+
+  async setGatewayActive(idOrCode: string, isActive: boolean) {
+    const data = await this.paymentsService.setGatewayActive(idOrCode, isActive);
+    return {
+      success: true,
+      message: `Gateway ${data.code} ${isActive ? 'enabled' : 'disabled'}`,
+      data,
+    };
+  }
 
   async findAll(query: PaymentQueryDto) {
     const page = Number(query.page) || 1;

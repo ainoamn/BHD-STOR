@@ -1,8 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import StatsCard from '@/components/admin/StatsCard';
 import DataTable from '@/components/admin/DataTable';
+import {
+  useAdminPaymentGateways,
+  useAdminTogglePaymentGateway,
+} from '@/hooks/useAdmin';
 import {
   CreditCard,
   CheckCircle,
@@ -11,6 +16,8 @@ import {
   DollarSign,
   ArrowUpRight,
   Wallet,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
 
 const BHD_GREEN = '#006400';
@@ -137,7 +144,17 @@ const payoutStatusColors: Record<string, string> = {
 export default function AdminPaymentsPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [activeTab, setActiveTab] = useState<'transactions' | 'payouts'>('transactions');
+  const [activeTab, setActiveTab] = useState<
+    'gateways' | 'transactions' | 'payouts'
+  >('gateways');
+
+  const {
+    data: gateways = [],
+    isLoading: gatewaysLoading,
+    isError: gatewaysError,
+    refetch: refetchGateways,
+  } = useAdminPaymentGateways();
+  const toggleGateway = useAdminTogglePaymentGateway();
 
   const totalRevenue = mockPayments
     .filter((p) => p.status === 'completed')
@@ -160,17 +177,26 @@ export default function AdminPaymentsPage() {
       minute: '2-digit',
     });
 
+  const handleToggle = async (idOrCode: string, next: boolean) => {
+    try {
+      await toggleGateway.mutateAsync({ idOrCode, isActive: next });
+      toast.success(next ? 'Gateway enabled' : 'Gateway disabled');
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to update gateway';
+      toast.error(message);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Manage transactions and store payouts
+          Enable payment gateways, review transactions, and store payouts
         </p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatsCard
           title="Total Revenue"
@@ -198,12 +224,14 @@ export default function AdminPaymentsPage() {
         />
       </div>
 
-      {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-gray-200">
-        {[
-          { key: 'transactions' as const, label: 'Transactions' },
-          { key: 'payouts' as const, label: 'Store Payouts' },
-        ].map((tab) => (
+        {(
+          [
+            { key: 'gateways' as const, label: 'Gateways' },
+            { key: 'transactions' as const, label: 'Transactions' },
+            { key: 'payouts' as const, label: 'Store Payouts' },
+          ] as const
+        ).map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
@@ -213,7 +241,9 @@ export default function AdminPaymentsPage() {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
             style={
-              activeTab === tab.key ? { color: BHD_GREEN, borderColor: BHD_GREEN } : undefined
+              activeTab === tab.key
+                ? { color: BHD_GREEN, borderColor: BHD_GREEN }
+                : undefined
             }
           >
             {tab.label}
@@ -221,13 +251,111 @@ export default function AdminPaymentsPage() {
         ))}
       </div>
 
+      {activeTab === 'gateways' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-600">
+              Only active gateways appear at checkout. COD needs no API keys;
+              card gateways also require env credentials.
+            </p>
+            <button
+              type="button"
+              onClick={() => refetchGateways()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-lg hover:bg-gray-50"
+            >
+              <RefreshCw size={13} />
+              Refresh
+            </button>
+          </div>
+
+          {gatewaysLoading && (
+            <p className="text-sm text-gray-500">Loading gateways…</p>
+          )}
+
+          {gatewaysError && (
+            <div className="flex items-center gap-2 text-sm text-red-600">
+              <AlertCircle size={16} />
+              Could not load gateways. Ensure you are signed in as admin and the
+              API is running.
+            </div>
+          )}
+
+          <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden bg-white">
+            {gateways.map((gw) => (
+              <div
+                key={gw.id || gw.code}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-4"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <CreditCard size={16} className="text-gray-400 shrink-0" />
+                    <span className="font-medium text-gray-900">{gw.name}</span>
+                    <span className="font-mono text-xs text-gray-500">
+                      {gw.code}
+                    </span>
+                    {gw.isSandbox && (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-md"
+                        style={{
+                          backgroundColor: `${BHD_GOLD}22`,
+                          color: '#92650a',
+                        }}
+                      >
+                        sandbox
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {gw.isConfigured
+                      ? 'Environment keys configured'
+                      : gw.missingKeys?.length
+                        ? `Missing: ${gw.missingKeys.join(', ')}`
+                        : 'Not configured in environment'}
+                  </p>
+                </div>
+
+                <label className="inline-flex items-center gap-2 cursor-pointer select-none shrink-0">
+                  <span className="text-xs text-gray-500">
+                    {gw.isActive ? 'Enabled' : 'Disabled'}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={gw.isActive}
+                    disabled={toggleGateway.isPending}
+                    onClick={() => handleToggle(gw.id || gw.code, !gw.isActive)}
+                    className="relative w-11 h-6 rounded-full transition-colors disabled:opacity-50"
+                    style={{
+                      backgroundColor: gw.isActive ? BHD_GREEN : '#d1d5db',
+                    }}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                        gw.isActive ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </label>
+              </div>
+            ))}
+
+            {!gatewaysLoading && !gatewaysError && gateways.length === 0 && (
+              <p className="px-4 py-8 text-sm text-gray-500 text-center">
+                No gateways found. They are created automatically on first API
+                call.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {activeTab === 'transactions' && (
         <DataTable
           columns={[
             {
               key: 'transactionId',
               header: 'Transaction ID',
-              render: (row: any) => (
+              render: (row: (typeof mockPayments)[0]) => (
                 <span className="font-mono text-xs text-gray-600">
                   {row.transactionId}
                 </span>
@@ -236,7 +364,7 @@ export default function AdminPaymentsPage() {
             {
               key: 'orderId',
               header: 'Order',
-              render: (row: any) => (
+              render: (row: (typeof mockPayments)[0]) => (
                 <span className="font-mono text-xs" style={{ color: BHD_GREEN }}>
                   {row.orderId}
                 </span>
@@ -245,7 +373,7 @@ export default function AdminPaymentsPage() {
             {
               key: 'customer',
               header: 'Customer',
-              render: (row: any) => (
+              render: (row: (typeof mockPayments)[0]) => (
                 <span className="text-gray-900">{row.customer}</span>
               ),
             },
@@ -253,7 +381,7 @@ export default function AdminPaymentsPage() {
               key: 'amount',
               header: 'Amount',
               sortable: true,
-              render: (row: any) => (
+              render: (row: (typeof mockPayments)[0]) => (
                 <span className="font-bold text-gray-900">
                   {formatCurrency(row.amount)}
                 </span>
@@ -262,7 +390,7 @@ export default function AdminPaymentsPage() {
             {
               key: 'method',
               header: 'Method',
-              render: (row: any) => (
+              render: (row: (typeof mockPayments)[0]) => (
                 <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600 capitalize">
                   {row.method.replace('_', ' ')}
                 </span>
@@ -272,7 +400,7 @@ export default function AdminPaymentsPage() {
               key: 'status',
               header: 'Status',
               sortable: true,
-              render: (row: any) => (
+              render: (row: (typeof mockPayments)[0]) => (
                 <span
                   className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize"
                   style={{
@@ -288,14 +416,14 @@ export default function AdminPaymentsPage() {
               key: 'date',
               header: 'Date',
               sortable: true,
-              render: (row: any) => (
+              render: (row: (typeof mockPayments)[0]) => (
                 <span className="text-gray-500">{formatDate(row.date)}</span>
               ),
             },
             {
               key: 'actions',
               header: 'Actions',
-              render: (row: any) =>
+              render: (row: (typeof mockPayments)[0]) =>
                 row.status === 'completed' ? (
                   <button
                     className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-lg hover:bg-gray-50"
@@ -349,14 +477,14 @@ export default function AdminPaymentsPage() {
             {
               key: 'store',
               header: 'Store',
-              render: (row: any) => (
+              render: (row: (typeof mockPayouts)[0]) => (
                 <span className="font-medium text-gray-900">{row.store}</span>
               ),
             },
             {
               key: 'period',
               header: 'Period',
-              render: (row: any) => (
+              render: (row: (typeof mockPayouts)[0]) => (
                 <span className="text-gray-600">{row.period}</span>
               ),
             },
@@ -364,7 +492,7 @@ export default function AdminPaymentsPage() {
               key: 'amount',
               header: 'Amount',
               sortable: true,
-              render: (row: any) => (
+              render: (row: (typeof mockPayouts)[0]) => (
                 <span className="font-bold text-gray-900">
                   {formatCurrency(row.amount)}
                 </span>
@@ -373,7 +501,7 @@ export default function AdminPaymentsPage() {
             {
               key: 'status',
               header: 'Status',
-              render: (row: any) => (
+              render: (row: (typeof mockPayouts)[0]) => (
                 <span
                   className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize"
                   style={{
@@ -388,14 +516,16 @@ export default function AdminPaymentsPage() {
             {
               key: 'createdAt',
               header: 'Created',
-              render: (row: any) => (
-                <span className="text-gray-500">{formatDate(row.createdAt)}</span>
+              render: (row: (typeof mockPayouts)[0]) => (
+                <span className="text-gray-500">
+                  {formatDate(row.createdAt)}
+                </span>
               ),
             },
             {
               key: 'actions',
               header: 'Actions',
-              render: (row: any) =>
+              render: (row: (typeof mockPayouts)[0]) =>
                 row.status === 'pending' ? (
                   <button
                     className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white rounded-lg hover:opacity-90"

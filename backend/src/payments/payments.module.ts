@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { OrdersModule } from '../orders/orders.module';
 import { Payment } from './entities/payment.entity';
+import { PaymentGateway } from './entities/payment-gateway.entity';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './services/payments.service';
 import { PaymentGatewayFactory } from './services/payment-gateway.factory';
@@ -14,7 +15,7 @@ import { TelrService } from './services/telr.service';
 import { CCAvenueService } from './services/ccavenue.service';
 
 @Module({
-  imports: [AuthModule, OrdersModule, TypeOrmModule.forFeature([Payment])],
+  imports: [AuthModule, OrdersModule, TypeOrmModule.forFeature([Payment, PaymentGateway])],
   controllers: [PaymentsController],
   providers: [
     PaymentsService,

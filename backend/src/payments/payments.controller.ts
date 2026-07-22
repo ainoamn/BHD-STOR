@@ -302,14 +302,29 @@ export class PaymentsController {
   /**
    * Get supported payment gateways
    */
+  @Public()
+  @Get('gateways')
+  @ApiOperation({
+    summary: 'List active payment gateways',
+    description: 'Returns gateways enabled by admin (with env configuration status).',
+  })
+  async getGateways() {
+    const gateways = await this.paymentsService.listPublicGateways();
+    return { success: true, data: gateways };
+  }
+
+  @Public()
   @Get('gateways/list')
   @ApiOperation({
-    summary: 'List supported gateways',
-    description: 'Get a list of all supported payment gateways and their configuration status.',
+    summary: 'List supported gateways (legacy)',
+    description: 'Active DB gateways + factory configuration status.',
   })
   @ApiResponse({ status: 200, description: 'List of supported gateways' })
   async getSupportedGateways() {
+    const gateways = await this.paymentsService.listPublicGateways();
     return {
+      success: true,
+      data: gateways,
       gateways: this.gatewayFactory.getSupportedGateways(),
       configurations: this.gatewayFactory.validateGatewayConfig(),
     };

@@ -18,6 +18,7 @@ import { AdminPaymentsService } from './services/admin-payments.service';
 import { AdminSubscriptionsService } from './services/admin-subscriptions.service';
 
 import { AdminGuard } from './guards/admin.guard';
+import { PaymentsModule } from '../payments/payments.module';
 
 // Entities
 import { User } from '../users/entities/user.entity';
@@ -34,6 +35,7 @@ import { Payout } from '../payments/entities/payout.entity';
 
 @Module({
   imports: [
+    PaymentsModule,
     TypeOrmModule.forFeature([
       User,
       Store,

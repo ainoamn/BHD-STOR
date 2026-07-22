@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Payment } from '../entities/payment.entity';
+import { PaymentGateway } from '../entities/payment-gateway.entity';
 import { PaymentGatewayFactory, PaymentGatewayType } from './payment-gateway.factory';
 import { ProcessPaymentDto } from '../dto/process-payment.dto';
 import { RefundPaymentDto } from '../dto/refund-payment.dto';
@@ -71,6 +72,8 @@ export class PaymentsService {
     private readonly eventEmitter: EventEmitter2,
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
+    @InjectRepository(PaymentGateway)
+    private readonly gatewayRepository: Repository<PaymentGateway>,
   ) {
     this.defaultCommissionRate = parseFloat(this.configService.get<string>('PLATFORM_COMMISSION_RATE') || '0.10');
   }
@@ -80,9 +83,11 @@ export class PaymentsService {
    */
   async processPayment(userId: string, dto: ProcessPaymentDto): Promise<PaymentResult> {
     const { orderId, gateway, paymentMethodId, currency, amount, customerEmail, customerName, returnUrl, metadata } = dto;
-    const normalizedGateway = (gateway || '').toLowerCase().replace(/-/g, '_');
+    const normalizedGateway = this.normalizeGatewayCode(gateway || '');
 
     this.logger.log(`Processing payment for order ${orderId} via ${normalizedGateway}`);
+
+    await this.assertGatewayEnabled(normalizedGateway);
 
     // Cash on delivery — no external gateway required
     if (normalizedGateway === 'cod' || normalizedGateway === 'cash_on_delivery') {
@@ -102,13 +107,17 @@ export class PaymentsService {
       throw new BadRequestException(`Unsupported payment gateway: ${gateway}`);
     }
 
-    // Validate gateway configuration
-    const configValidation = this.gatewayFactory.validateGatewayConfig(normalizedGateway as PaymentGatewayType);
-    if (Array.isArray(configValidation)) {
-      const gatewayConfig = configValidation.find((c) => c.gateway === normalizedGateway);
-      if (gatewayConfig && !gatewayConfig.isConfigured) {
-        throw new BadRequestException(`Gateway ${gateway} is not properly configured. Missing: ${gatewayConfig.missingKeys.join(', ')}`);
-      }
+    // Validate gateway configuration (single object when gateway is passed)
+    const configValidation = this.gatewayFactory.validateGatewayConfig(
+      normalizedGateway as PaymentGatewayType,
+    );
+    const gatewayConfig = Array.isArray(configValidation)
+      ? configValidation.find((c) => c.gateway === normalizedGateway)
+      : configValidation;
+    if (gatewayConfig && !gatewayConfig.isConfigured) {
+      throw new BadRequestException(
+        `Gateway ${gateway} is not properly configured. Missing: ${gatewayConfig.missingKeys.join(', ')}`,
+      );
     }
 
     try {
@@ -974,6 +983,193 @@ export class PaymentsService {
   /**
    * Update payment status in the database
    */
+  /**
+   * Active gateways for checkout (DB isActive + env isConfigured).
+   */
+  async listPublicGateways(): Promise<
+    Array<{
+      id?: string;
+      code: string;
+      name: string;
+      isActive: boolean;
+      isConfigured: boolean;
+      isSandbox?: boolean;
+      displayOrder?: number;
+    }>
+  > {
+    await this.ensureDefaultGateways();
+    const rows = await this.gatewayRepository.find({
+      where: { isActive: true },
+      order: { displayOrder: 'ASC' },
+    });
+    const configs = this.gatewayFactory.validateGatewayConfig() as Array<{
+      gateway: string;
+      isConfigured: boolean;
+    }>;
+
+    return rows.map((row) => {
+      const code = this.normalizeGatewayCode(row.code);
+      const cfg = configs.find((c) => c.gateway === code);
+      const isCod = code === 'cod' || code === 'cash_on_delivery';
+      return {
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        isActive: row.isActive,
+        isConfigured: isCod ? true : Boolean(cfg?.isConfigured),
+        isSandbox: row.isSandbox,
+        displayOrder: row.displayOrder,
+      };
+    });
+  }
+
+  async listAllGatewaysForAdmin() {
+    await this.ensureDefaultGateways();
+    const rows = await this.gatewayRepository.find({
+      order: { displayOrder: 'ASC' },
+    });
+    const configs = this.gatewayFactory.validateGatewayConfig() as Array<{
+      gateway: string;
+      isConfigured: boolean;
+      missingKeys: string[];
+    }>;
+
+    return rows.map((row) => {
+      const code = this.normalizeGatewayCode(row.code);
+      const cfg = configs.find((c) => c.gateway === code);
+      const isCod = code === 'cod' || code === 'cash_on_delivery';
+      return {
+        ...row,
+        isConfigured: isCod ? true : Boolean(cfg?.isConfigured),
+        missingKeys: isCod ? [] : cfg?.missingKeys || [],
+      };
+    });
+  }
+
+  async setGatewayActive(idOrCode: string, isActive: boolean): Promise<PaymentGateway> {
+    await this.ensureDefaultGateways();
+    let row = await this.gatewayRepository.findOne({ where: { id: idOrCode } });
+    if (!row) {
+      row = await this.gatewayRepository.findOne({ where: { code: idOrCode } });
+    }
+    if (!row) {
+      throw new NotFoundException(`Gateway "${idOrCode}" not found`);
+    }
+    row.isActive = isActive;
+    return this.gatewayRepository.save(row);
+  }
+
+  private normalizeGatewayCode(code: string): string {
+    const n = (code || '').toLowerCase().replace(/-/g, '_');
+    if (n === 'omannet') return 'oman_net';
+    if (n === 'cash_on_delivery') return 'cod';
+    return n;
+  }
+
+  private async assertGatewayEnabled(normalizedCode: string): Promise<void> {
+    await this.ensureDefaultGateways();
+    const aliases =
+      normalizedCode === 'cod'
+        ? ['cod', 'cash_on_delivery']
+        : normalizedCode === 'oman_net'
+          ? ['oman_net', 'omannet']
+          : [normalizedCode];
+
+    const rows = await this.gatewayRepository
+      .createQueryBuilder('g')
+      .where('g.code IN (:...aliases)', { aliases })
+      .getMany();
+
+    if (rows.length === 0) {
+      // No DB row yet — allow only if factory supports it (dev bootstrapping)
+      if (
+        normalizedCode !== 'cod' &&
+        !this.gatewayFactory.isGatewaySupported(normalizedCode)
+      ) {
+        throw new BadRequestException(`Unknown payment gateway: ${normalizedCode}`);
+      }
+      return;
+    }
+
+    if (!rows.some((r) => r.isActive)) {
+      throw new BadRequestException(
+        `Payment gateway "${normalizedCode}" is disabled by admin`,
+      );
+    }
+  }
+
+  private async ensureDefaultGateways(): Promise<void> {
+    const defaults: Array<Partial<PaymentGateway>> = [
+      {
+        name: 'Cash on Delivery',
+        code: 'cod',
+        isActive: true,
+        isSandbox: false,
+        displayOrder: 1,
+        supportedMethods: ['cash'],
+        config: { supported_currencies: ['OMR'] },
+      },
+      {
+        name: 'Stripe',
+        code: 'stripe',
+        isActive: false,
+        isSandbox: true,
+        displayOrder: 2,
+        supportedMethods: ['card'],
+        config: { supported_currencies: ['OMR', 'USD'] },
+      },
+      {
+        name: 'PayPal',
+        code: 'paypal',
+        isActive: false,
+        isSandbox: true,
+        displayOrder: 3,
+        supportedMethods: ['paypal'],
+        config: { supported_currencies: ['OMR', 'USD'] },
+      },
+      {
+        name: 'Thawani',
+        code: 'thawani',
+        isActive: false,
+        isSandbox: true,
+        displayOrder: 4,
+        supportedMethods: ['card'],
+        config: { supported_currencies: ['OMR'] },
+      },
+      {
+        name: 'Oman Net',
+        code: 'oman_net',
+        isActive: false,
+        isSandbox: true,
+        displayOrder: 5,
+        supportedMethods: ['card'],
+        config: { supported_currencies: ['OMR'] },
+      },
+    ];
+
+    for (const def of defaults) {
+      const existing = await this.gatewayRepository.findOne({
+        where: { code: def.code },
+      });
+      if (!existing) {
+        // Also skip if legacy cash_on_delivery / omannet already exists
+        if (def.code === 'cod') {
+          const legacy = await this.gatewayRepository.findOne({
+            where: { code: 'cash_on_delivery' },
+          });
+          if (legacy) continue;
+        }
+        if (def.code === 'oman_net') {
+          const legacy = await this.gatewayRepository.findOne({
+            where: { code: 'omannet' },
+          });
+          if (legacy) continue;
+        }
+        await this.gatewayRepository.save(this.gatewayRepository.create(def));
+      }
+    }
+  }
+
   private async updatePaymentStatus(paymentId: string, status: string): Promise<void> {
     await this.paymentRepository.update(paymentId, { status, updatedAt: new Date() });
     this.logger.debug(`Updated payment ${paymentId} status to ${status}`);

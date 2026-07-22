@@ -42,6 +42,7 @@ import type {
   AdminPayment,
   AdminPaymentFilters,
   PaginatedAdminPayments,
+  AdminPaymentGateway,
 } from '@/services/payments.service';
 
 // ------------------------------------------------------------------
@@ -76,6 +77,7 @@ export const adminKeys = {
     all: () => [...adminKeys.all, 'payments'] as const,
     list: (filters: AdminPaymentFilters) =>
       [...adminKeys.payments.all(), filters] as const,
+    gateways: () => [...adminKeys.payments.all(), 'gateways'] as const,
   },
 };
 
@@ -279,6 +281,39 @@ export function useAdminPayments(
     staleTime: 1000 * 60 * 1,
     gcTime: 1000 * 60 * 5,
     placeholderData: (previousData) => previousData,
+  });
+}
+
+/**
+ * Hook: useAdminPaymentGateways
+ * List payment gateways for admin enable/disable.
+ */
+export function useAdminPaymentGateways(): UseQueryResult<
+  AdminPaymentGateway[],
+  Error
+> {
+  return useQuery({
+    queryKey: adminKeys.payments.gateways(),
+    queryFn: () => paymentsService.getAdminGateways(),
+    staleTime: 1000 * 30,
+  });
+}
+
+/**
+ * Hook: useAdminTogglePaymentGateway
+ */
+export function useAdminTogglePaymentGateway(): UseMutationResult<
+  AdminPaymentGateway,
+  Error,
+  { idOrCode: string; isActive: boolean }
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ idOrCode, isActive }) =>
+      paymentsService.setAdminGatewayActive(idOrCode, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.payments.gateways() });
+    },
   });
 }
 

@@ -2,7 +2,7 @@ import {
   Controller,
   Get,
   Post,
-  Put,
+  Patch,
   Query,
   Param,
   Body,
@@ -24,6 +24,21 @@ import { AdminPaymentsService, PaymentQueryDto } from '../services/admin-payment
 @Controller('admin/payments')
 export class AdminPaymentsController {
   constructor(private readonly paymentsService: AdminPaymentsService) {}
+
+  @Get('gateways')
+  @ApiOperation({ summary: 'List payment gateways (admin)' })
+  listGateways() {
+    return this.paymentsService.listGateways();
+  }
+
+  @Patch('gateways/:idOrCode')
+  @ApiOperation({ summary: 'Enable or disable a payment gateway' })
+  setGatewayActive(
+    @Param('idOrCode') idOrCode: string,
+    @Body('isActive') isActive: boolean,
+  ) {
+    return this.paymentsService.setGatewayActive(idOrCode, Boolean(isActive));
+  }
 
   @Get()
   @ApiOperation({ summary: 'List all payments/transactions' })

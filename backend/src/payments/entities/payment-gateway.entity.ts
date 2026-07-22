@@ -10,7 +10,6 @@ import {
 @Entity('payment_gateways')
 @Index(['code'])
 @Index(['isActive'])
-@Index(['isActive', 'displayOrder'])
 export class PaymentGateway {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -21,37 +20,53 @@ export class PaymentGateway {
   @Column({ type: 'varchar', length: 50, unique: true })
   code: string;
 
-  @Column({ type: 'boolean', default: true, name: 'is_active' })
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'api_key' })
+  apiKey: string | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'api_secret' })
+  apiSecret: string | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'api_endpoint' })
+  apiEndpoint: string | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'webhook_secret' })
+  webhookSecret: string | null;
+
+  /** Maps to DB column `sandbox_mode` (migration 001). */
+  @Column({ type: 'boolean', default: true, name: 'sandbox_mode' })
+  isSandbox: boolean;
+
+  @Column({ type: 'boolean', default: false, name: 'is_active' })
   isActive: boolean;
 
-  @Column({ type: 'jsonb', default: {} })
-  config: Record<string, unknown>;
+  @Column({ type: 'jsonb', nullable: true, name: 'supported_methods' })
+  supportedMethods: string[] | null;
 
-  @Column({ type: 'varchar', length: 3, array: true, default: ['OMR'], name: 'supported_currencies' })
-  supportedCurrencies: string[];
-
-  @Column({ type: 'varchar', length: 50, array: true, default: [], name: 'supported_methods' })
-  supportedMethods: string[];
-
-  @Column({ type: 'boolean', default: false, name: 'is_sandbox' })
-  isSandbox: boolean;
+  @Column({ type: 'jsonb', nullable: true })
+  config: Record<string, unknown> | null;
 
   @Column({ type: 'int', default: 0, name: 'display_order' })
   displayOrder: number;
 
-  // Timestamps
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 
   @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
   updatedAt: Date;
 
-  // Helper methods
+  get supportedCurrencies(): string[] {
+    const fromConfig = this.config?.supported_currencies;
+    if (Array.isArray(fromConfig) && fromConfig.length > 0) {
+      return fromConfig.map(String);
+    }
+    return ['OMR'];
+  }
+
   supportsCurrency(currency: string): boolean {
     return this.supportedCurrencies.includes(currency.toUpperCase());
   }
 
   supportsMethod(method: string): boolean {
-    return this.supportedMethods.includes(method);
+    return (this.supportedMethods || []).includes(method);
   }
 }

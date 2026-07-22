@@ -35,6 +35,34 @@ export interface SavedCard {
   isDefault: boolean;
 }
 
+export interface AdminPayment {
+  id: string;
+  transactionId?: string;
+  orderId?: string;
+  amount: number;
+  status: string;
+  paymentMethod?: string;
+  createdAt: string;
+}
+
+export interface AdminPaymentFilters {
+  page?: number;
+  limit?: number;
+  status?: string;
+  method?: string;
+  search?: string;
+}
+
+export interface PaginatedAdminPayments {
+  data: AdminPayment[];
+  meta?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Payment Endpoints
 // ---------------------------------------------------------------------------
@@ -123,6 +151,39 @@ export async function getGateways(): Promise<PaymentGateway[]> {
   const response = await api.get<{ success: boolean; data: PaymentGateway[] }>(
     '/payments/gateways'
   );
+  return response.data.data;
+}
+
+export interface AdminPaymentGateway {
+  id: string;
+  name: string;
+  code: string;
+  isActive: boolean;
+  isConfigured: boolean;
+  isSandbox?: boolean;
+  displayOrder?: number;
+  missingKeys?: string[];
+  supportedMethods?: string[];
+  supportedCurrencies?: string[];
+}
+
+/** Admin: all gateways with env configuration status */
+export async function getAdminGateways(): Promise<AdminPaymentGateway[]> {
+  const response = await api.get<{ success: boolean; data: AdminPaymentGateway[] }>(
+    '/admin/payments/gateways'
+  );
+  return response.data.data;
+}
+
+/** Admin: enable or disable a payment gateway */
+export async function setAdminGatewayActive(
+  idOrCode: string,
+  isActive: boolean
+): Promise<AdminPaymentGateway> {
+  const response = await api.patch<{
+    success: boolean;
+    data: AdminPaymentGateway;
+  }>(`/admin/payments/gateways/${encodeURIComponent(idOrCode)}`, { isActive });
   return response.data.data;
 }
 
@@ -294,6 +355,8 @@ export const paymentsService = {
   getPaymentDetails,
   createRefund,
   getGateways,
+  getAdminGateways,
+  setAdminGatewayActive,
   getSavedCards,
   deleteSavedCard,
   setDefaultCard,
