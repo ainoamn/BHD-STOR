@@ -330,13 +330,27 @@ export class ThawaniService {
   }
 
   /**
-   * Verify webhook signature (if Thawani provides signature verification)
+   * Verify webhook signature (HMAC-SHA256, timing-safe).
+   * Prefer THAWANI_WEBHOOK_SECRET; fall back to THAWANI_SECRET_KEY.
    */
   verifyWebhookSignature(payload: any, signature: string): boolean {
     try {
-      // Thawani webhook verification using secret key
-      const expectedSignature = this.generateWebhookSignature(payload);
-      return signature === expectedSignature;
+      const crypto = require('crypto') as typeof import('crypto');
+      const secret =
+        this.configService.get<string>('THAWANI_WEBHOOK_SECRET') ||
+        this.secretKey;
+      if (!secret || !signature) {
+        return false;
+      }
+
+      const expectedSignature = this.generateWebhookSignature(payload, secret);
+      const provided = String(signature).trim();
+      const a = Buffer.from(expectedSignature, 'utf8');
+      const b = Buffer.from(provided, 'utf8');
+      if (a.length !== b.length) {
+        return false;
+      }
+      return crypto.timingSafeEqual(a, b);
     } catch (error) {
       this.logger.error(`Webhook signature verification failed: ${error.message}`);
       return false;
@@ -346,9 +360,10 @@ export class ThawaniService {
   /**
    * Generate webhook signature for verification
    */
-  private generateWebhookSignature(payload: any): string {
-    const crypto = require('crypto');
+  private generateWebhookSignature(payload: any, secret?: string): string {
+    const crypto = require('crypto') as typeof import('crypto');
+    const key = secret || this.secretKey;
     const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    return crypto.createHmac('sha256', this.secretKey).update(data).digest('hex');
+    return crypto.createHmac('sha256', key).update(data).digest('hex');
   }
 }

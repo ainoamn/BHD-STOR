@@ -178,7 +178,11 @@ export class PaymentsController {
       };
     } catch (error) {
       this.logger.error(`Webhook processing error: ${error.message}`);
-      // Still return 200 to prevent gateway retries
+      // Signature / validation failures must not return 200 (forged webhooks)
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      // Transient business errors: acknowledge to limit endless provider retries
       return {
         success: false,
         message: `Webhook processing failed: ${error.message}`,

@@ -525,6 +525,8 @@ export class PaymentsService {
 
     try {
       let result: { success: boolean; orderId?: string; action: string };
+      const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+      const allowSkipVerify = nodeEnv !== 'production';
 
       switch (gateway) {
         case 'stripe': {
@@ -532,12 +534,13 @@ export class PaymentsService {
           if (!signature) {
             throw new BadRequestException('Missing Stripe signature');
           }
+          if (!rawBody) {
+            throw new BadRequestException(
+              'Missing raw request body for Stripe signature verification',
+            );
+          }
 
-          const event = this.stripeService.constructEvent(
-            rawBody || JSON.stringify(payload),
-            signature,
-          );
-
+          const event = this.stripeService.constructEvent(rawBody, signature);
           result = await this.stripeService.handleWebhook(event);
           break;
         }
@@ -545,6 +548,7 @@ export class PaymentsService {
         case 'paypal': {
           const verification = await this.paypalService.verifyWebhookSignature(headers, payload);
           const skipVerify =
+            allowSkipVerify &&
             this.configService.get<string>('PAYPAL_SKIP_WEBHOOK_VERIFY') === 'true';
           if (!verification.verified && !skipVerify) {
             throw new BadRequestException('PayPal webhook signature verification failed');
@@ -572,16 +576,31 @@ export class PaymentsService {
             headers['x-thawani-signature'] ||
             headers['thawani-signature'] ||
             headers['x-signature'];
-          const thawaniSecret = this.configService.get<string>('THAWANI_SECRET_KEY');
-          if (signature && thawaniSecret) {
+          const thawaniSecret =
+            this.configService.get<string>('THAWANI_WEBHOOK_SECRET') ||
+            this.configService.get<string>('THAWANI_SECRET_KEY');
+          const skipVerify =
+            allowSkipVerify &&
+            this.configService.get<string>('THAWANI_SKIP_WEBHOOK_VERIFY') === 'true';
+
+          if (!skipVerify) {
+            if (!signature) {
+              throw new BadRequestException('Missing Thawani webhook signature');
+            }
+            if (!thawaniSecret) {
+              throw new BadRequestException('Thawani webhook secret is not configured');
+            }
             const ok = this.thawaniService.verifyWebhookSignature(
-              rawBody || payload,
+              rawBody || JSON.stringify(payload),
               signature,
             );
             if (!ok) {
               throw new BadRequestException('Thawani webhook signature verification failed');
             }
+          } else {
+            this.logger.warn('Thawani webhook signature verification skipped via env');
           }
+
           result = await this.thawaniService.processWebhook(payload);
           break;
         }
