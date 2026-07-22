@@ -86,7 +86,7 @@
 - [x] **Checkout:** خيارات الشحن من `GET /shipping/carriers` وبوابات الدفع من `GET /payments/gateways` (مع fallback محلي إن فشل API)
 - [x] **هوية متجر فريدة (متسلسل + باركود/QR):** توليد تلقائي؛ `/ar/s/{serial}` يفتح المتجر فقط؛ تحميل صورة/ملف وطباعة الملصق من لوحة التاجر **ومن صفحة المتجر العامة** 
 - [ ] إكمال دورة: تسجيل → متجر → منتج → سلة → طلب → دفع تجريبي موقّع → شحنة (الطلب+COD+webhook→DB+شحنة+عمولة جاهزة؛ يحتاج تشغيل DB + E2E)
-- [~] توحيد كيان المستخدم والأدوار (كيان واحد عبر re-export؛ أدوار موحّدة؛ middleware/JWT cookies + same-origin proxy)
+- [~] توحيد كيان المستخدم والأدوار (كيان واحد عبر re-export من `database/entities`؛ أدوار موحّدة؛ HttpOnly cookies + `bhd_session` + same-origin proxy؛ أدوار Drone تُربط بـ ADMIN)  
 - [x] باقات الاشتراك الأربعة + اختيار اشتراك **أو** نسبة عمولة (API + صفحة البائع؛ دفع الاشتراك لاحقاً)
 - [x] تفعيل/إيقاف بوابات الدفع من لوحة المشرف (UI + DB `is_active` + `processPayment` يحترمها)
 - [x] تفعيل/إيقاف شركات الشحن من لوحة المشرف (UI Settings + DB `is_active` + حاسبة الأسعار تحترمها)
@@ -94,7 +94,7 @@
 ### ب) التكاملات
 
 - [~] Stripe / PayPal / Thawani / Oman Net — sandbox + webhooks موقّعة (Stripe/Thawani/PayPal fail-closed؛ كل بوابات الدفع soft-boot بدون مفاتيح؛ Oman Net لاحقاً لـ E2E)  
-- [~] Oman Post / Aramex — محاكٍ موثّق + fail-closed في production بدون مفاتيح (`SHIPPING_ALLOW_MOCK` / حالة `configured` للأدمن)؛ DHL/FedEx/UPS لاحقاً؛ مفاتيح sandbox حقيقية عند التوفر  
+- [~] Oman Post / Aramex / DHL / FedEx / UPS — محاكٍ موثّق + fail-closed في production بدون مفاتيح (`SHIPPING_ALLOW_MOCK`؛ أدمن يعرض configured)؛ مفاتيح sandbox حقيقية عند التوفر  
 
 - [x] OpenAI — مفتاح + حدود معدل محلية + فشل آمن (503/429 بدل 400؛ soft fallback للـ assistant/embeddings؛ health يعكس configured)  
 - [x] WhatsApp (Twilio/Meta) — webhook تحقق + أوامر `/track` `/order` مربوطة بطلبات/شحنات حية + `POST /whatsapp/simulate`  

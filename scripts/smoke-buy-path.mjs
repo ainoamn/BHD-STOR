@@ -7,14 +7,14 @@
  *   node scripts/smoke-buy-path.mjs
  *   API_BASE=http://localhost:3001/api/v1 node scripts/smoke-buy-path.mjs
  */
-
 const API_BASE = (process.env.API_BASE || 'http://localhost:3001/api/v1').replace(/\/$/, '');
 const EMAIL = process.env.SMOKE_EMAIL || 'customer@bhdoman.com';
 const PASSWORD = process.env.SMOKE_PASSWORD || 'Customer@123!';
 
-async function req(method, path, body, cookie) {
+async function req(method, path, body, auth) {
   const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
-  if (cookie) headers.Cookie = cookie;
+  if (auth?.cookie) headers.Cookie = auth.cookie;
+  if (auth?.bearer) headers.Authorization = `Bearer ${auth.bearer}`;
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
@@ -45,19 +45,39 @@ function mergeCookies(existing, setCookie) {
   return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
 }
 
+function extractAccessToken(payload) {
+  return (
+    payload?.accessToken ||
+    payload?.data?.accessToken ||
+    payload?.tokens?.accessToken ||
+    payload?.data?.tokens?.accessToken ||
+    null
+  );
+}
+
 async function main() {
   console.log(`Smoke buy-path against ${API_BASE}`);
 
   let cookie = '';
+  let bearer = '';
   const login = await req('POST', '/auth/login', { email: EMAIL, password: PASSWORD });
   if (!login.ok) {
     console.error('LOGIN_FAILED', login.status, login.data);
     process.exit(1);
   }
   cookie = mergeCookies(cookie, login.setCookie);
-  console.log('OK login');
+  bearer = extractAccessToken(login.data) || '';
+  if (!cookie && !bearer) {
+    console.error('LOGIN_NO_SESSION', 'neither Set-Cookie nor accessToken returned');
+    process.exit(1);
+  }
+  const auth = { cookie, bearer };
+  console.log('OK login', bearer ? '(bearer)' : '(cookie)');
 
-  const products = await req('GET', '/products?limit=1', null, cookie);
+  const health = await req('GET', '/health');
+  console.log('OK health', health.data?.status || health.status);
+
+  const products = await req('GET', '/products?limit=1', null, auth);
   const productList =
     products.data?.data?.data ||
     products.data?.data ||
@@ -97,7 +117,7 @@ async function main() {
       shippingMethod: 'oman_post',
       currency: 'OMR',
     },
-    cookie,
+    auth,
   );
   if (!order.ok) {
     console.error('ORDER_FAILED', order.status, order.data);
@@ -116,14 +136,13 @@ async function main() {
       amount: order.data?.total || order.data?.data?.total || 1,
       currency: 'OMR',
     },
-    cookie,
+    auth,
   );
   if (!pay.ok) {
     console.error('PAYMENT_FAILED', pay.status, pay.data);
     process.exit(1);
   }
   console.log('OK payment COD');
-
   console.log('SMOKE_PASS');
 }
 

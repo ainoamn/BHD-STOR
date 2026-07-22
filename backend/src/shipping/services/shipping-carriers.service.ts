@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { ShippingCarrier } from '../entities/shipping-carrier.entity';
 import { OmanPostService } from './oman-post.service';
 import { AramexService } from './aramex.service';
+import { DHLService } from './dhl.service';
 
 /** Maps DB seed codes → calculator service keys */
 const RATE_SERVICE_ALIASES: Record<string, string> = {
@@ -31,6 +32,7 @@ export class ShippingCarriersService {
     private readonly carrierRepository: Repository<ShippingCarrier>,
     private readonly omanPostService: OmanPostService,
     private readonly aramexService: AramexService,
+    private readonly dhlService: DHLService,
   ) {}
 
   normalizeCode(code: string): string {
@@ -83,12 +85,14 @@ export class ShippingCarriersService {
 
     const oman = this.omanPostService.getProviderStatus();
     const aramex = this.aramexService.getProviderStatus();
+    const dhl = this.dhlService.getProviderStatus();
     const byRateCode: Record<
       string,
       { configured: boolean; sandbox: boolean; mockAllowed: boolean }
     > = {
       oman_post: oman,
       aramex: aramex,
+      dhl: dhl,
     };
 
     return rows.map((row) => {

@@ -1,10 +1,11 @@
-import { Injectable, Logger, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import * as xml2js from 'xml2js';
 import { ShippingAddress } from '../dto/create-shipment.dto';
 import { LocationDto, ShippingRate } from '../dto/rate-request.dto';
 import { TrackingResult, TrackingEvent } from '../dto/tracking-request.dto';
+import { shippingMockAllowed } from './shipping-provider.util';
 
 export interface UPSShipmentResult {
   success: boolean;
@@ -37,8 +38,10 @@ export class UPSService {
     this.accountNumber = this.configService.get<string>('UPS_ACCOUNT_NUMBER') || '';
     this.isSandbox = this.configService.get<string>('UPS_ENVIRONMENT') !== 'production';
 
-    if (!this.accessKey || !this.userId || !this.password) {
-      this.logger.warn('UPS credentials not configured - service will use mock data');
+    if (!this.isConfigured()) {
+      this.logger.warn(
+        'UPS credentials not fully configured — mock rates only (set UPS_ACCESS_KEY + UPS_USER_ID + UPS_PASSWORD)',
+      );
     }
 
     this.apiUrl = this.isSandbox
@@ -53,6 +56,35 @@ export class UPSService {
         Accept: 'application/json',
       },
     });
+  }
+
+  isConfigured(): boolean {
+    return Boolean(this.accessKey && this.userId && this.password);
+  }
+
+  getProviderStatus(): {
+    code: string;
+    configured: boolean;
+    sandbox: boolean;
+    mockAllowed: boolean;
+  } {
+    return {
+      code: 'ups',
+      configured: this.isConfigured(),
+      sandbox: this.isSandbox,
+      mockAllowed: shippingMockAllowed(this.configService),
+    };
+  }
+
+  private assertCanCreateLiveShipment(): void {
+    if (this.isConfigured()) {
+      return;
+    }
+    if (!shippingMockAllowed(this.configService)) {
+      throw new ServiceUnavailableException(
+        'UPS is not configured. Set UPS_ACCESS_KEY, UPS_USER_ID and UPS_PASSWORD (or SHIPPING_ALLOW_MOCK=true for non-production).',
+      );
+    }
   }
 
   /**
@@ -136,7 +168,11 @@ export class UPSService {
         },
       };
 
-      if (!this.accessKey) {
+      if (!this.isConfigured()) {
+        if (!shippingMockAllowed(this.configService)) {
+          this.logger.warn('UPS not configured and mock rates disabled');
+          return [];
+        }
         return this.getMockRates(origin, destination, weight);
       }
 
@@ -172,10 +208,16 @@ export class UPSService {
         }));
       }
 
-      return this.getMockRates(origin, destination, weight);
+      if (shippingMockAllowed(this.configService)) {
+        return this.getMockRates(origin, destination, weight);
+      }
+      return [];
     } catch (error) {
       this.logger.error(`UPS rate request failed: ${error.message}`);
-      return this.getMockRates(origin, destination, weight);
+      if (shippingMockAllowed(this.configService)) {
+        return this.getMockRates(origin, destination, weight);
+      }
+      throw new ServiceUnavailableException(`UPS rates unavailable: ${error.message}`);
     }
   }
 
@@ -306,8 +348,10 @@ export class UPSService {
         },
       };
 
-      if (!this.accessKey) {
+      if (!this.isConfigured()) {
+        this.assertCanCreateLiveShipment();
         const trackingNumber = `1Z${this.accountNumber || '999AA'}${Date.now().toString().slice(-8)}`;
+        this.logger.warn(`UPS mock shipment created for order ${data.orderId}: ${trackingNumber}`);
         return {
           success: true,
           shipmentId: `shp-ups-${Date.now()}`,
@@ -360,7 +404,7 @@ export class UPSService {
    */
   async getTracking(trackingNumber: string): Promise<TrackingResult> {
     try {
-      if (!this.accessKey) {
+      if (!this.isConfigured()) {
         return this.getMockTracking(trackingNumber);
       }
 
@@ -418,7 +462,7 @@ export class UPSService {
    */
   async generateLabel(shipmentId: string, format: 'pdf' | 'zpl' | 'png' = 'pdf'): Promise<{ labelData: string; contentType: string }> {
     try {
-      if (!this.accessKey) {
+      if (!this.isConfigured()) {
         return { labelData: '', contentType: 'application/pdf' };
       }
 
@@ -439,7 +483,7 @@ export class UPSService {
    */
   async validateAddress(address: ShippingAddress): Promise<{ valid: boolean; suggestions?: any[]; message?: string }> {
     try {
-      if (!this.accessKey) {
+      if (!this.isConfigured()) {
         return { valid: true };
       }
 

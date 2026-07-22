@@ -1,9 +1,10 @@
-import { Injectable, Logger, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { ShippingAddress } from '../dto/create-shipment.dto';
 import { LocationDto, ShippingRate } from '../dto/rate-request.dto';
 import { TrackingResult, TrackingEvent } from '../dto/tracking-request.dto';
+import { shippingMockAllowed } from './shipping-provider.util';
 
 export interface DHLShipmentResult {
   success: boolean;
@@ -53,8 +54,10 @@ export class DHLService {
     this.accountNumber = this.configService.get<string>('DHL_ACCOUNT_NUMBER') || '';
     this.isSandbox = this.configService.get<string>('DHL_ENVIRONMENT') !== 'production';
 
-    if (!this.apiKey) {
-      this.logger.warn('DHL API key not configured - service will use mock data');
+    if (!this.isConfigured()) {
+      this.logger.warn(
+        'DHL credentials not fully configured — mock rates only (set DHL_API_KEY + DHL_ACCOUNT_NUMBER)',
+      );
     }
 
     this.apiUrl = this.isSandbox
@@ -90,6 +93,35 @@ export class DHLService {
         return Promise.reject(error);
       },
     );
+  }
+
+  isConfigured(): boolean {
+    return Boolean(this.apiKey && this.accountNumber);
+  }
+
+  getProviderStatus(): {
+    code: string;
+    configured: boolean;
+    sandbox: boolean;
+    mockAllowed: boolean;
+  } {
+    return {
+      code: 'dhl',
+      configured: this.isConfigured(),
+      sandbox: this.isSandbox,
+      mockAllowed: shippingMockAllowed(this.configService),
+    };
+  }
+
+  private assertCanCreateLiveShipment(): void {
+    if (this.isConfigured()) {
+      return;
+    }
+    if (!shippingMockAllowed(this.configService)) {
+      throw new ServiceUnavailableException(
+        'DHL is not configured. Set DHL_API_KEY and DHL_ACCOUNT_NUMBER (or SHIPPING_ALLOW_MOCK=true for non-production).',
+      );
+    }
   }
 
   /**
@@ -142,7 +174,11 @@ export class DHLService {
         unitOfMeasurement: 'metric',
       };
 
-      if (!this.apiKey) {
+      if (!this.isConfigured()) {
+        if (!shippingMockAllowed(this.configService)) {
+          this.logger.warn('DHL not configured and mock rates disabled');
+          return [];
+        }
         return this.getMockRates(origin, destination, weight);
       }
 
@@ -170,10 +206,16 @@ export class DHLService {
         }));
       }
 
-      return this.getMockRates(origin, destination, weight);
+      if (shippingMockAllowed(this.configService)) {
+        return this.getMockRates(origin, destination, weight);
+      }
+      return [];
     } catch (error) {
       this.logger.error(`DHL rate request failed: ${error.message}`);
-      return this.getMockRates(origin, destination, weight);
+      if (shippingMockAllowed(this.configService)) {
+        return this.getMockRates(origin, destination, weight);
+      }
+      throw new ServiceUnavailableException(`DHL rates unavailable: ${error.message}`);
     }
   }
 
@@ -270,8 +312,10 @@ export class DHLService {
         },
       };
 
-      if (!this.apiKey) {
+      if (!this.isConfigured()) {
+        this.assertCanCreateLiveShipment();
         const trackingNumber = `1Z999AA1${Date.now().toString().slice(-10)}`;
+        this.logger.warn(`DHL mock shipment created for order ${data.orderId}: ${trackingNumber}`);
         return {
           success: true,
           shipmentId: `shp-dhl-${Date.now()}`,
@@ -331,7 +375,7 @@ export class DHLService {
    */
   async getTracking(trackingNumber: string): Promise<TrackingResult> {
     try {
-      if (!this.apiKey) {
+      if (!this.isConfigured()) {
         return this.getMockTracking(trackingNumber);
       }
 
@@ -391,7 +435,7 @@ export class DHLService {
    */
   async generateLabel(shipmentId: string, format: 'pdf' | 'zpl' | 'png' = 'pdf'): Promise<{ labelData: string; contentType: string }> {
     try {
-      if (!this.apiKey) {
+      if (!this.isConfigured()) {
         return { labelData: '', contentType: 'application/pdf' };
       }
 
@@ -417,7 +461,7 @@ export class DHLService {
    */
   async validateAddress(address: ShippingAddress): Promise<{ valid: boolean; suggestions?: any[]; message?: string }> {
     try {
-      if (!this.apiKey) {
+      if (!this.isConfigured()) {
         return { valid: true };
       }
 

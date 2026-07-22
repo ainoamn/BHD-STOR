@@ -1,9 +1,10 @@
-import { Injectable, Logger, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { ShippingAddress } from '../dto/create-shipment.dto';
 import { LocationDto, ShippingRate } from '../dto/rate-request.dto';
 import { TrackingResult, TrackingEvent } from '../dto/tracking-request.dto';
+import { shippingMockAllowed } from './shipping-provider.util';
 
 export interface FedExShipmentResult {
   success: boolean;
@@ -26,6 +27,7 @@ export class FedExService {
   private readonly clientSecret: string;
   private readonly accountNumber: string;
   private readonly apiUrl: string;
+  private readonly isSandbox: boolean;
   private accessToken: string | null = null;
   private tokenExpiry: Date | null = null;
 
@@ -33,13 +35,15 @@ export class FedExService {
     this.clientId = this.configService.get<string>('FEDEX_CLIENT_ID') || '';
     this.clientSecret = this.configService.get<string>('FEDEX_CLIENT_SECRET') || '';
     this.accountNumber = this.configService.get<string>('FEDEX_ACCOUNT_NUMBER') || '';
+    this.isSandbox = this.configService.get<string>('FEDEX_ENVIRONMENT') !== 'production';
 
-    if (!this.clientId || !this.clientSecret) {
-      this.logger.warn('FedEx credentials not configured - service will use mock data');
+    if (!this.isConfigured()) {
+      this.logger.warn(
+        'FedEx credentials not fully configured — mock rates only (set FEDEX_CLIENT_ID + FEDEX_CLIENT_SECRET)',
+      );
     }
 
-    const isSandbox = this.configService.get<string>('FEDEX_ENVIRONMENT') !== 'production';
-    this.apiUrl = isSandbox
+    this.apiUrl = this.isSandbox
       ? 'https://apis-sandbox.fedex.com'
       : 'https://apis.fedex.com';
 
@@ -83,6 +87,35 @@ export class FedExService {
         return Promise.reject(error);
       },
     );
+  }
+
+  isConfigured(): boolean {
+    return Boolean(this.clientId && this.clientSecret);
+  }
+
+  getProviderStatus(): {
+    code: string;
+    configured: boolean;
+    sandbox: boolean;
+    mockAllowed: boolean;
+  } {
+    return {
+      code: 'fedex',
+      configured: this.isConfigured(),
+      sandbox: this.isSandbox,
+      mockAllowed: shippingMockAllowed(this.configService),
+    };
+  }
+
+  private assertCanCreateLiveShipment(): void {
+    if (this.isConfigured()) {
+      return;
+    }
+    if (!shippingMockAllowed(this.configService)) {
+      throw new ServiceUnavailableException(
+        'FedEx is not configured. Set FEDEX_CLIENT_ID and FEDEX_CLIENT_SECRET (or SHIPPING_ALLOW_MOCK=true for non-production).',
+      );
+    }
   }
 
   /**
@@ -176,7 +209,11 @@ export class FedExService {
         },
       };
 
-      if (!this.clientId) {
+      if (!this.isConfigured()) {
+        if (!shippingMockAllowed(this.configService)) {
+          this.logger.warn('FedEx not configured and mock rates disabled');
+          return [];
+        }
         return this.getMockRates(origin, destination, weight);
       }
 
@@ -207,10 +244,16 @@ export class FedExService {
         });
       }
 
-      return this.getMockRates(origin, destination, weight);
+      if (shippingMockAllowed(this.configService)) {
+        return this.getMockRates(origin, destination, weight);
+      }
+      return [];
     } catch (error) {
       this.logger.error(`FedEx rate request failed: ${error.message}`);
-      return this.getMockRates(origin, destination, weight);
+      if (shippingMockAllowed(this.configService)) {
+        return this.getMockRates(origin, destination, weight);
+      }
+      throw new ServiceUnavailableException(`FedEx rates unavailable: ${error.message}`);
     }
   }
 
@@ -313,8 +356,10 @@ export class FedExService {
         },
       };
 
-      if (!this.clientId) {
+      if (!this.isConfigured()) {
+        this.assertCanCreateLiveShipment();
         const trackingNumber = `7946${Date.now().toString().slice(-12)}`;
+        this.logger.warn(`FedEx mock shipment created for order ${data.orderId}: ${trackingNumber}`);
         return {
           success: true,
           shipmentId: `shp-fedex-${Date.now()}`,
@@ -363,7 +408,7 @@ export class FedExService {
    */
   async getTracking(trackingNumber: string): Promise<TrackingResult> {
     try {
-      if (!this.clientId) {
+      if (!this.isConfigured()) {
         return this.getMockTracking(trackingNumber);
       }
 
@@ -427,7 +472,7 @@ export class FedExService {
    */
   async generateLabel(shipmentId: string, format: 'pdf' | 'zpl' | 'png' = 'pdf'): Promise<{ labelData: string; contentType: string }> {
     try {
-      if (!this.clientId) {
+      if (!this.isConfigured()) {
         return { labelData: '', contentType: 'application/pdf' };
       }
 

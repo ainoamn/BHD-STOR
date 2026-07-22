@@ -39,6 +39,10 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/enums/user-role.enum';
 
+/** Drone ops roles map onto platform admin until dedicated operator accounts exist */
+const DRONE_ADMIN = UserRole.ADMIN;
+const DRONE_VIEW = UserRole.ADMIN;
+
 @ApiTags('🚁 Drone Fleet Management')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -51,7 +55,7 @@ export class DroneController {
      ═══════════════════════════════════════════ */
 
   @Post('register')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(DRONE_ADMIN)
   @ApiOperation({
     summary: 'Register a new drone into the fleet',
     description: 'Adds a drone with full specifications and home location.',
@@ -65,7 +69,7 @@ export class DroneController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.VIEWER)
+  @Roles(DRONE_ADMIN, DRONE_VIEW)
   @ApiOperation({
     summary: 'List all drones with filtering',
     description: 'Supports pagination, status filter, type filter, and search.',
@@ -76,7 +80,7 @@ export class DroneController {
   }
 
   @Get('available')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(DRONE_ADMIN)
   @ApiOperation({
     summary: 'Get drones available for mission assignment',
   })
@@ -86,7 +90,7 @@ export class DroneController {
   }
 
   @Get('stats')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(DRONE_ADMIN)
   @ApiOperation({
     summary: 'Fleet-wide statistics dashboard',
   })
@@ -96,7 +100,7 @@ export class DroneController {
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.VIEWER)
+  @Roles(DRONE_ADMIN, DRONE_VIEW)
   @ApiOperation({ summary: 'Get single drone details' })
   @ApiResponse({ status: 200, description: 'Drone details with mission history.' })
   @ApiResponse({ status: 404, description: 'Drone not found.' })
@@ -111,7 +115,7 @@ export class DroneController {
      ═══════════════════════════════════════════ */
 
   @Patch(':id/status')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(DRONE_ADMIN)
   @ApiOperation({ summary: 'Update drone operational status' })
   @ApiResponse({ status: 200, description: 'Status updated.' })
   async updateStatus(
@@ -123,7 +127,7 @@ export class DroneController {
 
   @Patch(':id/location')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(DRONE_ADMIN)
   @ApiOperation({
     summary: 'Update drone GPS location & battery telemetry',
     description: 'Called by the drone telemetry gateway every 2-5 seconds.',
@@ -141,7 +145,7 @@ export class DroneController {
      ═══════════════════════════════════════════ */
 
   @Post('missions/plan')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(DRONE_ADMIN)
   @ApiOperation({
     summary: 'Plan a new drone mission',
     description: 'Validates route, checks no-fly zones, estimates battery.',
@@ -155,7 +159,7 @@ export class DroneController {
   }
 
   @Post('missions/:missionId/launch')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(DRONE_ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Launch a planned mission' })
   @ApiResponse({ status: 200, description: 'Mission launched.' })
@@ -167,7 +171,7 @@ export class DroneController {
 
   @Post('missions/:missionId/abort')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(DRONE_ADMIN)
   @ApiOperation({ summary: 'Abort an active mission (RTH)' })
   @ApiResponse({ status: 200, description: 'Mission aborted, drone returning home.' })
   async abortMission(
@@ -179,7 +183,7 @@ export class DroneController {
 
   @Post('missions/:missionId/complete')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(DRONE_ADMIN)
   @ApiOperation({ summary: 'Mark an in-progress mission as completed' })
   @ApiResponse({ status: 200, description: 'Mission completed.' })
   async completeMission(
@@ -189,7 +193,7 @@ export class DroneController {
   }
 
   @Get(':droneId/missions')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.VIEWER)
+  @Roles(DRONE_ADMIN, DRONE_VIEW)
   @ApiOperation({ summary: 'Get mission history for a drone' })
   @ApiResponse({ status: 200, description: 'List of missions.' })
   async getMissionHistory(
@@ -204,7 +208,7 @@ export class DroneController {
 
   @Post('validate-route')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(DRONE_ADMIN)
   @ApiOperation({
     summary: 'Validate a path against no-fly zones',
     description: 'Check if proposed waypoints intersect any restricted airspace.',
@@ -226,7 +230,7 @@ export class DroneController {
 
   @Post('estimate-battery')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(DRONE_ADMIN)
   @ApiOperation({ summary: 'Estimate battery consumption for a route' })
   @ApiResponse({ status: 200, description: 'Battery estimate.' })
   async estimateBattery(
