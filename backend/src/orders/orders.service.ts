@@ -377,6 +377,7 @@ export class OrdersService {
       }
     }
 
+    const oldStatus = order.status;
     order.status = OrderStatus.CANCELLED;
     order.statusHistory = [
       ...(order.statusHistory || []),
@@ -387,7 +388,17 @@ export class OrdersService {
       },
     ];
 
-    return this.orderRepository.save(order);
+    const saved = await this.orderRepository.save(order);
+    this.eventEmitter.emit('order.cancelled', {
+      orderId: saved.id,
+      reason: reason || 'Cancelled by customer',
+    });
+    this.eventEmitter.emit('order.status_changed', {
+      orderId: saved.id,
+      oldStatus,
+      newStatus: OrderStatus.CANCELLED,
+    });
+    return saved;
   }
 
   private calculateTotals(

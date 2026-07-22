@@ -279,6 +279,62 @@ export class MarketplaceIntegrationService {
       .join(', ');
   }
 
+  /**
+   * Sync logistics shipment from marketplace order status (no order callback loop).
+   */
+  async syncShipmentStatusFromOrder(
+    orderId: string,
+    newStatus: ShipmentStatus,
+    note?: string,
+    options?: { skipOrderCallback?: boolean },
+  ): Promise<void> {
+    const shipment = await this.shipmentRepo.findOne({
+      where: { orderId },
+    });
+
+    if (!shipment) {
+      this.logger.debug(
+        `[syncShipmentStatusFromOrder] No shipment for order ${orderId}`,
+      );
+      return;
+    }
+
+    if ((shipment.status as string) === (newStatus as string)) {
+      return;
+    }
+
+    if (
+      (shipment.status as string) === 'delivered' &&
+      (newStatus as string) === 'cancelled'
+    ) {
+      this.logger.warn(
+        `[syncShipmentStatusFromOrder] Skip cancel — shipment already delivered`,
+      );
+      return;
+    }
+
+    // Always prefer one-way sync when driven by order events (avoid loops)
+    if (options?.skipOrderCallback !== false) {
+      shipment.status = newStatus as any;
+      if (note) {
+        shipment.internalNotes = [
+          shipment.internalNotes || '',
+          `[${new Date().toISOString()}] ${note}`,
+        ]
+          .filter(Boolean)
+          .join('\n')
+          .slice(0, 2000);
+      }
+      await this.shipmentRepo.save(shipment);
+      this.logger.log(
+        `[syncShipmentStatusFromOrder] Shipment ${shipment.id} -> ${newStatus}`,
+      );
+      return;
+    }
+
+    await this.onShipmentStatusChanged(shipment.id, newStatus, { note });
+  }
+
   // ═══════════════════════════════════════════════
   // SHIPMENT STATUS SYNC
   // ═══════════════════════════════════════════════

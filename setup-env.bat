@@ -41,5 +41,6 @@ echo   4. Demo accounts after seed:
 echo        admin@bhdoman.com / Bhd@dmin2024!
 echo        customer@bhdoman.com / Customer@123!
 echo        seller@bhdoman.com / Seller@123!
+echo   5. After API is up: node scripts\smoke-buy-path.mjs
 echo.
 pause
