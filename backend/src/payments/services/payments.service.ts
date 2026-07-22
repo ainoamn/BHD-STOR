@@ -89,7 +89,8 @@ export class PaymentsService {
    * Process a payment through the selected gateway
    */
   async processPayment(userId: string, dto: ProcessPaymentDto): Promise<PaymentResult> {
-    const { orderId, gateway, paymentMethodId, currency, amount, customerEmail, customerName, returnUrl, metadata } = dto;
+    const { orderId, gateway, paymentMethodId, currency, amount, customerEmail, customerName, metadata } = dto;
+    const returnUrl = this.sanitizePaymentReturnUrl(dto.returnUrl);
     const normalizedGateway = this.normalizeGatewayCode(gateway || '');
 
     this.logger.log(`Processing payment for order ${orderId} via ${normalizedGateway}`);
@@ -1240,6 +1241,45 @@ export class PaymentsService {
     if (n === 'omannet') return 'oman_net';
     if (n === 'cash_on_delivery') return 'cod';
     return n;
+  }
+
+  /**
+   * Allow only return URLs on known app frontends (blocks open redirect via gateway).
+   */
+  private sanitizePaymentReturnUrl(returnUrl?: string): string | undefined {
+    if (!returnUrl || typeof returnUrl !== 'string') return undefined;
+    const trimmed = returnUrl.trim();
+    const allowedBases = [
+      this.configService.get<string>('FRONTEND_URL'),
+      this.configService.get<string>('PUBLIC_APP_URL'),
+      this.configService.get<string>('NEXT_PUBLIC_APP_URL'),
+      this.configService.get<string>('APP_URL'),
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+    ].filter(Boolean) as string[];
+
+    try {
+      if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+        const base = allowedBases[0] || 'http://localhost:3000';
+        return `${base.replace(/\/$/, '')}${trimmed}`;
+      }
+      const target = new URL(trimmed);
+      const ok = allowedBases.some((base) => {
+        try {
+          return new URL(base).origin === target.origin;
+        } catch {
+          return false;
+        }
+      });
+      if (!ok) {
+        this.logger.warn(`Rejected payment returnUrl host: ${target.origin}`);
+        return undefined;
+      }
+      return trimmed;
+    } catch {
+      this.logger.warn('Rejected invalid payment returnUrl');
+      return undefined;
+    }
   }
 
   private async assertOrderOwnedByUser(orderId: string, userId: string): Promise<void> {

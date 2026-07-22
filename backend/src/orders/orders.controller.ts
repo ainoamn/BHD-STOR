@@ -138,17 +138,27 @@ export class OrdersController {
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update order status', description: 'Update the status of an order' })
+  @ApiOperation({
+    summary: 'Update order status',
+    description: 'Update order status. Admin/moderator or the store owner only — not the buying customer.',
+  })
   @ApiParam({ name: 'id', description: 'Order UUID', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Status updated successfully' })
   @ApiResponse({ status: 400, description: 'Invalid status transition' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Order not found' })
   async updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateOrderStatusDto,
+    @Request() req,
   ) {
-    const order = await this.ordersService.updateStatus(id, dto);
+    const order = await this.ordersService.updateStatusForRequester(
+      id,
+      dto,
+      requireRequestUserId(req.user),
+      req.user?.role,
+    );
     return {
       success: true,
       message: 'Order status updated successfully',

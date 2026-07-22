@@ -123,6 +123,7 @@ Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification 
 - [x] مفضلة حية + طلبات التاجر بـ `storeId` + `returnUrl` بعد الدفع يتضمن الطلب  
 - [x] ملكية الاسترداد + `GET /payments/:id/verify` + صفحة `/payments/return`  
 - [x] صفحات تاجر إنشاء/تعديل المنتج (`/dashboard/store/products/...`)  
+- [x] تدقيق حماية 2026-07-23 + إغلاق IDOR حالة الطلب وتقييد returnUrl (انظر `docs/SECURITY-AUDIT-2026-07-23.md`)  
 - [~] أسرار فقط عبر `.env` (لا تُرفع إلى Git؛ `setup-env.bat` ينشئ `.env` محلياً؛ `docker-compose.infra.yml` لـ Postgres/Redis)  
 
 ---
@@ -218,6 +219,10 @@ npm run dev
 سجل جلسة التطوير (ما نوقش / نُفّذ / التالي — لأجهزة متعددة):
 
 → **[`docs/SESSION-2026-07-21.md`](./docs/SESSION-2026-07-21.md)**
+
+تدقيق الحماية والتشفير والأداء (2026-07-23):
+
+→ **[`docs/SECURITY-AUDIT-2026-07-23.md`](./docs/SECURITY-AUDIT-2026-07-23.md)**
 
 أي تحديث للخطة يُكتب **فقط** في هذا الملف (`ROADMAP.md`).
 

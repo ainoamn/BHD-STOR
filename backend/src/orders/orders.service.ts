@@ -334,6 +334,36 @@ export class OrdersService {
     throw new ForbiddenException('You do not have access to this order');
   }
 
+  /** Staff or store owner may manage status — buying customer cannot. */
+  assertOrderManageAccess(order: Order, userId: string, role?: string): void {
+    const privileged = ['admin', 'super_admin', 'moderator'].includes(
+      String(role || '').toLowerCase(),
+    );
+    if (privileged) return;
+
+    const storeOwnerId =
+      (order as any).store?.ownerId ||
+      (order as any).store?.owner?.id ||
+      null;
+    if (storeOwnerId && storeOwnerId === userId) return;
+
+    throw new ForbiddenException(
+      'Only store staff or admins can update order status',
+    );
+  }
+
+  async updateStatusForRequester(
+    id: string,
+    dtoOrStatus: UpdateOrderStatusDto | OrderStatus | string,
+    userId: string,
+    role?: string,
+    note?: string,
+  ): Promise<Order> {
+    const order = await this.findOne(id);
+    this.assertOrderManageAccess(order, userId, role);
+    return this.updateStatus(id, dtoOrStatus, note);
+  }
+
   async updateStatus(
     id: string,
     dtoOrStatus: UpdateOrderStatusDto | OrderStatus | string,

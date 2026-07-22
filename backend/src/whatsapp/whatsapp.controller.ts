@@ -33,7 +33,22 @@ export class WhatsAppController {
     private readonly whatsAppService: WhatsAppService,
     private readonly configService: ConfigService,
   ) {
-    this.verifyToken = this.configService.get<string>('WHATSAPP_WEBHOOK_VERIFY_TOKEN') || 'bhd_webhook_verify_token_2024';
+    this.verifyToken =
+      this.configService.get<string>('WHATSAPP_WEBHOOK_VERIFY_TOKEN') || '';
+    if (!this.verifyToken) {
+      const isProd =
+        (this.configService.get<string>('NODE_ENV') || 'development') ===
+        'production';
+      if (isProd) {
+        this.logger.error(
+          'WHATSAPP_WEBHOOK_VERIFY_TOKEN is required in production',
+        );
+      } else {
+        this.logger.warn(
+          'WHATSAPP_WEBHOOK_VERIFY_TOKEN unset — webhook verify will reject until configured',
+        );
+      }
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════

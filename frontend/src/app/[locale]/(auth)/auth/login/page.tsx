@@ -32,10 +32,18 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const params = useParams();
   const locale = (params?.locale as string) || "ar";
-  const returnUrl =
+  const rawReturn =
     searchParams.get("returnUrl") ||
     searchParams.get("redirect") ||
-    `/${locale}`;
+    "";
+  /** Relative same-app paths only — blocks open redirects. */
+  const returnUrl = (() => {
+    const fallback = `/${locale}`;
+    if (!rawReturn) return fallback;
+    if (!rawReturn.startsWith("/") || rawReturn.startsWith("//")) return fallback;
+    if (rawReturn.includes("://") || rawReturn.includes("\\")) return fallback;
+    return rawReturn;
+  })();
   const registered = searchParams.get("registered");
 
   const [formData, setFormData] = useState<LoginFormData>({
