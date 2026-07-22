@@ -25,3 +25,4 @@ export {
   EarningType,
   EarningStatus,
 } from './driver-earning.entity';
+export { LocationHistory } from './location-history.entity';

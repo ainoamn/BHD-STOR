@@ -12,3 +12,8 @@ export { CreateRouteDto } from './create-route.dto';
 export { CreateHubDto } from './create-hub.dto';
 export { CreateMaintenanceDto } from './create-maintenance.dto';
 export { CreateB2bCustomerDto } from './create-b2b-customer.dto';
+export { UpdateShipmentDto } from './update-shipment.dto';
+export { AssignDriverDto } from './assign-driver.dto';
+export { ShipmentFilterDto } from './shipment-filter.dto';
+export { PricingQuoteDto } from './pricing-quote.dto';
+export { TrackingQueryDto } from './tracking-query.dto';

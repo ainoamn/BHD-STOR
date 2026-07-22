@@ -34,10 +34,10 @@ import type {
 } from './services/drone.service';
 
 /* ── Guards (placeholder — wire to your auth system) ── */
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../../auth/guards/roles.guard';
-import { Roles } from '../../auth/decorators/roles.decorator';
-import { UserRole } from '../../users/enums/user-role.enum';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/enums/user-role.enum';
 
 @ApiTags('🚁 Drone Fleet Management')
 @ApiBearerAuth()

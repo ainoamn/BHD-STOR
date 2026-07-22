@@ -80,7 +80,7 @@
 
 ### أ) نواة المتجر (يجب إنجازها أولاً)
 
-- [~] تشغيل Backend حقيقي (`npm run start:dev`) بدون أخطاء TypeScript (بوابات الدفع soft-boot؛ البناء الكامل ما زال يحتاج إكمال stubs اللوجستيات/الحزم)  
+- [~] تشغيل Backend حقيقي (`npm run start:dev`) بدون أخطاء TypeScript (`nest build` عبر SWC ناجح؛ `tsc` الصارم ما زال فيه أخطاء أنواع في لوجستيات/أدمن — يحتاج تنظيف لاحق)  
 - [x] ربط Frontend بـ API وإيقاف الاعتماد على Demo للمسارات الحرجة (كتالوج منتجات/متاجر + قوائم الأدمن لا تعود لبيانات وهمية عند فشل API؛ Demo فقط إن `NEXT_PUBLIC_DEMO_MODE=true`)  
 - [x] واجهة السلة والدفع: `/cart` + `/checkout` + `SmartCart` (طلب API: checkout مربوط بـ `POST /orders` + COD/بوابات)
 - [x] **Checkout:** خيارات الشحن من `GET /shipping/carriers` وبوابات الدفع من `GET /payments/gateways` (مع fallback محلي إن فشل API)
@@ -114,7 +114,7 @@ Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification 
 
 ### هـ) جودة وهندسة
 
-- [ ] `npm run build` ناجح لـ frontend وbackend (أُضيف `@nestjs/cli` + `tsconfig.build.json` + تخفيف strict للـ Nest؛ لا يزال فشل البناء بسبب ملفات لوجستيات/حزم ناقصة — ليس جاهزاً بعد)  
+- [~] `npm run build` ناجح لـ frontend وbackend (`backend`: `nest build` عبر SWC بدون typeCheck؛ frontend لم يُتحقق بعد في هذه الجولة)  
 - [ ] اختبارات وحدة/تكامل تعمل على CI  
 - [ ] لا مسارات API حساسة بدون Auth  
 - [ ] أسرار فقط عبر `.env` (لا تُرفع إلى Git)

@@ -1,0 +1,1 @@
+export { WhatsAppCommerceResolver } from './WhatsAppCommerceResolver';
