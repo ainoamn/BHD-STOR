@@ -12,8 +12,8 @@ export class ProcessPaymentDto {
 
   @ApiProperty({
     description: 'Payment gateway to use',
-    example: 'stripe',
-    enum: ['stripe', 'paypal', 'oman_net', 'thawani', 'telr', 'ccavenue'],
+    example: 'cod',
+    enum: ['cod', 'cash_on_delivery', 'stripe', 'paypal', 'oman_net', 'thawani', 'telr', 'ccavenue'],
   })
   @IsString()
   @MinLength(2)

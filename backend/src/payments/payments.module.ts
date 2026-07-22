@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { Payment } from './entities/payment.entity';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './services/payments.service';
 import { PaymentGatewayFactory } from './services/payment-gateway.factory';
@@ -11,7 +13,7 @@ import { TelrService } from './services/telr.service';
 import { CCAvenueService } from './services/ccavenue.service';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, TypeOrmModule.forFeature([Payment])],
   controllers: [PaymentsController],
   providers: [
     PaymentsService,

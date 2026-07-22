@@ -13,6 +13,23 @@ import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useCreateOrder } from "@/hooks/useOrders";
+import { useProcessPayment } from "@/hooks/usePayments";
+
+function mapPaymentGateway(method: string): string {
+  switch (method) {
+    case "cod":
+      return "cod";
+    case "omanNet":
+      return "oman_net";
+    case "thawani":
+      return "thawani";
+    case "card":
+      return "stripe";
+    default:
+      return method;
+  }
+}
 
 export default function CheckoutPage() {
   const t = useTranslations("checkout");
@@ -21,6 +38,8 @@ export default function CheckoutPage() {
   const { user } = useAuth();
   const { formatPrice } = useCurrency();
   const { data: cart, isLoading } = useCart();
+  const createOrder = useCreateOrder();
+  const processPayment = useProcessPayment();
 
   const [fullName, setFullName] = useState(user?.fullName ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
@@ -34,7 +53,7 @@ export default function CheckoutPage() {
   const items = rawCart?.items ?? [];
   const subtotal =
     rawCart?.subtotal ??
-    items.reduce((sum: number, item: any) => sum + Number(item.price) * Number(item.quantity), 0);
+    items.reduce((sum: number, item: any) => sum + Number(item.price ?? item.unitPrice) * Number(item.quantity), 0);
   const discount = rawCart?.discount ?? rawCart?.couponDiscount ?? rawCart?.discountTotal ?? 0;
   const shipping =
     shippingMethod === "express" ? 3 : shippingMethod === "sameDay" ? 5 : 1.5;
@@ -56,26 +75,75 @@ export default function CheckoutPage() {
       return;
     }
 
+    const orderItems = items
+      .map((item: any) => ({
+        productId: String(item.productId || item.product?.id || ""),
+        quantity: Number(item.quantity) || 1,
+        variantAttributes: item.variantAttributes || undefined,
+      }))
+      .filter((item: { productId: string }) => Boolean(item.productId));
+
+    if (orderItems.length === 0) {
+      toast.error(t("errors.paymentFailed"));
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const draft = {
-        fullName,
-        phone,
-        city,
-        street,
-        shippingMethod,
+      const order = await createOrder.mutateAsync({
+        items: orderItems,
+        shippingAddress: {
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          city: city.trim(),
+          street: street.trim(),
+          country: "OM",
+          governorate: city.trim(),
+        },
         paymentMethod,
-        total,
-        itemCount: items.length,
-        createdAt: new Date().toISOString(),
-      };
-      if (typeof window !== "undefined") {
-        localStorage.setItem("bhd_checkout_draft", JSON.stringify(draft));
+        shippingMethod,
+        currency: "OMR",
+        couponCode: rawCart?.couponCode || undefined,
+      });
+
+      const orderId = (order as any)?.id || (order as any)?.data?.id;
+      const gateway = mapPaymentGateway(paymentMethod);
+
+      if (orderId && gateway !== "cod") {
+        const payment = await processPayment.mutateAsync({
+          orderId,
+          method: paymentMethod === "cod" ? "cash_on_delivery" : "credit_card",
+          gateway,
+          returnUrl:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/orders`
+              : "/orders",
+        } as any);
+
+        const redirectUrl =
+          (payment as any)?.checkoutUrl ||
+          (payment as any)?.redirectUrl ||
+          (payment as any)?.payment?.checkoutUrl;
+        if (redirectUrl) {
+          window.location.href = redirectUrl;
+          return;
+        }
+      } else if (orderId && gateway === "cod") {
+        await processPayment.mutateAsync({
+          orderId,
+          method: "cash_on_delivery",
+          gateway: "cod",
+        } as any);
       }
+
       toast.success(t("confirmation.title"));
-      router.push("/orders");
-    } catch {
-      toast.error(t("errors.paymentFailed"));
+      router.push(orderId ? `/orders/${orderId}` : "/orders");
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        t("errors.paymentFailed");
+      toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSubmitting(false);
     }
@@ -208,18 +276,22 @@ export default function CheckoutPage() {
             {items.map((item: any) => (
               <div key={item.id} className="flex gap-3">
                 <div className="h-12 w-12 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
-                  {item.image ? (
-                    <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                  {item.image || item.product?.images?.[0] ? (
+                    <img
+                      src={item.image || item.product?.images?.[0]}
+                      alt={item.name || item.product?.name}
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     <Package className="h-5 w-5 text-muted-foreground" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm truncate">{item.name}</p>
+                  <p className="text-sm truncate">{item.name || item.product?.name}</p>
                   <p className="text-xs text-muted-foreground">×{item.quantity}</p>
                 </div>
                 <p className="text-sm font-medium">
-                  {formatPrice(Number(item.price) * Number(item.quantity))}
+                  {formatPrice(Number(item.price ?? item.unitPrice) * Number(item.quantity))}
                 </p>
               </div>
             ))}
@@ -250,7 +322,7 @@ export default function CheckoutPage() {
             className="w-full"
             size="lg"
             onClick={handlePlaceOrder}
-            disabled={submitting}
+            disabled={submitting || createOrder.isPending || processPayment.isPending}
           >
             {submitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />

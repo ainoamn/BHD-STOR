@@ -18,6 +18,10 @@ export class Product {
   @Column({ type: 'varchar', length: 255, nullable: true }) category: string;
   @Column({ type: 'decimal', precision: 3, scale: 2, default: 0 }) rating: number;
   @Column({ type: 'int', default: 0 }) reviewCount: number;
+  // Optional inverse relations used by cart/wishlist entities
+  cartItems?: any[];
+  wishlists?: any[];
+  orderItems?: any[];
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
 }

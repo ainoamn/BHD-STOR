@@ -66,7 +66,7 @@ export interface Address {
 // User
 // -----------------------------------------------------------------------------
 
-export type UserRole = 'customer' | 'vendor' | 'admin' | 'super_admin';
+export type UserRole = 'customer' | 'seller' | 'vendor' | 'admin' | 'super_admin' | 'moderator';
 export type UserStatus = 'active' | 'inactive' | 'suspended' | 'pending';
 
 export interface User {
@@ -445,11 +445,26 @@ export interface OrderFilters {
 }
 
 export interface CreateOrderData {
-  shippingAddressId: string;
+  items: Array<{
+    productId: string;
+    quantity: number;
+    variantAttributes?: Record<string, string>;
+  }>;
+  shippingAddress?: {
+    fullName: string;
+    phone: string;
+    city: string;
+    street: string;
+    country?: string;
+    governorate?: string;
+  };
+  shippingAddressId?: string;
   billingAddressId?: string;
   couponCode?: string;
   notes?: string;
   paymentMethod: string;
+  shippingMethod?: string;
+  currency?: string;
 }
 
 export interface OrderStatusEvent {

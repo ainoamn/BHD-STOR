@@ -25,7 +25,6 @@ export enum OrderItemFulfillmentStatus {
 @Entity('order_items')
 @Index(['orderId'])
 @Index(['productId'])
-@Index(['storeId'])
 export class OrderItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -36,8 +35,8 @@ export class OrderItem {
   @Column({ type: 'uuid', name: 'product_id' })
   productId: string;
 
-  @Column({ type: 'uuid', name: 'store_id' })
-  storeId: string;
+  @Column({ type: 'uuid', name: 'store_id', nullable: true })
+  storeId: string | null;
 
   @Column({ type: 'varchar', length: 255, name: 'product_name' })
   productName: string;
@@ -45,7 +44,7 @@ export class OrderItem {
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'product_image' })
   productImage: string | null;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'product_sku' })
   sku: string | null;
 
   @Column({ type: 'jsonb', nullable: true, name: 'variant_attributes' })
@@ -54,51 +53,45 @@ export class OrderItem {
   @Column({ type: 'int' })
   quantity: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 3, name: 'unit_price' })
+  @Column({ type: 'decimal', precision: 12, scale: 3, name: 'unit_price' })
   unitPrice: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 3, default: 0, name: 'discount_amount' })
+  @Column({ type: 'decimal', precision: 12, scale: 3, default: 0, name: 'discount_amount' })
   discountAmount: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 3, default: 0, name: 'tax_amount' })
+  @Column({ type: 'decimal', precision: 12, scale: 3, default: 0, name: 'tax_amount' })
   taxAmount: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 3 })
-  total: number;
+  @Column({ type: 'decimal', precision: 12, scale: 3, name: 'total_price' })
+  totalPrice: number;
 
   @Column({
     type: 'enum',
     enum: OrderItemFulfillmentStatus,
     default: OrderItemFulfillmentStatus.PENDING,
     name: 'fulfillment_status',
+    nullable: true,
   })
   fulfillmentStatus: OrderItemFulfillmentStatus;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, unknown> | null;
 
-  // Relations
   @ManyToOne(() => Order, (order) => order.items, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'order_id' })
   order: Relation<Order>;
 
-  @ManyToOne(() => Product, (product) => product.orderItems, { onDelete: 'SET NULL' })
+  @ManyToOne(() => Product, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'product_id' })
-  product: Relation<Product>;
+  product: Relation<Product> | null;
 
-  @ManyToOne(() => Store, (store) => store.orders, { onDelete: 'SET NULL' })
+  @ManyToOne(() => Store, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'store_id' })
-  store: Relation<Store>;
+  store: Relation<Store> | null;
 
-  // Timestamps
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
+  @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at', nullable: true })
   updatedAt: Date;
-
-  // Helper method to calculate subtotal
-  getSubtotal(): number {
-    return this.unitPrice * this.quantity;
-  }
 }

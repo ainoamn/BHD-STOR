@@ -6,13 +6,13 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { Order, OrderItem } from './entities/order.entity';
+import { Order, OrderAddress, OrderStatus, PaymentStatus } from './entities/order.entity';
+import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { User } from '../users/entities/user.entity';
-import { Address } from '../users/entities/address.entity';
 import { Store } from '../stores/entities/store.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { OrderStatus, UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CartService } from './cart.service';
 
 export interface OrderTotals {
@@ -22,15 +22,6 @@ export interface OrderTotals {
   discount: number;
   total: number;
   currency: string;
-}
-
-export interface CouponValidationResult {
-  valid: boolean;
-  code: string;
-  discountAmount: number;
-  discountType: 'percentage' | 'fixed';
-  discountValue: number;
-  message?: string;
 }
 
 @Injectable()
@@ -44,40 +35,38 @@ export class OrdersService {
     private readonly productRepository: Repository<Product>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @InjectRepository(Address)
-    private readonly addressRepository: Repository<Address>,
     @InjectRepository(Store)
     private readonly storeRepository: Repository<Store>,
     private readonly cartService: CartService,
   ) {}
 
-  /**
-   * Create a new order from cart or direct items
-   */
   async create(userId: string, dto: CreateOrderDto): Promise<Order> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const shippingAddress = await this.addressRepository.findOne({
-      where: { id: dto.shippingAddressId, user: { id: userId } },
-    });
-    if (!shippingAddress) {
-      throw new NotFoundException('Shipping address not found');
+    if (!dto.shippingAddress && !dto.shippingAddressId) {
+      throw new BadRequestException('shippingAddress or shippingAddressId is required');
     }
 
-    let billingAddress = shippingAddress;
-    if (dto.billingAddressId) {
-      billingAddress = await this.addressRepository.findOne({
-        where: { id: dto.billingAddressId, user: { id: userId } },
-      });
-      if (!billingAddress) {
-        throw new NotFoundException('Billing address not found');
-      }
-    }
+    const shippingAddress: OrderAddress = dto.shippingAddress
+      ? {
+          fullName: dto.shippingAddress.fullName,
+          phone: dto.shippingAddress.phone,
+          city: dto.shippingAddress.city,
+          street: dto.shippingAddress.street,
+          country: dto.shippingAddress.country || 'OM',
+          governorate: dto.shippingAddress.governorate || dto.shippingAddress.city,
+        }
+      : {
+          fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+          phone: user.phone || '',
+          city: 'Muscat',
+          street: `Address ref ${dto.shippingAddressId}`,
+          country: 'OM',
+        };
 
-    // Fetch all products
     const productIds = dto.items.map((item) => item.productId);
     const products = await this.productRepository.find({
       where: { id: In(productIds) },
@@ -88,7 +77,6 @@ export class OrdersService {
       throw new NotFoundException('One or more products not found');
     }
 
-    // Create order items and validate inventory
     const orderItems: OrderItem[] = [];
     for (const item of dto.items) {
       const product = products.find((p) => p.id === item.productId);
@@ -96,88 +84,90 @@ export class OrdersService {
         throw new NotFoundException(`Product ${item.productId} not found`);
       }
 
-      if (product.inventoryQuantity < item.quantity) {
+      const available = Number(product.stock ?? 0);
+      if (available < item.quantity) {
         throw new BadRequestException(
-          `Insufficient inventory for "${product.name}". Available: ${product.inventoryQuantity}, Requested: ${item.quantity}`,
+          `Insufficient inventory for "${product.name}". Available: ${available}, Requested: ${item.quantity}`,
         );
       }
 
+      const unitPrice = Number(product.price);
       const orderItem = this.orderItemRepository.create({
         product,
+        productId: product.id,
+        storeId: product.storeId || product.store?.id || null,
         productName: product.name,
         productImage: product.images?.[0] || null,
         quantity: item.quantity,
-        unitPrice: product.price,
-        totalPrice: product.price * item.quantity,
+        unitPrice,
+        totalPrice: unitPrice * item.quantity,
         variantAttributes: item.variantAttributes || {},
       });
 
       orderItems.push(orderItem);
-
-      // Deduct inventory
-      product.inventoryQuantity -= item.quantity;
-      if (product.inventoryQuantity <= (product.lowStockThreshold || 5)) {
-        // Product has reached low stock threshold - store owner will be notified via the notification service
-        // when the inventory module's stock alert system processes this change
-      }
+      product.stock = available - item.quantity;
     }
 
-    // Calculate totals
-    const totals = this.calculateTotals(orderItems, dto.currency || 'OMR');
-
-    // Validate and apply coupon
+    const totals = this.calculateTotals(orderItems, dto.currency || 'OMR', dto.shippingMethod);
     let discountAmount = 0;
     if (dto.couponCode) {
-      const couponResult = await this.validateCoupon(dto.couponCode, userId);
+      const couponResult = this.validateCoupon(dto.couponCode, totals.subtotal);
       if (couponResult.valid) {
         discountAmount = couponResult.discountAmount;
         totals.discount = discountAmount;
-        totals.total -= discountAmount;
+        totals.total = Math.max(0, totals.total - discountAmount);
       }
     }
 
-    // Generate order number
     const orderNumber = await this.generateOrderNumber();
-
-    // Group items by store
-    const storeId = products[0]?.store?.id;
+    const storeId = products[0]?.storeId || products[0]?.store?.id || null;
+    const paymentMethod = (dto.paymentMethod || 'cod').toLowerCase();
+    const isCod = paymentMethod === 'cod' || paymentMethod === 'cash_on_delivery';
 
     const order = this.orderRepository.create({
       orderNumber,
       user,
+      userId,
       items: orderItems,
       shippingAddress,
-      billingAddress,
+      billingAddress: shippingAddress,
       currency: dto.currency || 'OMR',
       subtotal: totals.subtotal,
       tax: totals.tax,
       shipping: totals.shipping,
       discount: totals.discount,
       total: totals.total,
-      status: OrderStatus.PENDING,
-      paymentStatus: 'pending',
+      status: isCod ? OrderStatus.CONFIRMED : OrderStatus.PENDING,
+      paymentStatus: isCod ? PaymentStatus.PENDING : PaymentStatus.PENDING,
+      paymentMethod,
       notes: dto.notes || null,
       couponCode: dto.couponCode || null,
-      store: storeId ? { id: storeId } as Store : null,
+      storeId,
+      store: storeId ? ({ id: storeId } as Store) : null,
+      statusHistory: [
+        {
+          status: isCod ? OrderStatus.CONFIRMED : OrderStatus.PENDING,
+          note: isCod ? 'Order placed with cash on delivery' : 'Order created, awaiting payment',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      metadata: {
+        shippingMethod: dto.shippingMethod || 'standard',
+      },
     });
 
-    // Save all
     await this.productRepository.save(products);
     const savedOrder = await this.orderRepository.save(order);
 
-    // Clear cart after successful order creation
     try {
       await this.cartService.clearCart(userId);
     } catch {
-      // Cart may not exist, ignore
+      // Cart may not exist
     }
 
     return this.findOne(savedOrder.id);
   }
 
-  /**
-   * Find all orders for a user (or all for admin)
-   */
   async findAll(
     userId: string,
     filter: { page?: number; limit?: number; status?: OrderStatus; storeId?: string; role?: string },
@@ -190,25 +180,17 @@ export class OrdersService {
   }> {
     const { page = 1, limit = 10, status, storeId, role } = filter;
     const skip = (page - 1) * limit;
+    const where: Record<string, unknown> = {};
 
-    const where: any = {};
-
-    // Admin can see all orders, others only see their own
-    if (role !== 'admin' && role !== 'moderator') {
-      where.user = { id: userId };
+    if (role !== 'admin' && role !== 'super_admin' && role !== 'moderator') {
+      where.userId = userId;
     }
-
-    if (status) {
-      where.status = status;
-    }
-
-    if (storeId) {
-      where.store = { id: storeId };
-    }
+    if (status) where.status = status;
+    if (storeId) where.storeId = storeId;
 
     const [data, total] = await this.orderRepository.findAndCount({
       where,
-      relations: ['user', 'items', 'items.product', 'shippingAddress', 'payment'],
+      relations: ['user', 'items', 'items.product', 'store'],
       order: { createdAt: 'DESC' },
       skip,
       take: limit,
@@ -223,22 +205,10 @@ export class OrdersService {
     };
   }
 
-  /**
-   * Find order by ID with full relations
-   */
   async findOne(id: string): Promise<Order> {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: [
-        'user',
-        'items',
-        'items.product',
-        'shippingAddress',
-        'billingAddress',
-        'payment',
-        'shipment',
-        'store',
-      ],
+      relations: ['user', 'items', 'items.product', 'store'],
     });
 
     if (!order) {
@@ -248,21 +218,10 @@ export class OrdersService {
     return order;
   }
 
-  /**
-   * Find order by order number
-   */
   async findByOrderNumber(orderNumber: string): Promise<Order> {
     const order = await this.orderRepository.findOne({
       where: { orderNumber },
-      relations: [
-        'user',
-        'items',
-        'items.product',
-        'shippingAddress',
-        'billingAddress',
-        'payment',
-        'shipment',
-      ],
+      relations: ['user', 'items', 'items.product', 'store'],
     });
 
     if (!order) {
@@ -272,12 +231,8 @@ export class OrdersService {
     return order;
   }
 
-  /**
-   * Update order status
-   */
   async updateStatus(id: string, dto: UpdateOrderStatusDto): Promise<Order> {
     const order = await this.findOne(id);
-
     const validTransitions = this.getValidStatusTransitions(order.status);
     if (!validTransitions.includes(dto.status)) {
       throw new BadRequestException(
@@ -286,13 +241,12 @@ export class OrdersService {
     }
 
     order.status = dto.status;
-
-    // Update payment status based on order status
     if (dto.status === OrderStatus.CONFIRMED || dto.status === OrderStatus.PROCESSING) {
-      order.paymentStatus = 'paid';
+      if (order.paymentMethod !== 'cod' && order.paymentMethod !== 'cash_on_delivery') {
+        order.paymentStatus = PaymentStatus.PAID;
+      }
     }
 
-    // Track status history
     const statusHistory = order.statusHistory || [];
     statusHistory.push({
       status: dto.status,
@@ -304,188 +258,113 @@ export class OrdersService {
     return this.orderRepository.save(order);
   }
 
-  /**
-   * Cancel an order
-   */
+  async updatePaymentStatus(id: string, paymentStatus: PaymentStatus): Promise<Order> {
+    const order = await this.findOne(id);
+    order.paymentStatus = paymentStatus;
+    if (paymentStatus === PaymentStatus.PAID && order.status === OrderStatus.PENDING) {
+      order.status = OrderStatus.CONFIRMED;
+    }
+    const statusHistory = order.statusHistory || [];
+    statusHistory.push({
+      status: order.status,
+      note: `Payment status: ${paymentStatus}`,
+      timestamp: new Date().toISOString(),
+    });
+    order.statusHistory = statusHistory;
+    return this.orderRepository.save(order);
+  }
+
   async cancel(id: string, userId: string, reason?: string): Promise<Order> {
     const order = await this.findOne(id);
 
-    if (order.user.id !== userId) {
+    if (order.userId !== userId && order.user?.id !== userId) {
       throw new ForbiddenException('You can only cancel your own orders');
     }
 
-    if (
-      order.status !== OrderStatus.PENDING &&
-      order.status !== OrderStatus.CONFIRMED
-    ) {
-      throw new BadRequestException(
-        `Cannot cancel order with status "${order.status}". Only pending or confirmed orders can be cancelled.`,
-      );
+    if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.CONFIRMED) {
+      throw new BadRequestException('Only pending or confirmed orders can be cancelled');
     }
 
-    // Restore inventory
-    for (const item of order.items) {
-      const product = await this.productRepository.findOne({
-        where: { id: item.product.id },
-      });
+    for (const item of order.items || []) {
+      if (!item.productId) continue;
+      const product = await this.productRepository.findOne({ where: { id: item.productId } });
       if (product) {
-        product.inventoryQuantity += item.quantity;
+        product.stock = Number(product.stock || 0) + item.quantity;
         await this.productRepository.save(product);
       }
     }
 
     order.status = OrderStatus.CANCELLED;
-    order.cancelReason = reason || 'Cancelled by user';
-
-    const statusHistory = order.statusHistory || [];
-    statusHistory.push({
-      status: OrderStatus.CANCELLED,
-      note: reason || 'Order cancelled by user',
-      timestamp: new Date().toISOString(),
-    });
-    order.statusHistory = statusHistory;
+    order.statusHistory = [
+      ...(order.statusHistory || []),
+      {
+        status: OrderStatus.CANCELLED,
+        note: reason || 'Cancelled by customer',
+        timestamp: new Date().toISOString(),
+      },
+    ];
 
     return this.orderRepository.save(order);
   }
 
-  /**
-   * Get order status history
-   */
-  async getOrderHistory(id: string): Promise<any[]> {
-    const order = await this.findOne(id);
-    return order.statusHistory || [];
-  }
-
-  /**
-   * Calculate order totals
-   */
-  calculateTotals(items: OrderItem[], currency: string = 'OMR'): OrderTotals {
-    const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-
-    // Tax: 5% for Oman
-    const taxRate = 0.05;
-    const tax = Math.round(subtotal * taxRate * 100) / 100;
-
-    // Shipping: Free over 10 OMR, otherwise 2 OMR
-    const shipping = subtotal >= 10 ? 0 : 2;
-
-    const discount = 0;
-    const total = subtotal + tax + shipping - discount;
+  private calculateTotals(
+    items: OrderItem[],
+    currency: string,
+    shippingMethod?: string,
+  ): OrderTotals {
+    const subtotal = items.reduce((sum, item) => sum + Number(item.totalPrice), 0);
+    const tax = Math.round(subtotal * 0.05 * 1000) / 1000;
+    let shipping = 1.5;
+    if (shippingMethod === 'express') shipping = 3;
+    if (shippingMethod === 'sameDay') shipping = 5;
+    if (subtotal >= 10 && shippingMethod === 'standard') shipping = 0;
 
     return {
-      subtotal: Math.round(subtotal * 100) / 100,
-      tax: Math.round(tax * 100) / 100,
-      shipping: Math.round(shipping * 100) / 100,
-      discount: Math.round(discount * 100) / 100,
-      total: Math.round(total * 100) / 100,
+      subtotal: Math.round(subtotal * 1000) / 1000,
+      tax,
+      shipping,
+      discount: 0,
+      total: Math.round((subtotal + tax + shipping) * 1000) / 1000,
       currency,
     };
   }
 
-  /**
-   * Validate a coupon code against the database coupon repository.
-   * Checks coupon existence, validity period, usage limits, and user eligibility.
-   */
-  async validateCoupon(code: string, userId: string): Promise<CouponValidationResult> {
-    // Normalize coupon code to uppercase for case-insensitive comparison
-    const normalizedCode = code.toUpperCase();
-
-    // Hardcoded welcome coupons for immediate use until coupon management module is active
-    const activeCoupons: Record<string, { type: 'percentage' | 'fixed'; value: number; expiry?: Date }> = {
-      WELCOME10: { type: 'percentage', value: 10, expiry: new Date('2025-12-31') },
-      WELCOME20: { type: 'percentage', value: 20, expiry: new Date('2025-12-31') },
-      FLAT5: { type: 'fixed', value: 5, expiry: new Date('2025-12-31') },
-    };
-
-    const coupon = activeCoupons[normalizedCode];
-
-    if (!coupon) {
+  private validateCoupon(code: string, subtotal: number): {
+    valid: boolean;
+    discountAmount: number;
+  } {
+    const normalized = code.toUpperCase();
+    if (normalized === 'FLAT5') return { valid: true, discountAmount: Math.min(5, subtotal) };
+    if (normalized.startsWith('WELCOME')) {
+      const percent = parseInt(normalized.replace(/\D/g, ''), 10) || 10;
       return {
-        valid: false,
-        code: normalizedCode,
-        discountAmount: 0,
-        discountType: 'percentage',
-        discountValue: 0,
-        message: 'Invalid or expired coupon code',
+        valid: true,
+        discountAmount: Math.round(((subtotal * percent) / 100) * 1000) / 1000,
       };
     }
-
-    // Check coupon expiry
-    if (coupon.expiry && coupon.expiry < new Date()) {
-      return {
-        valid: false,
-        code: normalizedCode,
-        discountAmount: 0,
-        discountType: coupon.type,
-        discountValue: coupon.value,
-        message: 'Coupon has expired',
-      };
-    }
-
-    return {
-      valid: true,
-      code: normalizedCode,
-      discountAmount: coupon.value,
-      discountType: coupon.type,
-      discountValue: coupon.value,
-      message: 'Coupon applied successfully',
-    };
+    return { valid: false, discountAmount: 0 };
   }
 
-  /**
-   * Generate unique order number
-   */
   private async generateOrderNumber(): Promise<string> {
-    const date = new Date();
-    const prefix = 'BHD';
-    const year = date.getFullYear().toString().slice(-2);
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-
-    let counter = 1;
-    let orderNumber: string;
-
-    do {
-      const suffix = String(counter).padStart(4, '0');
-      orderNumber = `${prefix}${year}${month}${day}${suffix}`;
-      counter++;
-    } while (await this.orderRepository.findOne({ where: { orderNumber } }));
-
-    return orderNumber;
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const rand = Math.floor(Math.random() * 9000) + 1000;
+    return `BHD-${y}${m}${d}-${rand}`;
   }
 
-  /**
-   * Get valid status transitions
-   */
-  private getValidStatusTransitions(currentStatus: OrderStatus): OrderStatus[] {
-    const transitions: Record<OrderStatus, OrderStatus[]> = {
-      [OrderStatus.PENDING]: [
-        OrderStatus.CONFIRMED,
-        OrderStatus.CANCELLED,
-      ],
-      [OrderStatus.CONFIRMED]: [
-        OrderStatus.PROCESSING,
-        OrderStatus.CANCELLED,
-      ],
-      [OrderStatus.PROCESSING]: [
-        OrderStatus.SHIPPED,
-        OrderStatus.CANCELLED,
-      ],
-      [OrderStatus.SHIPPED]: [
-        OrderStatus.DELIVERED,
-        OrderStatus.RETURNED,
-      ],
-      [OrderStatus.DELIVERED]: [
-        OrderStatus.RETURNED,
-        OrderStatus.REFUNDED,
-      ],
+  private getValidStatusTransitions(current: OrderStatus | string): OrderStatus[] {
+    const map: Record<string, OrderStatus[]> = {
+      [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+      [OrderStatus.CONFIRMED]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
+      [OrderStatus.PROCESSING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
+      [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED],
+      [OrderStatus.DELIVERED]: [OrderStatus.RETURNED, OrderStatus.REFUNDED],
       [OrderStatus.CANCELLED]: [],
       [OrderStatus.REFUNDED]: [],
-      [OrderStatus.RETURNED]: [
-        OrderStatus.REFUNDED,
-      ],
+      [OrderStatus.RETURNED]: [OrderStatus.REFUNDED],
     };
-
-    return transitions[currentStatus] || [];
+    return map[current] || [];
   }
 }

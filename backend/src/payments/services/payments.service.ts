@@ -75,25 +75,39 @@ export class PaymentsService {
    */
   async processPayment(userId: string, dto: ProcessPaymentDto): Promise<PaymentResult> {
     const { orderId, gateway, paymentMethodId, currency, amount, customerEmail, customerName, returnUrl, metadata } = dto;
+    const normalizedGateway = (gateway || '').toLowerCase().replace(/-/g, '_');
 
-    this.logger.log(`Processing payment for order ${orderId} via ${gateway}`);
+    this.logger.log(`Processing payment for order ${orderId} via ${normalizedGateway}`);
+
+    // Cash on delivery — no external gateway required
+    if (normalizedGateway === 'cod' || normalizedGateway === 'cash_on_delivery') {
+      return {
+        success: true,
+        paymentId: `cod_${orderId}`,
+        status: 'pending',
+        amount: amount || 0,
+        currency: currency || 'OMR',
+        gateway: 'cod',
+        metadata: { method: 'cash_on_delivery', note: 'Pay on delivery' },
+      };
+    }
 
     // Validate gateway is supported
-    if (!this.gatewayFactory.isGatewaySupported(gateway)) {
+    if (!this.gatewayFactory.isGatewaySupported(normalizedGateway)) {
       throw new BadRequestException(`Unsupported payment gateway: ${gateway}`);
     }
 
     // Validate gateway configuration
-    const configValidation = this.gatewayFactory.validateGatewayConfig(gateway as PaymentGatewayType);
+    const configValidation = this.gatewayFactory.validateGatewayConfig(normalizedGateway as PaymentGatewayType);
     if (Array.isArray(configValidation)) {
-      const gatewayConfig = configValidation.find((c) => c.gateway === gateway);
+      const gatewayConfig = configValidation.find((c) => c.gateway === normalizedGateway);
       if (gatewayConfig && !gatewayConfig.isConfigured) {
         throw new BadRequestException(`Gateway ${gateway} is not properly configured. Missing: ${gatewayConfig.missingKeys.join(', ')}`);
       }
     }
 
     try {
-      switch (gateway) {
+      switch (normalizedGateway) {
         case 'stripe': {
           // Get or create customer
           let customerId: string | undefined;
@@ -122,7 +136,7 @@ export class PaymentsService {
             status: result.status || 'pending',
             amount: amount || 0,
             currency,
-            gateway,
+            gateway: normalizedGateway,
             clientSecret: result.clientSecret,
             error: result.error,
             metadata: result.metadata,
@@ -145,7 +159,7 @@ export class PaymentsService {
             status: result.status || 'pending',
             amount: amount || 0,
             currency,
-            gateway,
+            gateway: normalizedGateway,
             redirectUrl: result.approvalUrl,
             error: result.error,
           };
@@ -167,7 +181,7 @@ export class PaymentsService {
             status: result.status || 'pending',
             amount: amount || 0,
             currency,
-            gateway,
+            gateway: normalizedGateway,
             redirectUrl: result.redirectUrl,
             error: result.error,
           };
@@ -196,7 +210,7 @@ export class PaymentsService {
             status: result.status || 'pending',
             amount: amount || 0,
             currency,
-            gateway,
+            gateway: normalizedGateway,
             redirectUrl: result.paymentUrl,
             error: result.error,
           };
@@ -219,7 +233,7 @@ export class PaymentsService {
             status: result.status || 'pending',
             amount: amount || 0,
             currency,
-            gateway,
+            gateway: normalizedGateway,
             redirectUrl: result.redirectUrl,
             error: result.error,
           };
@@ -244,7 +258,7 @@ export class PaymentsService {
             status: 'pending',
             amount: amount || 0,
             currency,
-            gateway,
+            gateway: normalizedGateway,
             error: result.error,
             metadata: {
               encRequest: result.encRequest,
