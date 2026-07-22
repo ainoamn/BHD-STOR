@@ -116,7 +116,7 @@ export class PaymentsController {
    */
   @Post('refund')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'seller')
+  @Roles('admin', 'seller', 'super_admin')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Process refund',
@@ -133,7 +133,7 @@ export class PaymentsController {
     const userId = requireRequestUserId(req.user);
     this.logger.log(`Refund request from user ${userId} for payment ${dto.paymentId}`);
 
-    return this.paymentsService.createRefund(userId, dto);
+    return this.paymentsService.createRefund(userId, dto, req.user?.role);
   }
 
   /**
@@ -226,6 +226,31 @@ export class PaymentsController {
   /**
    * Get payment details by ID
    */
+  @Get(':id/verify')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Verify payment by ID',
+    description: 'Verify payment status with the gateway after redirect. Caller must own the payment or be staff/store owner.',
+  })
+  @ApiParam({ name: 'id', description: 'Payment ID (UUID)', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Payment verification result' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Payment not found' })
+  async verifyPaymentById(
+    @Param('id', ParseUUIDPipe) paymentId: string,
+    @Req() req: any,
+  ) {
+    const userId = requireRequestUserId(req.user);
+    this.logger.log(`Payment verify-by-id request for ${paymentId} from ${userId}`);
+    const result = await this.paymentsService.verifyPaymentById(
+      paymentId,
+      userId,
+      req.user?.role,
+    );
+    return { success: true, data: result };
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -238,8 +263,14 @@ export class PaymentsController {
   @ApiResponse({ status: 404, description: 'Payment not found' })
   async getPaymentDetails(
     @Param('id', ParseUUIDPipe) paymentId: string,
+    @Req() req: any,
   ) {
-    return this.paymentsService.getPaymentDetails(paymentId);
+    const userId = requireRequestUserId(req.user);
+    return this.paymentsService.getPaymentDetailsForUser(
+      paymentId,
+      userId,
+      req.user?.role,
+    );
   }
 
   /**

@@ -98,15 +98,26 @@ export async function processPayment(data: ProcessPaymentData): Promise<PaymentI
 
 /**
  * Verify a payment status after external gateway redirect (e.g., Thawani).
- * @param paymentId - Payment UUID
- * @returns Verification result with updated payment status
+ * Uses GET /payments/:id/verify (aligned with Nest). Falls back to POST /payments/verify.
  */
-export async function verifyPayment(paymentId: string): Promise<PaymentVerificationResponse> {
-  const response = await api.get<{
-    success: boolean;
-    data: PaymentVerificationResponse;
-  }>(`/payments/${paymentId}/verify`);
-  return response.data.data;
+export async function verifyPayment(
+  paymentId: string,
+  gateway?: string,
+): Promise<PaymentVerificationResponse> {
+  try {
+    const response = await api.get<{
+      success: boolean;
+      data: PaymentVerificationResponse;
+    }>(`/payments/${paymentId}/verify`);
+    return (response.data.data ?? response.data) as PaymentVerificationResponse;
+  } catch (err) {
+    if (!gateway) throw err;
+    const response = await api.post<{
+      success: boolean;
+      data: PaymentVerificationResponse;
+    }>('/payments/verify', { paymentId, gateway });
+    return (response.data.data ?? response.data) as PaymentVerificationResponse;
+  }
 }
 
 /**
@@ -141,10 +152,7 @@ export async function getPaymentDetails(paymentId: string): Promise<Payment> {
 
 /**
  * Create a refund request for a payment.
- * @param paymentId - Payment UUID
- * @param amount - Amount to refund (can be partial)
- * @param reason - Reason for refund
- * @returns Created refund record
+ * Nest route: POST /payments/refund with { paymentId, amount?, reason }
  */
 export async function createRefund(
   paymentId: string,
@@ -152,10 +160,10 @@ export async function createRefund(
   reason: string
 ): Promise<Refund> {
   const response = await api.post<{ success: boolean; data: Refund }>(
-    `/payments/${paymentId}/refunds`,
-    { amount, reason }
+    `/payments/refund`,
+    { paymentId, amount, reason }
   );
-  return response.data.data;
+  return (response.data.data ?? response.data) as Refund;
 }
 
 /**

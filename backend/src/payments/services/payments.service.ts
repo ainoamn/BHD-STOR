@@ -398,7 +398,11 @@ export class PaymentsService {
   /**
    * Create a refund for a payment
    */
-  async createRefund(userId: string, dto: RefundPaymentDto): Promise<any> {
+  async createRefund(
+    userId: string,
+    dto: RefundPaymentDto,
+    role?: string,
+  ): Promise<any> {
     const { paymentId, amount, reason, notes } = dto;
 
     this.logger.log(`Processing refund for payment ${paymentId}, amount: ${amount || 'full'}`);
@@ -408,6 +412,8 @@ export class PaymentsService {
     if (!paymentRecord) {
       throw new NotFoundException(`Payment ${paymentId} not found`);
     }
+
+    await this.assertPaymentManageAccess(paymentRecord, userId, role);
 
     try {
       const gateway = paymentRecord.gateway as PaymentGatewayType;
@@ -483,9 +489,58 @@ export class PaymentsService {
 
       return result;
     } catch (error) {
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
       this.logger.error(`Refund failed for payment ${paymentId}: ${error.message}`, error.stack);
       throw new InternalServerErrorException(`Refund processing failed: ${error.message}`);
     }
+  }
+
+  /**
+   * Verify payment by DB record id (for post-gateway return).
+   */
+  async verifyPaymentById(
+    paymentId: string,
+    userId: string,
+    role?: string,
+    gatewayData?: any,
+  ): Promise<any> {
+    const paymentRecord = await this.getPaymentRecord(paymentId);
+    if (!paymentRecord) {
+      throw new NotFoundException(`Payment ${paymentId} not found`);
+    }
+
+    await this.assertPaymentViewAccess(paymentRecord, userId, role);
+
+    const gateway = (paymentRecord.gateway || '') as PaymentGatewayType;
+    if (!gateway) {
+      throw new BadRequestException('Payment has no gateway recorded');
+    }
+
+    const externalId = paymentRecord.transactionId || paymentId;
+    const result = await this.verifyPayment(externalId, gateway, gatewayData);
+
+    return {
+      ...result,
+      paymentId: paymentRecord.id,
+      orderId: paymentRecord.orderId,
+      gateway,
+    };
+  }
+
+  async getPaymentDetailsForUser(
+    paymentId: string,
+    userId: string,
+    role?: string,
+  ): Promise<PaymentRecord> {
+    const payment = await this.getPaymentDetails(paymentId);
+    await this.assertPaymentViewAccess(payment, userId, role);
+    return payment;
   }
 
   /**
@@ -1034,19 +1089,76 @@ export class PaymentsService {
       id: payment.id,
       orderId: payment.orderId,
       userId: payment.userId,
-      amount: payment.amount,
+      amount: Number(payment.amount),
       currency: payment.currency,
-      gateway: payment.gateway,
-      status: payment.status,
-      transactionId: payment.transactionId,
+      gateway: payment.gateway || '',
+      status: String(payment.status),
+      transactionId: payment.gatewayTransactionId || undefined,
       createdAt: payment.createdAt,
       updatedAt: payment.updatedAt,
     };
   }
 
-  /**
-   * Update payment status in the database
-   */
+  /** Admin/staff or store owner of the payment's order may refund. */
+  private async assertPaymentManageAccess(
+    payment: PaymentRecord,
+    userId: string,
+    role?: string,
+  ): Promise<void> {
+    const roleNorm = String(role || '').toLowerCase();
+    if (['admin', 'super_admin', 'moderator'].includes(roleNorm)) {
+      return;
+    }
+
+    if (!payment.orderId) {
+      throw new ForbiddenException('Cannot determine order for this payment');
+    }
+
+    const order = await this.ordersService.findOne(payment.orderId);
+    const storeOwnerId =
+      (order as any).store?.ownerId ||
+      (order as any).store?.owner?.id ||
+      null;
+
+    if (storeOwnerId && storeOwnerId === userId) {
+      return;
+    }
+
+    throw new ForbiddenException('You cannot refund this payment');
+  }
+
+  /** Payer, store owner, or staff may view/verify. */
+  private async assertPaymentViewAccess(
+    payment: PaymentRecord,
+    userId: string,
+    role?: string,
+  ): Promise<void> {
+    const roleNorm = String(role || '').toLowerCase();
+    if (['admin', 'super_admin', 'moderator'].includes(roleNorm)) {
+      return;
+    }
+    if (payment.userId && payment.userId === userId) {
+      return;
+    }
+
+    if (payment.orderId) {
+      try {
+        const order = await this.ordersService.findOne(payment.orderId);
+        const storeOwnerId =
+          (order as any).store?.ownerId ||
+          (order as any).store?.owner?.id ||
+          null;
+        if (storeOwnerId && storeOwnerId === userId) {
+          return;
+        }
+      } catch {
+        // fall through to forbidden
+      }
+    }
+
+    throw new ForbiddenException('You do not have access to this payment');
+  }
+
   /**
    * Active gateways for checkout (DB isActive + env isConfigured).
    */

@@ -215,8 +215,8 @@ export default function CheckoutPage() {
           gateway,
           returnUrl:
             typeof window !== "undefined"
-              ? `${window.location.origin}/${locale}/orders/${orderId}`
-              : `/orders/${orderId}`,
+              ? `${window.location.origin}/${locale}/payments/return?orderId=${orderId}`
+              : `/payments/return?orderId=${orderId}`,
         } as any);
 
         if (gateway !== "cod") {
