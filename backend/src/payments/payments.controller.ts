@@ -28,6 +28,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { requireRequestUserId } from '../auth/utils/request-user';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -71,7 +72,7 @@ export class PaymentsController {
     @Body() dto: ProcessPaymentDto,
     @Req() req: any,
   ) {
-    const userId = req.user?.id || 'anonymous';
+    const userId = requireRequestUserId(req.user);
     this.logger.log(`Payment process request from user ${userId} for order ${dto.orderId}`);
 
     const result = await this.paymentsService.processPayment(userId, dto);
@@ -127,7 +128,7 @@ export class PaymentsController {
     @Body() dto: RefundPaymentDto,
     @Req() req: any,
   ) {
-    const userId = req.user?.id;
+    const userId = requireRequestUserId(req.user);
     this.logger.log(`Refund request from user ${userId} for payment ${dto.paymentId}`);
 
     return this.paymentsService.createRefund(userId, dto);
@@ -211,7 +212,7 @@ export class PaymentsController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    const userId = req.user?.id;
+    const userId = requireRequestUserId(req.user);
     const pageNum = parseInt(page || '1', 10);
     const limitNum = parseInt(limit || '20', 10);
 
@@ -255,7 +256,7 @@ export class PaymentsController {
     @Body() dto: CreatePayoutDto,
     @Req() req: any,
   ) {
-    const adminId = req.user?.id;
+    const adminId = requireRequestUserId(req.user);
     this.logger.log(`Payout request from admin ${adminId} to store ${dto.storeId}`);
 
     return this.paymentsService.payoutToStore(dto.storeId, dto);

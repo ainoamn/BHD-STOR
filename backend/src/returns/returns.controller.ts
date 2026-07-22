@@ -26,6 +26,7 @@ import { CreateReturnDto } from './dto/create-return.dto';
 import { UpdateReturnDto } from './dto/update-return.dto';
 import { ReturnRequest, ReturnStatus } from './entities/return-request.entity';
 import { ReturnPolicy } from './entities/return-policy.entity';
+import { requireRequestUserId } from '../auth/utils/request-user';
 
 @ApiTags('Returns & Exchanges')
 @Controller('returns')
@@ -46,7 +47,7 @@ export class ReturnsController {
     @Body() dto: CreateReturnDto,
     @Req() req: any,
   ): Promise<ReturnRequest> {
-    const userId = req.user?.id || req.user?.sub;
+    const userId = requireRequestUserId(req.user);
     return this.returnsService.createReturn(userId, dto);
   }
 
@@ -76,7 +77,7 @@ export class ReturnsController {
     @Query('limit') limit?: number,
     @Req() req?: any,
   ): Promise<{ items: ReturnRequest[]; total: number }> {
-    const requestingUserId = req.user?.id || req.user?.sub;
+    const requestingUserId = requireRequestUserId(req.user);
     // Only admins can filter by other userIds
     const isAdmin = req.user?.role === 'admin';
 
@@ -140,7 +141,7 @@ export class ReturnsController {
     @Body('notes') notes?: string,
     @Req() req?: any,
   ): Promise<ReturnRequest> {
-    const actorId = req.user?.id || req.user?.sub;
+    const actorId = requireRequestUserId(req.user);
     return this.returnsService.updateStatus(id, status, notes, actorId);
   }
 
@@ -256,7 +257,7 @@ export class ReturnsController {
     @Body('productId') productId: string,
     @Req() req?: any,
   ): Promise<{ eligible: boolean; reason?: string }> {
-    const userId = req.user?.id || req.user?.sub;
+    const userId = requireRequestUserId(req.user);
     return this.returnsService.checkEligibility(orderId, productId, userId);
   }
 }

@@ -23,6 +23,7 @@ import {
 import { Request } from 'express';
 import { ApiKeyService, RawApiKey } from './api-key.service';
 import { ApiKey, ApiKeyScope } from './entities/api-key.entity';
+import { requireRequestUserId } from '../../auth/utils/request-user';
 
 /** DTO for creating an API key */
 class CreateApiKeyDto {
@@ -57,10 +58,7 @@ export class ApiKeyController {
     @Req() req: Request,
   ): Promise<RawApiKey> {
     // @ts-expect-error user from auth
-    const userId = req.user?.id || req.user?.sub;
-    if (!userId) {
-      throw new Error('Authentication required');
-    }
+    const userId = requireRequestUserId(req.user);
 
     const clientIp = req.ip || 'unknown';
     const userAgent = req.headers['user-agent'] || 'unknown';
@@ -96,10 +94,7 @@ export class ApiKeyController {
     meta: { total: number; page: number; limit: number };
   }> {
     // @ts-expect-error user from auth
-    const userId = req.user?.id || req.user?.sub;
-    if (!userId) {
-      throw new Error('Authentication required');
-    }
+    const userId = requireRequestUserId(req.user);
 
     const keys = await this.apiKeyService.listKeys(userId);
 
@@ -129,10 +124,7 @@ export class ApiKeyController {
     @Body() body?: { reason?: string },
   ): Promise<void> {
     // @ts-expect-error user from auth
-    const userId = req.user?.id || req.user?.sub;
-    if (!userId) {
-      throw new Error('Authentication required');
-    }
+    const userId = requireRequestUserId(req.user);
 
     await this.apiKeyService.revokeKey(keyId, userId, body?.reason);
   }
@@ -148,10 +140,7 @@ export class ApiKeyController {
     @Req() req: Request,
   ): Promise<RawApiKey> {
     // @ts-expect-error user from auth
-    const userId = req.user?.id || req.user?.sub;
-    if (!userId) {
-      throw new Error('Authentication required');
-    }
+    const userId = requireRequestUserId(req.user);
 
     this.logger.log(`API key regeneration requested for ${keyId} by user ${userId}`);
 

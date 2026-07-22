@@ -22,6 +22,7 @@ import { LoyaltyAccount } from './entities/loyalty-account.entity';
 import { PointsTransaction } from './entities/points-transaction.entity';
 import { Reward } from './entities/reward.entity';
 import { RewardRedemption } from './entities/reward-redemption.entity';
+import { requireRequestUserId } from '../auth/utils/request-user';
 
 @ApiTags('Loyalty & Rewards')
 @Controller('loyalty')
@@ -33,7 +34,7 @@ export class LoyaltyController {
   @ApiOperation({ summary: 'Get my loyalty account' })
   @ApiResponse({ status: HttpStatus.OK, type: LoyaltyAccount })
   async getAccount(@Req() req: any): Promise<LoyaltyAccount> {
-    const userId = req.user?.id || req.user?.sub;
+    const userId = requireRequestUserId(req.user);
     return this.loyaltyService.getAccount(userId);
   }
 
@@ -48,7 +49,7 @@ export class LoyaltyController {
     redeemed: number;
     tier: string;
   }> {
-    const userId = req.user?.id || req.user?.sub;
+    const userId = requireRequestUserId(req.user);
     return this.loyaltyService.getPointsBalance(userId);
   }
 
@@ -61,7 +62,7 @@ export class LoyaltyController {
     @Req() req: any,
     @Query('tier') tier?: string,
   ): Promise<Reward[]> {
-    const userId = req.user?.id || req.user?.sub;
+    const userId = requireRequestUserId(req.user);
     return this.loyaltyService.getAvailableRewards(userId, tier);
   }
 
@@ -74,7 +75,7 @@ export class LoyaltyController {
     @Req() req: any,
     @Body('rewardId') rewardId: string,
   ): Promise<{ redemption: RewardRedemption; remainingPoints: number }> {
-    const userId = req.user?.id || req.user?.sub;
+    const userId = requireRequestUserId(req.user);
     return this.loyaltyService.redeemPoints(userId, rewardId);
   }
 
@@ -89,7 +90,7 @@ export class LoyaltyController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ): Promise<{ items: PointsTransaction[]; total: number }> {
-    const userId = req.user?.id || req.user?.sub;
+    const userId = requireRequestUserId(req.user);
     return this.loyaltyService.getTransactions(
       userId,
       page ? +page : 1,
@@ -102,7 +103,7 @@ export class LoyaltyController {
   @ApiOperation({ summary: 'Get my referral code' })
   @ApiResponse({ status: HttpStatus.OK })
   async getReferralCode(@Req() req: any): Promise<{ code: string; url: string }> {
-    const userId = req.user?.id || req.user?.sub;
+    const userId = requireRequestUserId(req.user);
     return this.loyaltyService.getReferralCode(userId);
   }
 
@@ -114,7 +115,7 @@ export class LoyaltyController {
     @Req() req: any,
     @Body('referralCode') referralCode: string,
   ): Promise<{ success: boolean; bonus: number }> {
-    const userId = req.user?.id || req.user?.sub;
+    const userId = requireRequestUserId(req.user);
     return this.loyaltyService.applyReferral(referralCode, userId);
   }
 
@@ -126,7 +127,7 @@ export class LoyaltyController {
     tier: string;
     tierData: { name: string; minPoints: number; multiplier: number; benefits: string[] } | null;
   }> {
-    const userId = req.user?.id || req.user?.sub;
+    const userId = requireRequestUserId(req.user);
     return this.loyaltyService.calculateTier(userId);
   }
 

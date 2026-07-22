@@ -89,8 +89,22 @@ export class PaymentsService {
 
     await this.assertGatewayEnabled(normalizedGateway);
 
-    // Cash on delivery — no external gateway required
+    // Cash on delivery — no external gateway; order already confirmed at create
     if (normalizedGateway === 'cod' || normalizedGateway === 'cash_on_delivery') {
+      if (!orderId) {
+        throw new BadRequestException('orderId is required for COD');
+      }
+      try {
+        const order = await this.ordersService.findOne(orderId);
+        if (order.userId && userId && order.userId !== userId) {
+          throw new BadRequestException('Order does not belong to this user');
+        }
+      } catch (err) {
+        if (err instanceof BadRequestException || err instanceof NotFoundException) {
+          throw err;
+        }
+        throw new BadRequestException(`Order ${orderId} not found`);
+      }
       return {
         success: true,
         paymentId: `cod_${orderId}`,

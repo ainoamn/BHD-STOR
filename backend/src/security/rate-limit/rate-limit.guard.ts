@@ -19,6 +19,7 @@ import { Reflector } from '@nestjs/core';
 import { Request, Response } from 'express';
 import { RateLimitService } from './rate-limit.service';
 import { RATE_LIMIT_KEY, RateLimitOptions } from './rate-limit.decorator';
+import { getRequestUserId } from '../../auth/utils/request-user';
 
 /**
  * Extract client IP from request, handling proxies and load balancers.
@@ -54,7 +55,7 @@ function extractClientIp(req: Request): string {
 function buildIdentifier(req: Request): string {
   const ip = extractClientIp(req);
   // @ts-expect-error user may be attached by auth middleware
-  const userId = req.user?.id || req.user?.sub;
+  const userId = getRequestUserId(req.user);
 
   // Combine IP and user ID for dual-key rate limiting
   // This prevents: shared IP bypass and per-user tracking

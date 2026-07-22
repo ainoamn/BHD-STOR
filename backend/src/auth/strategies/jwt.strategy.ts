@@ -17,6 +17,8 @@ export interface JwtPayload {
 
 export interface AuthenticatedUser {
   userId: string;
+  /** Alias of userId for legacy controllers using req.user.id */
+  id: string;
   email: string;
   role: string;
   permissions: string[];
@@ -79,6 +81,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     return {
       userId: payload.sub,
+      id: payload.sub,
       email: payload.email,
       role: payload.role,
       permissions,
