@@ -1,3 +1,4 @@
+import './config/load-env';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ValidationPipe, ClassSerializerInterceptor, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';

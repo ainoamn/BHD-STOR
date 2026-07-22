@@ -106,16 +106,16 @@
 - [ ] تطبيق السائق: اختبار على جهاز حقيقي  
 - [ ] بوابة B2B: مفاتيح API + فوترة
 
-### د) أنظمة موسّعة (موجودة كملفات — تحتاج تفعيل)
+### د) أنظمة موسّعة (موجودة كملفات — خلف Feature flags)
 
 Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification · Blockchain · Drone  
 
-هذه **ليست أولوية الإطلاق**؛ أبقِها خلف Feature flags حتى تستقر النواة.
+**افتراضياً معطّلة** عبر `FEATURE_*=false` في `.env` (انظر `backend/src/config/feature-flags.ts`). فعّل عند الحاجة بـ `FEATURE_ACCOUNTING=true` إلخ. النواة دائماً: Auth / Marketplace / Logistics / Security.
 
 ### هـ) جودة وهندسة
 
 - [~] `npm run build` ناجح لـ frontend وbackend (`backend`: SWC؛ `frontend`: `next build` ناجح بعد UI stubs + توحيد casing + إصلاحات أنواع)  
-- [ ] اختبارات وحدة/تكامل تعمل على CI  
+- [~] اختبارات وحدة/تكامل تعمل على CI (CI يبني backend+frontend + typecheck للـ FE؛ unit tests غير حاجزة حتى تستقر)  
 - [ ] لا مسارات API حساسة بدون Auth  
 - [ ] أسرار فقط عبر `.env` (لا تُرفع إلى Git)
 

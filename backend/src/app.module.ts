@@ -1,4 +1,4 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer, Type, DynamicModule, ForwardReference } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -12,6 +12,7 @@ import { LoggerModule } from 'nestjs-pino';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
 import appConfig from './config/app.config';
+import { featureFlags } from './config/feature-flags';
 
 // ─── Core Modules ───────────────────────────────────────────
 
@@ -24,34 +25,16 @@ import { HealthController } from './health.controller';
 // ─── Logistics Module ───────────────────────────────────────
 import { LogisticsModule } from './logistics/logistics.module';
 
-// ─── Returns & Exchanges ────────────────────────────────────
+// ─── Optional / extended (feature-flagged) ──────────────────
 import { ReturnsModule } from './returns/returns.module';
-
-// ─── Loyalty & Rewards ──────────────────────────────────────
 import { LoyaltyModule } from './loyalty/loyalty.module';
-
-// ─── Gamification ───────────────────────────────────────────
 import { GamificationModule } from './gamification/gamification.module';
-
-// ─── Blockchain Tracking ────────────────────────────────────
 import { BlockchainModule } from './blockchain/blockchain.module';
-
-// ─── Accounting System ──────────────────────────────────────
 import { AccountingModule } from './accounting/accounting.module';
-
-// ─── HR Management ──────────────────────────────────────────
 import { HrModule } from './hr/hr.module';
-
-// ─── CRM System ─────────────────────────────────────────────
 import { CrmModule } from './crm/crm.module';
-
-// ─── Commission System ──────────────────────────────────────
 import { CommissionModule } from './commission/commission.module';
-
-// ─── Advanced Analytics ─────────────────────────────────────
 import { AdvancedAnalyticsModule } from './analytics/advanced-analytics.module';
-
-// ─── Drone Delivery ─────────────────────────────────────────
 import { DroneModule } from './drone/drone.module';
 
 // ─── Security Module ────────────────────────────────────────
@@ -61,6 +44,21 @@ import { SecurityModule } from './security/security.module';
 
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { LoggingMiddleware } from './common/middleware/logging.middleware';
+
+type NestImport = Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference;
+
+const optionalFeatureModules: NestImport[] = [
+  featureFlags.returns ? ReturnsModule : null,
+  featureFlags.loyalty ? LoyaltyModule : null,
+  featureFlags.gamification ? GamificationModule : null,
+  featureFlags.blockchain ? BlockchainModule : null,
+  featureFlags.accounting ? AccountingModule : null,
+  featureFlags.hr ? HrModule : null,
+  featureFlags.crm ? CrmModule : null,
+  featureFlags.commission ? CommissionModule : null,
+  featureFlags.advancedAnalytics ? AdvancedAnalyticsModule : null,
+  featureFlags.drone ? DroneModule : null,
+].filter(Boolean) as NestImport[];
 
 // ─── Module ─────────────────────────────────────────────────
 
@@ -157,48 +155,16 @@ import { LoggingMiddleware } from './common/middleware/logging.middleware';
     // Scheduler
     ScheduleModule.forRoot(),
 
-    // ─── Feature Modules ──────────────────────────
-
+    // ─── Core commerce stack ──────────────────────
     AuthModule,
     UsersModule,
     NotificationsModule,
     MarketplaceModule,
-
-    // ─── Logistics Module ─────────────────────────
     LogisticsModule,
-
-    // ─── Returns & Exchanges ──────────────────────
-    ReturnsModule,
-
-    // ─── Loyalty & Rewards ────────────────────────
-    LoyaltyModule,
-
-    // ─── Gamification ─────────────────────────────
-    GamificationModule,
-
-    // ─── Blockchain Tracking ──────────────────────
-    BlockchainModule,
-
-    // ─── Accounting System ────────────────────────
-    AccountingModule,
-
-    // ─── HR Management ────────────────────────────
-    HrModule,
-
-    // ─── CRM System ───────────────────────────────
-    CrmModule,
-
-    // ─── Commission System ────────────────────────
-    CommissionModule,
-
-    // ─── Advanced Analytics ───────────────────────
-    AdvancedAnalyticsModule,
-
-    // ─── Drone Delivery ───────────────────────────
-    DroneModule,
-
-    // ─── Security Module ──────────────────────────
     SecurityModule,
+
+    // ─── Extended modules (FEATURE_*=true) ────────
+    ...optionalFeatureModules,
   ],
   controllers: [HealthController],
   providers: [],
