@@ -58,16 +58,12 @@ export function useProducts(
       if (isDemoMode()) {
         return toPaginatedProducts(getDemoProductsList());
       }
-      try {
-        return await productsService.getProducts(filters);
-      } catch {
-        return toPaginatedProducts(getDemoProductsList());
-      }
+      return productsService.getProducts(filters);
     },
     staleTime: 1000 * 60 * 2, // 2 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
     placeholderData: (previousData) => previousData,
-    retry: false,
+    retry: 1,
   });
 }
 
@@ -101,19 +97,12 @@ export function useProductBySlug(
         if (!product) throw new Error("Product not found");
         return product;
       }
-      try {
-        return await productsService.getProductBySlug(slug);
-      } catch {
-        const { getDemoProductBySlug } = await import("@/lib/demo-data");
-        const product = getDemoProductBySlug(slug);
-        if (!product) throw new Error("Product not found");
-        return product;
-      }
+      return productsService.getProductBySlug(slug);
     },
     staleTime: 1000 * 60 * 3,
     gcTime: 1000 * 60 * 10,
     enabled: !!slug,
-    retry: false,
+    retry: 1,
   });
 }
 
@@ -128,15 +117,11 @@ export function useFeaturedProducts(): UseQueryResult<Product[], Error> {
       if (isDemoMode()) {
         return getDemoProductsList();
       }
-      try {
-        return await productsService.getFeaturedProducts();
-      } catch {
-        return getDemoProductsList();
-      }
+      return productsService.getFeaturedProducts();
     },
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 15,
-    retry: false,
+    retry: 1,
   });
 }
 

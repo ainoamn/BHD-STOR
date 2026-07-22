@@ -60,27 +60,12 @@ export function useStores(
           },
         } as PaginatedStores;
       }
-      try {
-        return await storesService.getStores(filters);
-      } catch {
-        const { demoStores } = await import("@/lib/demo-data");
-        return {
-          data: demoStores as Store[],
-          meta: {
-            currentPage: 1,
-            totalPages: 1,
-            totalCount: demoStores.length,
-            perPage: demoStores.length,
-            hasNextPage: false,
-            hasPrevPage: false,
-          },
-        } as PaginatedStores;
-      }
+      return storesService.getStores(filters);
     },
     staleTime: 1000 * 60 * 3, // 3 minutes
     gcTime: 1000 * 60 * 10,
     placeholderData: (previousData) => previousData,
-    retry: false,
+    retry: 1,
   });
 }
 
@@ -112,19 +97,12 @@ export function useStoreBySlug(slug: string): UseQueryResult<Store, Error> {
         if (!store) throw new Error("Store not found");
         return store as Store;
       }
-      try {
-        return await storesService.getStoreBySlug(slug);
-      } catch {
-        const { getDemoStoreBySlug } = await import("@/lib/demo-data");
-        const store = getDemoStoreBySlug(slug);
-        if (!store) throw new Error("Store not found");
-        return store as Store;
-      }
+      return storesService.getStoreBySlug(slug);
     },
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 15,
     enabled: !!slug,
-    retry: false,
+    retry: 1,
   });
 }
 
@@ -145,19 +123,13 @@ export function useStoreProducts(
         if (storeName) return getDemoProductsByStoreName(storeName) as Product[];
         return getDemoProductsList();
       }
-      try {
-        const result = await storesService.getStoreProducts(storeId);
-        return result.data ?? (result as unknown as Product[]);
-      } catch {
-        const { getDemoProductsByStoreName } = await import("@/lib/demo-data");
-        if (storeName) return getDemoProductsByStoreName(storeName) as Product[];
-        return [];
-      }
+      const result = await storesService.getStoreProducts(storeId);
+      return result.data ?? (result as unknown as Product[]);
     },
     staleTime: 1000 * 60 * 2,
     gcTime: 1000 * 60 * 10,
     enabled: !!storeId,
-    retry: false,
+    retry: 1,
   });
 }
 
@@ -173,16 +145,11 @@ export function useFeaturedStores(): UseQueryResult<Store[], Error> {
         const { demoStores } = await import("@/lib/demo-data");
         return demoStores as Store[];
       }
-      try {
-        return await storesService.getFeaturedStores();
-      } catch {
-        const { demoStores } = await import("@/lib/demo-data");
-        return demoStores as Store[];
-      }
+      return storesService.getFeaturedStores();
     },
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 15,
-    retry: false,
+    retry: 1,
   });
 }
 

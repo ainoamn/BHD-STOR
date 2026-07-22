@@ -153,15 +153,11 @@ export async function getAdminOrders(
     const start = (page - 1) * limit;
     return { orders: orders.slice(start, start + limit), total: orders.length };
   }
-  try {
-    const query = buildQueryString((filters ?? {}) as Record<string, unknown>);
-    const response = await api.get<{ success: boolean; data: PaginatedAdminOrders }>(
-      `/admin/orders${query}`
-    );
-    return response.data.data;
-  } catch {
-    return { orders: toAdminOrders(), total: toAdminOrders().length };
-  }
+  const query = buildQueryString((filters ?? {}) as Record<string, unknown>);
+  const response = await api.get<{ success: boolean; data: PaginatedAdminOrders }>(
+    `/admin/orders${query}`
+  );
+  return response.data.data;
 }
 
 // ---------------------------------------------------------------------------

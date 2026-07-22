@@ -295,16 +295,11 @@ export async function getAdminStores(
     const start = (page - 1) * limit;
     return { stores: stores.slice(start, start + limit), total: stores.length };
   }
-  try {
-    const query = buildQueryString((filters ?? {}) as Record<string, unknown>);
-    const response = await api.get<{ success: boolean; data: PaginatedAdminStores }>(
-      `/admin/stores${query}`
-    );
-    return response.data.data;
-  } catch {
-    const stores = toAdminStores(filters?.status);
-    return { stores, total: stores.length };
-  }
+  const query = buildQueryString((filters ?? {}) as Record<string, unknown>);
+  const response = await api.get<{ success: boolean; data: PaginatedAdminStores }>(
+    `/admin/stores${query}`
+  );
+  return response.data.data;
 }
 
 export const storesService = {

@@ -81,7 +81,7 @@
 ### أ) نواة المتجر (يجب إنجازها أولاً)
 
 - [ ] تشغيل Backend حقيقي (`npm run start:dev`) بدون أخطاء TypeScript  
-- [ ] ربط Frontend بـ API وإيقاف الاعتماد على Demo للمسارات الحرجة  
+- [x] ربط Frontend بـ API وإيقاف الاعتماد على Demo للمسارات الحرجة (كتالوج منتجات/متاجر + قوائم الأدمن لا تعود لبيانات وهمية عند فشل API؛ Demo فقط إن `NEXT_PUBLIC_DEMO_MODE=true`)  
 - [x] واجهة السلة والدفع: `/cart` + `/checkout` + `SmartCart` (طلب API: checkout مربوط بـ `POST /orders` + COD/بوابات)
 - [x] **Checkout:** خيارات الشحن من `GET /shipping/carriers` وبوابات الدفع من `GET /payments/gateways` (مع fallback محلي إن فشل API)
 - [x] **هوية متجر فريدة (متسلسل + باركود/QR):** توليد تلقائي؛ `/ar/s/{serial}` يفتح المتجر فقط؛ تحميل صورة/ملف وطباعة الملصق من لوحة التاجر **ومن صفحة المتجر العامة** 

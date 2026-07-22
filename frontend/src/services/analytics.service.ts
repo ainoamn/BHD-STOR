@@ -197,12 +197,7 @@ export async function getTopStores(
  * @returns Summary metrics for the entire platform
  */
 export async function getDashboardSummary(): Promise<DashboardSummary> {
-  try {
-    const response = await api.get<{ success: boolean; data: DashboardSummary }>(
-      '/analytics/admin/summary'
-    );
-    return response.data.data;
-  } catch {
+  if (isDemoMode()) {
     const demo = getDemoAdminStats();
     return {
       totalRevenue: demo.totalRevenue,
@@ -215,33 +210,29 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       orderGrowth: demo.ordersChange,
     };
   }
+  const response = await api.get<{ success: boolean; data: DashboardSummary }>(
+    '/analytics/admin/summary'
+  );
+  return response.data.data;
 }
 
 export async function getAdminStats(): Promise<AdminDashboardStats> {
   if (isDemoMode()) return getDemoAdminStats();
-  try {
-    const response = await api.get<{ success: boolean; data: AdminDashboardStats }>(
-      '/analytics/admin/stats'
-    );
-    return response.data.data;
-  } catch {
-    return getDemoAdminStats();
-  }
+  const response = await api.get<{ success: boolean; data: AdminDashboardStats }>(
+    '/analytics/admin/stats'
+  );
+  return response.data.data;
 }
 
 export async function getAdminAnalytics(
   _period: AdminAnalyticsPeriod = 'month'
 ): Promise<AdminAnalyticsData> {
   if (isDemoMode()) return getDemoAdminAnalytics();
-  try {
-    const response = await api.get<{ success: boolean; data: AdminAnalyticsData }>(
-      '/analytics/admin/analytics',
-      { params: { period: _period } }
-    );
-    return response.data.data;
-  } catch {
-    return getDemoAdminAnalytics();
-  }
+  const response = await api.get<{ success: boolean; data: AdminAnalyticsData }>(
+    '/analytics/admin/analytics',
+    { params: { period: _period } }
+  );
+  return response.data.data;
 }
 
 /**

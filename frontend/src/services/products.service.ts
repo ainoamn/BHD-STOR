@@ -368,30 +368,11 @@ export async function getAdminProducts(
       categories,
     };
   }
-  try {
-    const query = buildQueryString((filters ?? {}) as Record<string, unknown>);
-    const response = await api.get<{ success: boolean; data: PaginatedAdminProducts }>(
-      `/admin/products${query}`
-    );
-    return response.data.data;
-  } catch {
-    const categories = [...new Set(demoAdminProducts.map((p) => p.category))];
-    return {
-      products: demoAdminProducts.map((p) => ({
-        id: p.id,
-        name: p.nameAr || p.name,
-        slug: p.slug,
-        storeName: p.storeName,
-        price: p.price,
-        stock: p.stock,
-        status: p.status,
-        category: p.category,
-        createdAt: p.createdAt,
-      })),
-      total: demoAdminProducts.length,
-      categories,
-    };
-  }
+  const query = buildQueryString((filters ?? {}) as Record<string, unknown>);
+  const response = await api.get<{ success: boolean; data: PaginatedAdminProducts }>(
+    `/admin/products${query}`
+  );
+  return response.data.data;
 }
 
 export const productsService = {
