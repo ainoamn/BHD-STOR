@@ -1,4 +1,11 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -89,21 +96,15 @@ export class PaymentsService {
 
     await this.assertGatewayEnabled(normalizedGateway);
 
+    // All gateways: payer must own the order (admins may pay on behalf later via separate flow)
+    if (orderId) {
+      await this.assertOrderOwnedByUser(orderId, userId);
+    }
+
     // Cash on delivery — no external gateway; order already confirmed at create
     if (normalizedGateway === 'cod' || normalizedGateway === 'cash_on_delivery') {
       if (!orderId) {
         throw new BadRequestException('orderId is required for COD');
-      }
-      try {
-        const order = await this.ordersService.findOne(orderId);
-        if (order.userId && userId && order.userId !== userId) {
-          throw new BadRequestException('Order does not belong to this user');
-        }
-      } catch (err) {
-        if (err instanceof BadRequestException || err instanceof NotFoundException) {
-          throw err;
-        }
-        throw new BadRequestException(`Order ${orderId} not found`);
       }
       return {
         success: true,
@@ -1127,6 +1128,24 @@ export class PaymentsService {
     if (n === 'omannet') return 'oman_net';
     if (n === 'cash_on_delivery') return 'cod';
     return n;
+  }
+
+  private async assertOrderOwnedByUser(orderId: string, userId: string): Promise<void> {
+    try {
+      const order = await this.ordersService.findOne(orderId);
+      if (order.userId && userId && order.userId !== userId) {
+        throw new ForbiddenException('Order does not belong to this user');
+      }
+    } catch (err) {
+      if (
+        err instanceof ForbiddenException ||
+        err instanceof NotFoundException ||
+        err instanceof BadRequestException
+      ) {
+        throw err;
+      }
+      throw new BadRequestException(`Order ${orderId} not found`);
+    }
   }
 
   private async assertGatewayEnabled(normalizedCode: string): Promise<void> {

@@ -99,8 +99,15 @@ export class OrdersController {
   @ApiParam({ name: 'orderNumber', description: 'Order number', example: 'BHD2406150001' })
   @ApiResponse({ status: 200, description: 'Order found' })
   @ApiResponse({ status: 404, description: 'Order not found' })
-  async findByOrderNumber(@Param('orderNumber') orderNumber: string) {
-    const order = await this.ordersService.findByOrderNumber(orderNumber);
+  async findByOrderNumber(
+    @Param('orderNumber') orderNumber: string,
+    @Request() req,
+  ) {
+    const order = await this.ordersService.findByOrderNumberForRequester(
+      orderNumber,
+      requireRequestUserId(req.user),
+      req.user?.role,
+    );
     return {
       success: true,
       data: order,
@@ -114,9 +121,14 @@ export class OrdersController {
   @ApiParam({ name: 'id', description: 'Order UUID', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Order found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Order not found' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    const order = await this.ordersService.findOne(id);
+  async findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
+    const order = await this.ordersService.findOneForRequester(
+      id,
+      requireRequestUserId(req.user),
+      req.user?.role,
+    );
     return {
       success: true,
       data: order,
@@ -175,8 +187,12 @@ export class OrdersController {
   @ApiParam({ name: 'id', description: 'Order UUID', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Order history retrieved' })
   @ApiResponse({ status: 404, description: 'Order not found' })
-  async getOrderHistory(@Param('id', ParseUUIDPipe) id: string) {
-    const history = await this.ordersService.getOrderHistory(id);
+  async getOrderHistory(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
+    const history = await this.ordersService.getOrderHistory(
+      id,
+      requireRequestUserId(req.user),
+      req.user?.role,
+    );
     return {
       success: true,
       data: history,

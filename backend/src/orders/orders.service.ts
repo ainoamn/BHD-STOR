@@ -232,6 +232,20 @@ export class OrdersService {
     return order;
   }
 
+  /**
+   * Load order and enforce ownership for customers.
+   * Admins / super_admins / moderators may access any order.
+   */
+  async findOneForRequester(
+    id: string,
+    userId: string,
+    role?: string,
+  ): Promise<Order> {
+    const order = await this.findOne(id);
+    this.assertOrderAccess(order, userId, role);
+    return order;
+  }
+
   async findByOrderNumber(orderNumber: string): Promise<Order> {
     const order = await this.orderRepository.findOne({
       where: { orderNumber },
@@ -243,6 +257,49 @@ export class OrdersService {
     }
 
     return order;
+  }
+
+  async findByOrderNumberForRequester(
+    orderNumber: string,
+    userId: string,
+    role?: string,
+  ): Promise<Order> {
+    const order = await this.findByOrderNumber(orderNumber);
+    this.assertOrderAccess(order, userId, role);
+    return order;
+  }
+
+  async getOrderHistory(
+    id: string,
+    userId?: string,
+    role?: string,
+  ): Promise<Array<{ status: string; note?: string; timestamp: string }>> {
+    const order =
+      userId != null
+        ? await this.findOneForRequester(id, userId, role)
+        : await this.findOne(id);
+
+    if (order.statusHistory?.length) {
+      return order.statusHistory;
+    }
+
+    return [
+      {
+        status: String(order.status),
+        timestamp: new Date(
+          (order as any).updatedAt || (order as any).createdAt || Date.now(),
+        ).toISOString(),
+      },
+    ];
+  }
+
+  assertOrderAccess(order: Order, userId: string, role?: string): void {
+    const privileged = ['admin', 'super_admin', 'moderator'].includes(
+      String(role || '').toLowerCase(),
+    );
+    if (!privileged && order.userId && order.userId !== userId) {
+      throw new ForbiddenException('You do not have access to this order');
+    }
   }
 
   async updateStatus(

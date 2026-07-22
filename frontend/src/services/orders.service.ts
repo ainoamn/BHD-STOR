@@ -182,10 +182,30 @@ export async function getOrders(
   filters?: OrderFilters
 ): Promise<PaginatedResponse<Order>> {
   const query = buildQueryString((filters ?? {}) as Record<string, unknown>);
-  const response = await api.get<{ success: boolean; data: PaginatedResponse<Order> }>(
-    `/orders${query}`
-  );
-  return response.data.data;
+  const response = await api.get<any>(`/orders${query}`);
+  const body = response.data;
+  // Backend returns { success, data: Order[], meta: { total, page, limit, totalPages } }
+  const rows: Order[] = Array.isArray(body?.data)
+    ? body.data
+    : Array.isArray(body?.data?.data)
+      ? body.data.data
+      : [];
+  const meta = body?.meta || body?.data?.meta || {};
+  const page = Number(meta.page ?? meta.currentPage ?? filters?.page ?? 1);
+  const limit = Number(meta.limit ?? meta.perPage ?? filters?.perPage ?? 10);
+  const total = Number(meta.total ?? meta.totalCount ?? rows.length);
+  const totalPages = Number(meta.totalPages ?? Math.max(1, Math.ceil(total / limit)));
+  return {
+    data: rows,
+    meta: {
+      currentPage: page,
+      totalPages,
+      totalCount: total,
+      perPage: limit,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    },
+  };
 }
 
 /**

@@ -58,7 +58,7 @@ export class Cart {
   @JoinColumn({ name: 'user_id' })
   user: Relation<User> | null;
 
-  @OneToMany(() => CartItem, (item) => item.cart, { cascade: true, orphanRemoval: true })
+  @OneToMany(() => CartItem, (item) => item.cart, { cascade: true })
   items: Relation<CartItem[]>;
 
   // Timestamps

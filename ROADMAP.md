@@ -118,6 +118,8 @@ Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification 
 - [~] اختبارات وحدة/تكامل تعمل على CI (CI يبني BE/FE؛ unit tests لـ request-user وassertProductionSecrets؛ `npm run test:security` / `npm run smoke` / `npm run check:env`)  
 - [~] لا مسارات API حساسة بدون Auth (JWT+Roles حراس عالميون؛ webhook دفع/واتساب عامة عمداً مع `ThrottlerGuard`+`WEBHOOK`؛ `POST /whatsapp/simulate` معطّل في production إلا بـ `WHATSAPP_ALLOW_SIMULATE`؛ قائمة gateways العامة لا تكشف تشخيص الإعداد)  
 - [x] توحيد هوية JWT في controllers عبر `requireRequestUserId` (سلة/مفضلة/دردشة/إشعارات/متاجر/منتجات/مراجعات/اشتراكات/دفع)  
+- [x] صفحات طلبات العميل `/orders` + `/orders/[id]` مربوطة بـ API (بدل demo)  
+- [x] ملكية الطلب على GET + الدفع لكل البوابات · `RolesGuard` يرفع `super_admin` فوق `admin`  
 - [~] أسرار فقط عبر `.env` (لا تُرفع إلى Git؛ `setup-env.bat` ينشئ `.env` محلياً؛ `docker-compose.infra.yml` لـ Postgres/Redis)  
 
 ---

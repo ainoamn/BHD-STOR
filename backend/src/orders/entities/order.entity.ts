@@ -141,6 +141,9 @@ export class Order {
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: Relation<OrderItem[]>;
 
+  // Optional inverse relation used by Review entity
+  reviews?: any[];
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

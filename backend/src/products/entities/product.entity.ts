@@ -22,6 +22,7 @@ export class Product {
   cartItems?: any[];
   wishlists?: any[];
   orderItems?: any[];
+  reviews?: any[];
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
 }
