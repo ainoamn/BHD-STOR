@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ServiceUnavailableException, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
 import { InjectRedis } from '@nestjs-modules/ioredis';
@@ -99,7 +99,10 @@ export class AiService {
     tokensUsed?: number;
   }> {
     if (!(await this.checkRateLimit(userId))) {
-      throw new BadRequestException('AI rate limit exceeded. Please try again in a minute.');
+      throw new HttpException(
+        'AI rate limit exceeded. Please try again in a minute.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     const cacheKey = this.generateCacheKey('chat', { message: dto.message, userId });
@@ -406,12 +409,11 @@ export class AiService {
   // ─── Health Check ─────────────────────────────────────────────────
 
   async healthCheck() {
-    const checks: Record<string, 'healthy' | 'unhealthy'> = {};
+    const checks: Record<string, 'healthy' | 'unhealthy' | 'disabled'> = {};
 
-    // Check OpenAI
+    // Check OpenAI — configured key required; do not probe live API here
     try {
-      const config = this.openaiService.getConfig();
-      checks.openai = config.model ? 'healthy' : 'unhealthy';
+      checks.openai = this.openaiService.isConfigured() ? 'healthy' : 'disabled';
     } catch {
       checks.openai = 'unhealthy';
     }
@@ -424,11 +426,17 @@ export class AiService {
       checks.redis = 'unhealthy';
     }
 
-    const allHealthy = Object.values(checks).every((s) => s === 'healthy');
+    const criticalOk = checks.redis === 'healthy';
+    const openaiOk = checks.openai === 'healthy' || checks.openai === 'disabled';
 
     return {
-      status: allHealthy ? 'healthy' : 'degraded',
+      status: criticalOk && openaiOk
+        ? checks.openai === 'disabled'
+          ? 'degraded'
+          : 'healthy'
+        : 'degraded',
       checks,
+      openaiConfigured: this.openaiService.isConfigured(),
       timestamp: new Date().toISOString(),
       version: '1.0.0',
     };

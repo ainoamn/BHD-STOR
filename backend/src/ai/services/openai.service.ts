@@ -1,4 +1,10 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { ChatMessage } from '../dto/chat-request.dto';
@@ -62,8 +68,11 @@ export interface ProductDescriptionResult {
 @Injectable()
 export class OpenAIService {
   private readonly logger = new Logger(OpenAIService.name);
-  private readonly openai: OpenAI;
+  private readonly openai: OpenAI | null;
   private readonly config: OpenAIConfig;
+  private readonly timeoutMs: number;
+  private readonly rateLimitPerMinute: number;
+  private readonly rateWindow: number[] = [];
 
   constructor(private readonly configService: ConfigService) {
     this.config = {
@@ -73,22 +82,76 @@ export class OpenAIService {
       maxTokens: parseInt(this.configService.get<string>('OPENAI_MAX_TOKENS') || '2000', 10),
       embeddingModel: this.configService.get<string>('OPENAI_EMBEDDING_MODEL') || 'text-embedding-3-small',
     };
+    this.timeoutMs = parseInt(
+      this.configService.get<string>('OPENAI_TIMEOUT_MS') ||
+        this.configService.get<string>('ai.openai.timeout') ||
+        '30000',
+      10,
+    );
+    this.rateLimitPerMinute = parseInt(
+      this.configService.get<string>('AI_RATE_LIMIT_PER_MINUTE') || '60',
+      10,
+    );
 
     if (!this.config.apiKey) {
-      this.logger.warn('OPENAI_API_KEY not configured. AI features will be unavailable.');
-      this.openai = null as any;
+      this.logger.warn('OPENAI_API_KEY not configured. AI features will degrade safely.');
+      this.openai = null;
     } else {
       this.openai = new OpenAI({
         apiKey: this.config.apiKey,
+        timeout: this.timeoutMs,
+        maxRetries: 1,
       });
       this.logger.log(`OpenAI service initialized with model: ${this.config.model}`);
     }
   }
 
+  /** Whether outbound OpenAI calls are possible. */
+  isConfigured(): boolean {
+    return Boolean(this.config.apiKey && this.openai);
+  }
+
   private ensureClient(): void {
-    if (!this.openai) {
-      throw new BadRequestException('OpenAI API key not configured');
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableException('OpenAI API key not configured');
     }
+  }
+
+  private enforceLocalRateLimit(): void {
+    const now = Date.now();
+    while (this.rateWindow.length && now - this.rateWindow[0] > 60_000) {
+      this.rateWindow.shift();
+    }
+    if (this.rateWindow.length >= this.rateLimitPerMinute) {
+      throw new HttpException(
+        'AI rate limit exceeded. Please try again in a minute.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    this.rateWindow.push(now);
+  }
+
+  private toHttpException(error: any): HttpException {
+    if (error instanceof HttpException) {
+      return error;
+    }
+    const status = error?.status || error?.statusCode || error?.response?.status;
+    const message = error?.message || 'OpenAI request failed';
+    if (status === 429) {
+      return new HttpException(
+        `AI rate limit (provider): ${message}`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (
+      status === 401 ||
+      status === 403 ||
+      /api key|authentication|unauthorized/i.test(message)
+    ) {
+      return new ServiceUnavailableException(`OpenAI authentication failed: ${message}`);
+    }
+    // Network / 5xx / timeouts → unavailable, not a client bad request
+    return new ServiceUnavailableException(`AI service unavailable: ${message}`);
   }
 
   /**
@@ -104,10 +167,11 @@ export class OpenAIService {
     },
   ): Promise<{ content: string; usage: { promptTokens: number; completionTokens: number; totalTokens: number } }> {
     this.ensureClient();
+    this.enforceLocalRateLimit();
 
     const startTime = Date.now();
     try {
-      const response = await this.openai.chat.completions.create({
+      const response = await this.openai!.chat.completions.create({
         model: options?.model || this.config.model,
         messages: messages.map((m) => ({
           role: m.role,
@@ -129,7 +193,7 @@ export class OpenAIService {
       return { content, usage };
     } catch (error) {
       this.logger.error(`Chat completion failed: ${error.message}`, error.stack);
-      throw new BadRequestException(`AI chat failed: ${error.message}`);
+      throw this.toHttpException(error);
     }
   }
 
@@ -147,8 +211,6 @@ export class OpenAIService {
       popularProducts?: any[];
     },
   ): Promise<Array<{ productId: string; reason: string; score: number }>> {
-    this.ensureClient();
-
     const prompt = `You are a product recommendation engine for BHD Oman, an e-commerce marketplace.
 Analyze the user's context and recommend the most relevant products.
 
@@ -190,8 +252,6 @@ Format: [{"productId": "...", "reason": "...", "score": 0.95}]`;
    * Analyze sentiment of review/comment text
    */
   async analyzeSentiment(text: string): Promise<SentimentResult> {
-    this.ensureClient();
-
     try {
       const { content } = await this.chatCompletion(
         [
@@ -243,8 +303,6 @@ Format: [{"productId": "...", "reason": "...", "score": 0.95}]`;
     price?: number;
     currency?: string;
   }): Promise<ProductDescriptionResult> {
-    this.ensureClient();
-
     const prompt = `Generate an SEO-optimized product listing for BHD Oman marketplace.
 
 Product: ${productData.name}
@@ -301,8 +359,6 @@ Return ONLY JSON:
    * Expand search query with AI-generated keywords
    */
   async generateSearchKeywords(query: string): Promise<string[]> {
-    this.ensureClient();
-
     try {
       const { content } = await this.chatCompletion(
         [
@@ -340,8 +396,6 @@ Return ONLY JSON:
       orderContext?: any;
     },
   ): Promise<{ response: string; suggestions?: any[]; actions?: any[] }> {
-    this.ensureClient();
-
     const systemPrompt = `You are BHD Assistant, the AI shopping assistant for BHD Oman - Oman's leading e-commerce marketplace.
 
 Your capabilities:
@@ -393,8 +447,6 @@ Current user: ${context?.userName || 'Guest'} (${context?.userId || 'anonymous'}
    * Translate text between languages
    */
   async translateText(text: string, fromLang: string, toLang: string): Promise<TranslationResult> {
-    this.ensureClient();
-
     try {
       const { content } = await this.chatCompletion(
         [
@@ -429,8 +481,6 @@ Current user: ${context?.userName || 'Guest'} (${context?.userId || 'anonymous'}
    * Summarize long text
    */
   async summarizeText(text: string, maxLength?: number): Promise<string> {
-    this.ensureClient();
-
     try {
       const { content } = await this.chatCompletion(
         [
@@ -454,8 +504,6 @@ Current user: ${context?.userName || 'Guest'} (${context?.userId || 'anonymous'}
    * Check content for inappropriate material
    */
   async moderateContent(text: string): Promise<ModerationResult> {
-    this.ensureClient();
-
     try {
       const moderation = await this.openai.moderations.create({
         input: text,
@@ -511,8 +559,6 @@ Current user: ${context?.userName || 'Guest'} (${context?.userId || 'anonymous'}
     type: 'order_confirmation' | 'shipping_update' | 'password_reset' | 'welcome' | 'abandoned_cart' | 'review_request' | 'support_reply',
     data: Record<string, any>,
   ): Promise<{ subject: string; body: string; smsText?: string; whatsappText?: string }> {
-    this.ensureClient();
-
     const typePrompts: Record<string, string> = {
       order_confirmation: 'Generate an order confirmation message',
       shipping_update: 'Generate a shipping status update',
@@ -564,10 +610,12 @@ Return JSON:
    * Generate embeddings for semantic search
    */
   async generateEmbedding(text: string): Promise<number[]> {
-    this.ensureClient();
+    if (!this.isConfigured()) {
+      return [];
+    }
 
     try {
-      const response = await this.openai.embeddings.create({
+      const response = await this.openai!.embeddings.create({
         model: this.config.embeddingModel,
         input: text,
         encoding_format: 'float',
@@ -588,8 +636,6 @@ Return JSON:
     winner: string;
     prosCons: Array<{ productId: string; pros: string[]; cons: string[] }>;
   }> {
-    this.ensureClient();
-
     try {
       const { content } = await this.chatCompletion(
         [
@@ -634,12 +680,13 @@ Return JSON:
   /**
    * Get the current OpenAI configuration (sanitized)
    */
-  getConfig(): Omit<OpenAIConfig, 'apiKey'> {
+  getConfig(): Omit<OpenAIConfig, 'apiKey'> & { configured: boolean } {
     return {
       model: this.config.model,
       temperature: this.config.temperature,
       maxTokens: this.config.maxTokens,
       embeddingModel: this.config.embeddingModel,
+      configured: this.isConfigured(),
     };
   }
 }
