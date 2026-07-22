@@ -12,6 +12,8 @@ import {
   Category,
   Review,
   CreateReviewData,
+  CreateProductData,
+  UpdateProductData,
 } from '../types';
 
 export type {
@@ -19,6 +21,8 @@ export type {
   ProductFilters,
   Review,
   CreateReviewData,
+  CreateProductData,
+  UpdateProductData,
 };
 export type PaginatedProducts = PaginatedResponse<Product>;
 export type ReviewData = CreateReviewData;
@@ -60,10 +64,31 @@ export async function getProducts(
  * @returns Product details
  */
 export async function getProduct(id: string): Promise<Product> {
-  const response = await api.get<{ success: boolean; data: Product }>(
-    `/products/${id}`
-  );
-  return response.data.data;
+  const response = await api.get<any>(`/products/${id}`);
+  return (response.data?.data ?? response.data) as Product;
+}
+
+/**
+ * Create a product for the seller's store.
+ */
+export async function createProduct(data: CreateProductData): Promise<Product> {
+  const response = await api.post<any>('/products', {
+    type: 'physical',
+    status: 'active',
+    ...data,
+  });
+  return (response.data?.data ?? response.data) as Product;
+}
+
+/**
+ * Update an existing product (seller/owner).
+ */
+export async function updateProduct(
+  id: string,
+  data: UpdateProductData,
+): Promise<Product> {
+  const response = await api.patch<any>(`/products/${id}`, data);
+  return (response.data?.data ?? response.data) as Product;
 }
 
 /**
@@ -195,10 +220,16 @@ export async function getProductSuggestions(
  * @returns List of categories
  */
 export async function getCategories(): Promise<Category[]> {
-  const response = await api.get<{ success: boolean; data: Category[] }>(
-    '/categories'
-  );
-  return response.data.data;
+  const response = await api.get<any>('/categories');
+  const body = response.data;
+  const rows = Array.isArray(body?.data)
+    ? body.data
+    : Array.isArray(body?.data?.data)
+      ? body.data.data
+      : Array.isArray(body)
+        ? body
+        : [];
+  return rows as Category[];
 }
 
 /**
@@ -433,6 +464,8 @@ export const productsService = {
   getProducts,
   getProductById: getProduct,
   getProductBySlug,
+  createProduct,
+  updateProduct,
   searchProducts,
   getFeaturedProducts,
   getTrendingProducts,

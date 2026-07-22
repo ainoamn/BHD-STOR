@@ -16,6 +16,8 @@ import type {
   Review,
   ReviewData,
   CreateReviewData,
+  CreateProductData,
+  UpdateProductData,
 } from '@/services/products.service';
 
 // ------------------------------------------------------------------
@@ -232,6 +234,60 @@ export function useCreateReview(): UseMutationResult<
       queryClient.invalidateQueries({
         queryKey: productKeys.detail(variables.productId),
       });
+    },
+  });
+}
+
+/**
+ * Hook: useCreateProduct
+ * Seller creates a new product.
+ */
+export function useCreateProduct(): UseMutationResult<
+  Product,
+  Error,
+  CreateProductData
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateProductData) => productsService.createProduct(data),
+    onSuccess: (product) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+      if (product?.storeId) {
+        queryClient.invalidateQueries({
+          queryKey: productKeys.store(product.storeId),
+        });
+      }
+    },
+  });
+}
+
+/**
+ * Hook: useUpdateProduct
+ * Seller updates an existing product.
+ */
+export function useUpdateProduct(): UseMutationResult<
+  Product,
+  Error,
+  { id: string } & UpdateProductData
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & UpdateProductData) =>
+      productsService.updateProduct(id, data),
+    onSuccess: (product) => {
+      if (product?.id) {
+        queryClient.invalidateQueries({
+          queryKey: productKeys.detail(product.id),
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+      if (product?.storeId) {
+        queryClient.invalidateQueries({
+          queryKey: productKeys.store(product.storeId),
+        });
+      }
     },
   });
 }

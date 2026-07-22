@@ -496,9 +496,15 @@ export default function StoreDashboardPage() {
                   {products.map((product: Product) => (
                     <div
                       key={product.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      className="flex items-center justify-between gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
-                      <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        className="flex min-w-0 flex-1 items-center gap-3 text-start"
+                        onClick={() =>
+                          router.push(`/dashboard/store/products/${product.id}/edit`)
+                        }
+                      >
                         <div className="h-12 w-12 rounded bg-muted flex items-center justify-center overflow-hidden">
                           {product.image ? (
                             <img
@@ -510,28 +516,41 @@ export default function StoreDashboardPage() {
                             <Package className="h-5 w-5 text-muted-foreground" />
                           )}
                         </div>
-                        <div>
-                          <p className="font-medium">{product.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {product.category}
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{product.name}</p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {typeof product.category === "string"
+                              ? product.category
+                              : product.category?.name || ""}
                           </p>
                         </div>
-                      </div>
-                      <div className="text-right space-y-1">
+                      </button>
+                      <div className="text-right space-y-1 shrink-0">
                         <p className="font-medium">OMR {product.price?.toFixed(3)}</p>
                         <div className="flex items-center gap-2 text-sm">
                           <span
                             className={`${
-                              product.stock < 10 ? "text-red-600" : "text-muted-foreground"
+                              (product.stock ?? product.quantity ?? 0) < 10
+                                ? "text-red-600"
+                                : "text-muted-foreground"
                             }`}
                           >
-                            {product.stock} {t("products.inStock")}
+                            {product.stock ?? product.quantity ?? 0} {t("products.inStock")}
                           </span>
                           <span className="text-muted-foreground">|</span>
                           <span className="text-muted-foreground">
-                            {product.sales ?? 0} {t("products.sold")}
+                            {product.sales ?? product.soldCount ?? 0} {t("products.sold")}
                           </span>
                         </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            router.push(`/dashboard/store/products/${product.id}/edit`)
+                          }
+                        >
+                          تعديل
+                        </Button>
                       </div>
                     </div>
                   ))}

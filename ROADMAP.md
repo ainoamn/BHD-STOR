@@ -122,6 +122,7 @@ Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification 
 - [x] ملكية الطلب على GET + الدفع لكل البوابات · `RolesGuard` يرفع `super_admin` فوق `admin`  
 - [x] مفضلة حية + طلبات التاجر بـ `storeId` + `returnUrl` بعد الدفع يتضمن الطلب  
 - [x] ملكية الاسترداد + `GET /payments/:id/verify` + صفحة `/payments/return`  
+- [x] صفحات تاجر إنشاء/تعديل المنتج (`/dashboard/store/products/...`)  
 - [~] أسرار فقط عبر `.env` (لا تُرفع إلى Git؛ `setup-env.bat` ينشئ `.env` محلياً؛ `docker-compose.infra.yml` لـ Postgres/Redis)  
 
 ---

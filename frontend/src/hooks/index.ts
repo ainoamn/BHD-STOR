@@ -29,6 +29,8 @@ export {
   useSearchProducts,
   useCreateReview,
   useReviews,
+  useCreateProduct,
+  useUpdateProduct,
   productKeys,
 } from './useProducts';
 

@@ -1,4 +1,6 @@
 import { useQuery, UseQueryResult } from "@tanstack/react-query";
+import { productsService } from "@/services/products.service";
+import { isDemoMode } from "@/lib/demo-mode";
 
 export interface Category {
   id: string;
@@ -27,8 +29,17 @@ export const categoryKeys = {
 export function useCategories(): UseQueryResult<Category[], Error> {
   return useQuery({
     queryKey: categoryKeys.list(),
-    queryFn: async () => demoCategories,
+    queryFn: async () => {
+      if (isDemoMode()) return demoCategories;
+      try {
+        const rows = await productsService.getCategories();
+        if (Array.isArray(rows) && rows.length > 0) return rows as Category[];
+      } catch {
+        // fall through
+      }
+      return demoCategories;
+    },
     staleTime: 1000 * 60 * 10,
-    retry: false,
+    retry: 1,
   });
 }

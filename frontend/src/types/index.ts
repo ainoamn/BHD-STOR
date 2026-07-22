@@ -344,7 +344,33 @@ export interface ProductFilters {
   perPage?: number;
   sortBy?: 'name' | 'price' | 'rating' | 'soldCount' | 'viewCount' | 'createdAt' | 'popularity';
   sortOrder?: 'asc' | 'desc';
+  storeId?: string;
+  categoryId?: string;
+  limit?: number;
 }
+
+export type ProductType = 'physical' | 'digital' | 'service' | 'subscription';
+
+export interface CreateProductData {
+  storeId: string;
+  categoryId: string;
+  name: string;
+  type?: ProductType;
+  price: number;
+  inventoryQuantity: number;
+  nameEn?: string;
+  description?: string;
+  shortDescription?: string;
+  compareAtPrice?: number;
+  sku?: string;
+  lowStockThreshold?: number;
+  status?: ProductStatus;
+  isFeatured?: boolean;
+  images?: string[];
+  tags?: string[];
+}
+
+export type UpdateProductData = Partial<CreateProductData>;
 
 // -----------------------------------------------------------------------------
 // Review
