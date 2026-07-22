@@ -173,6 +173,20 @@ export class OrderEventSubscriber implements EntitySubscriberInterface<OrderEnti
     }
   }
 
+  @OnEvent('order.paid', { async: true })
+  async handleOrderPaidEvent(payload: {
+    orderId: string;
+    gateway?: string;
+  }): Promise<void> {
+    this.logger.log(`[handleOrderPaidEvent] Order ${payload.orderId} via ${payload.gateway || 'n/a'}`);
+    try {
+      const shipment = await this.integrationService.onOrderCreated(payload.orderId);
+      this.logger.log(`[handleOrderPaidEvent] Shipment ${shipment.trackingNumber} ready`);
+    } catch (error) {
+      this.logger.error(`[handleOrderPaidEvent] Failed: ${error.message}`, error.stack);
+    }
+  }
+
   /**
    * Listen for order.status_changed events
    */

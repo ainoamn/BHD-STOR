@@ -23,7 +23,7 @@ import {
   DriverStatus,
   ServiceType,
 } from '../enums/logistics.enum';
-import { OrdersService } from '../../marketplace/orders/orders.service';
+import { OrdersService } from '../../orders/orders.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 
 // ─── DTOs / Interfaces ──────────────────────────────────────
@@ -119,13 +119,11 @@ export class MarketplaceIntegrationService {
   async onOrderCreated(orderId: string): Promise<Shipment> {
     this.logger.log(`[onOrderCreated] Processing order ${orderId}`);
 
-    // 1. Get order details from OrdersService
-    const order = await this.ordersService.findOne(orderId);
+    const order: any = await this.ordersService.findOne(orderId);
     if (!order) {
       throw new NotFoundException(`Order ${orderId} not found`);
     }
 
-    // 2. Check if shipment already exists for this order
     const existing = await this.shipmentRepo.findOne({
       where: { orderId },
     });
@@ -134,76 +132,115 @@ export class MarketplaceIntegrationService {
       return existing;
     }
 
-    // 3. Resolve zones from addresses
-    const senderZone = await this.resolveZoneFromAddress(order.storeAddress);
-    const recipientZone = await this.resolveZoneFromAddress(order.shippingAddress);
+    const shippingAddress = this.formatAddress(order.shippingAddress);
+    const storeAddress = this.formatAddress(
+      order.store?.address || order.storeAddress || order.store?.city || 'Muscat, Oman',
+    );
+
+    const senderZone = await this.resolveZoneFromAddress(storeAddress);
+    let recipientZone = await this.resolveZoneFromAddress(shippingAddress);
 
     if (!recipientZone) {
-      throw new BadRequestException('Delivery address is not in a covered zone');
+      recipientZone =
+        (await this.zoneRepo.findOne({ where: { name: 'Muscat' } as any })) ||
+        (await this.zoneRepo.findOne({ where: {} }));
     }
 
-    // 4. Calculate shipping cost
-    const weightKg = order.totalWeightKg ?? 1.0;
-    const serviceType = this.selectServiceType(order);
-    const quote = await this.calculateShippingQuote({
-      senderZoneId: senderZone?.id ?? recipientZone.id,
-      recipientZoneId: recipientZone.id,
-      weightKg,
-      serviceType,
-      declaredValue: order.totalAmount,
-      isFragile: order.hasFragileItems ?? false,
-      isInsured: order.totalAmount > 100,
+    if (!recipientZone) {
+      this.logger.warn(
+        `[onOrderCreated] No logistics zones configured — creating placeholder shipment for ${orderId}`,
+      );
+    }
+
+    const totalAmount = Number(order.total ?? order.totalAmount ?? 0);
+    const weightKg = Number(order.totalWeightKg ?? 1.0);
+    const serviceType = this.selectServiceType({
+      ...order,
+      isExpress: order.metadata?.shippingMethod === 'express',
+      requestSameDay: order.metadata?.shippingMethod === 'sameDay',
     });
 
-    // 5. Generate tracking number
+    let quote = {
+      basePrice: Number(order.shipping ?? 0),
+      weightCharge: 0,
+      distanceCharge: 0,
+      total: Number(order.shipping ?? 1.5),
+    };
+
+    if (recipientZone) {
+      try {
+        quote = await this.calculateShippingQuote({
+          senderZoneId: senderZone?.id ?? recipientZone.id,
+          recipientZoneId: recipientZone.id,
+          weightKg,
+          serviceType,
+          declaredValue: totalAmount,
+          isFragile: order.hasFragileItems ?? false,
+          isInsured: totalAmount > 100,
+        });
+      } catch (err) {
+        this.logger.warn(`[onOrderCreated] Quote fallback: ${err.message}`);
+      }
+    }
+
     const trackingNumber = await this.generateTrackingNumber();
+    const estimatedDelivery = recipientZone
+      ? this.estimateDeliveryDate(serviceType, recipientZone)
+      : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
 
-    // 6. Estimate delivery
-    const estimatedDelivery = this.estimateDeliveryDate(serviceType, recipientZone);
+    const addr = order.shippingAddress || {};
+    const customerName =
+      order.customerName ||
+      addr.fullName ||
+      `${order.user?.firstName || ''} ${order.user?.lastName || ''}`.trim() ||
+      'Customer';
+    const customerPhone = order.customerPhone || addr.phone || order.user?.phone || '';
 
-    // 7. Create shipment
+    const isCod =
+      order.paymentMethod === 'cod' ||
+      order.paymentMethod === 'cash_on_delivery' ||
+      order.paymentStatus === 'pending';
+
     const shipment = this.shipmentRepo.create({
       trackingNumber,
       orderId,
-      externalOrderId: order.externalOrderId,
+      externalOrderId: order.orderNumber || order.externalOrderId,
       shipmentType: 'b2c',
       serviceType,
       status: ShipmentStatus.CONFIRMED,
-      paymentStatus: order.paymentStatus === 'paid' ? 'paid' : 'cod',
+      paymentStatus: order.paymentStatus === 'paid' ? 'paid' : isCod ? 'cod' : 'pending',
 
-      // Sender (store)
-      senderName: order.storeName ?? 'BHD Store',
-      senderPhone: order.storePhone ?? '+968 2400 0000',
-      senderEmail: order.storeEmail,
-      senderAddress: order.storeAddress,
-      senderZone: senderZone,
+      senderName: order.store?.name || order.storeName || 'BHD Store',
+      senderPhone: order.store?.phone || order.storePhone || '+968 2400 0000',
+      senderEmail: order.store?.email || order.storeEmail,
+      senderAddress: storeAddress,
+      senderZone: senderZone || undefined,
 
-      // Recipient (customer)
-      recipientName: order.customerName,
-      recipientPhone: order.customerPhone,
-      recipientEmail: order.customerEmail,
-      recipientAddress: order.shippingAddress,
-      recipientLat: order.shippingLat,
-      recipientLng: order.shippingLng,
-      recipientZone,
+      recipientName: customerName,
+      recipientPhone: customerPhone,
+      recipientEmail: order.customerEmail || order.user?.email,
+      recipientAddress: shippingAddress,
+      recipientLat: order.shippingLat ?? addr.latitude ?? null,
+      recipientLng: order.shippingLng ?? addr.longitude ?? null,
+      recipientZone: recipientZone || undefined,
 
-      // Package details
-      description: order.itemsDescription,
+      description: (order.items || [])
+        .map((i: any) => `${i.productName || i.name || 'Item'} x${i.quantity}`)
+        .join(', ')
+        .slice(0, 500),
       weightKg,
       dimensionsCm: order.dimensionsCm,
       volumeCbM: order.volumeCbM,
-      pieces: order.itemCount ?? 1,
-      declaredValue: order.totalAmount,
-      codAmount: order.paymentStatus === 'cod' ? order.totalAmount : null,
+      pieces: order.items?.length || order.itemCount || 1,
+      declaredValue: totalAmount,
+      codAmount: isCod && order.paymentStatus !== 'paid' ? totalAmount : null,
       isFragile: order.hasFragileItems ?? false,
-      isInsured: order.totalAmount > 100,
+      isInsured: totalAmount > 100,
 
-      // Pricing
       shippingCost: quote.basePrice + quote.weightCharge + quote.distanceCharge,
       totalCharge: quote.total,
-      currency: 'OMR',
+      currency: order.currency || 'OMR',
 
-      // Delivery
       estimatedDelivery,
       currentHub: senderZone ? await this.findNearestHub(senderZone.id) : null,
     });
@@ -211,10 +248,8 @@ export class MarketplaceIntegrationService {
     const saved = await this.shipmentRepo.save(shipment);
     this.logger.log(`[onOrderCreated] Shipment ${saved.id} created with tracking ${trackingNumber}`);
 
-    // 8. Update order with tracking number
     await this.ordersService.updateTracking(orderId, trackingNumber);
 
-    // 9. Emit event for downstream consumers
     this.eventEmitter.emit('shipment.created', {
       shipmentId: saved.id,
       trackingNumber,
@@ -222,14 +257,26 @@ export class MarketplaceIntegrationService {
       status: saved.status,
     });
 
-    // 10. Cache tracking lookup
-    await this.redis.setex(
-      `tracking:${trackingNumber}`,
-      86400 * 30, // 30 days
-      JSON.stringify({ shipmentId: saved.id, orderId }),
-    );
+    try {
+      await this.redis.setex(
+        `tracking:${trackingNumber}`,
+        86400 * 30,
+        JSON.stringify({ shipmentId: saved.id, orderId }),
+      );
+    } catch {
+      // Redis optional for local/dev without cache
+    }
 
     return saved;
+  }
+
+  private formatAddress(address: unknown): string {
+    if (!address) return '';
+    if (typeof address === 'string') return address;
+    const a = address as Record<string, unknown>;
+    return [a.fullName, a.street, a.building, a.city, a.governorate, a.country]
+      .filter(Boolean)
+      .join(', ');
   }
 
   // ═══════════════════════════════════════════════

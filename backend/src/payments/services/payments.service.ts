@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, BadRequestException, InternalSer
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Payment } from '../entities/payment.entity';
 import { PaymentGatewayFactory, PaymentGatewayType } from './payment-gateway.factory';
 import { ProcessPaymentDto } from '../dto/process-payment.dto';
@@ -13,6 +14,8 @@ import { OmanNetService } from './oman-net.service';
 import { ThawaniService } from './thawani.service';
 import { TelrService } from './telr.service';
 import { CCAvenueService } from './ccavenue.service';
+import { OrdersService } from '../../orders/orders.service';
+import { PaymentStatus } from '../../orders/entities/order.entity';
 
 export interface PaymentResult {
   success: boolean;
@@ -64,6 +67,8 @@ export class PaymentsService {
     private readonly thawaniService: ThawaniService,
     private readonly telrService: TelrService,
     private readonly ccavenueService: CCAvenueService,
+    private readonly ordersService: OrdersService,
+    private readonly eventEmitter: EventEmitter2,
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
   ) {
@@ -510,6 +515,8 @@ export class PaymentsService {
     this.logger.log(`Handling ${gateway} webhook`);
 
     try {
+      let result: { success: boolean; orderId?: string; action: string };
+
       switch (gateway) {
         case 'stripe': {
           const signature = headers['stripe-signature'];
@@ -522,62 +529,157 @@ export class PaymentsService {
             signature,
           );
 
-          return await this.stripeService.handleWebhook(event);
+          result = await this.stripeService.handleWebhook(event);
+          break;
         }
 
         case 'paypal': {
-          // Verify PayPal webhook signature
           const verification = await this.paypalService.verifyWebhookSignature(headers, payload);
-          if (!verification.verified) {
-            this.logger.warn('PayPal webhook signature verification failed');
-            // Still process in some cases (if configured to skip verification)
+          const skipVerify =
+            this.configService.get<string>('PAYPAL_SKIP_WEBHOOK_VERIFY') === 'true';
+          if (!verification.verified && !skipVerify) {
+            throw new BadRequestException('PayPal webhook signature verification failed');
+          }
+          if (!verification.verified && skipVerify) {
+            this.logger.warn('PayPal webhook signature verification failed (skipped via env)');
           }
 
-          return await this.paypalService.handleWebhook(payload);
+          result = await this.paypalService.handleWebhook(payload);
+          break;
         }
 
         case 'oman_net': {
-          const result = await this.omanNetService.processCallback(payload);
-          return {
-            success: result.success,
-            orderId: result.orderId,
-            action: result.success ? 'payment_completed' : 'payment_failed',
+          const omanResult = await this.omanNetService.processCallback(payload);
+          result = {
+            success: omanResult.success,
+            orderId: omanResult.orderId,
+            action: omanResult.success ? 'payment_completed' : 'payment_failed',
           };
+          break;
         }
 
         case 'thawani': {
-          return await this.thawaniService.processWebhook(payload);
+          const signature =
+            headers['x-thawani-signature'] ||
+            headers['thawani-signature'] ||
+            headers['x-signature'];
+          const thawaniSecret = this.configService.get<string>('THAWANI_SECRET_KEY');
+          if (signature && thawaniSecret) {
+            const ok = this.thawaniService.verifyWebhookSignature(
+              rawBody || payload,
+              signature,
+            );
+            if (!ok) {
+              throw new BadRequestException('Thawani webhook signature verification failed');
+            }
+          }
+          result = await this.thawaniService.processWebhook(payload);
+          break;
         }
 
         case 'telr': {
-          const result = await this.telrService.processCallback(payload);
-          return {
-            success: result.success,
-            action: result.success ? 'payment_completed' : 'payment_failed',
+          const telrResult = await this.telrService.processCallback(payload);
+          result = {
+            success: telrResult.success,
+            orderId: (telrResult as any).orderId,
+            action: telrResult.success ? 'payment_completed' : 'payment_failed',
           };
+          break;
         }
 
         case 'ccavenue': {
-          // CCAvenue sends encrypted response
           const encResponse = payload.encResp || payload.enc_response;
           if (!encResponse) {
             throw new BadRequestException('Missing encrypted response');
           }
 
-          const result = await this.ccavenueService.verifyPayment(encResponse);
-          return {
-            success: result.success,
-            orderId: result.orderId,
-            action: result.success ? 'payment_completed' : 'payment_failed',
+          const ccResult = await this.ccavenueService.verifyPayment(encResponse);
+          result = {
+            success: ccResult.success,
+            orderId: ccResult.orderId,
+            action: ccResult.success ? 'payment_completed' : 'payment_failed',
           };
+          break;
         }
 
         default:
           throw new BadRequestException(`Webhook handling not implemented for gateway: ${gateway}`);
       }
+
+      await this.applyWebhookToOrder(gateway, result);
+      return result;
     } catch (error) {
       this.logger.error(`Webhook handling failed for ${gateway}: ${error.message}`, error.stack);
       throw error;
+    }
+  }
+
+  /**
+   * Persist webhook outcome onto the marketplace order and notify logistics.
+   */
+  private async applyWebhookToOrder(
+    gateway: string,
+    result: { success: boolean; orderId?: string; action: string },
+  ): Promise<void> {
+    if (!result.orderId) {
+      this.logger.warn(`Webhook ${gateway}/${result.action} has no orderId — order not updated`);
+      return;
+    }
+
+    const paidActions = [
+      'payment_succeeded',
+      'payment_completed',
+      'payment_captured',
+      'order_completed',
+      'order_approved_and_captured',
+    ];
+    const failedActions = ['payment_failed', 'payment_denied'];
+    const refundActions = ['refund_processed', 'refund_created'];
+
+    try {
+      if (paidActions.includes(result.action) && result.success) {
+        const order = await this.ordersService.applyPaymentWebhook(
+          result.orderId,
+          PaymentStatus.PAID,
+          { gateway, action: result.action },
+        );
+        this.eventEmitter.emit('order.paid', {
+          orderId: order.id,
+          gateway,
+          action: result.action,
+          paymentStatus: PaymentStatus.PAID,
+        });
+        this.eventEmitter.emit('order.status_changed', {
+          orderId: order.id,
+          oldStatus: 'pending',
+          newStatus: order.status,
+        });
+        // Trigger logistics shipment creation (idempotent)
+        this.eventEmitter.emit('order.created', { orderId: order.id });
+        return;
+      }
+
+      if (failedActions.includes(result.action) || (!result.success && paidActions.includes(result.action) === false && result.action.includes('fail'))) {
+        await this.ordersService.applyPaymentWebhook(
+          result.orderId,
+          PaymentStatus.FAILED,
+          { gateway, action: result.action },
+        );
+        return;
+      }
+
+      if (refundActions.includes(result.action)) {
+        await this.ordersService.applyPaymentWebhook(
+          result.orderId,
+          PaymentStatus.REFUNDED,
+          { gateway, action: result.action },
+        );
+      }
+    } catch (err) {
+      this.logger.error(
+        `Failed to apply webhook to order ${result.orderId}: ${err.message}`,
+        err.stack,
+      );
     }
   }
 

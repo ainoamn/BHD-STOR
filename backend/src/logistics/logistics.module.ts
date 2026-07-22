@@ -74,6 +74,7 @@ import { RouteOptimizationProcessor } from './processors/route-optimization.proc
 // ─── External Module Dependencies ───────────────────────────
 
 import { NotificationsModule } from '../notifications/notifications.module';
+import { OrdersModule } from '../orders/orders.module';
 
 // ─── Module ─────────────────────────────────────────────────
 
@@ -106,6 +107,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     // External dependencies
     ConfigModule,
     forwardRef(() => NotificationsModule),
+    forwardRef(() => OrdersModule),
   ],
 
   // ─── Controllers (REST API) ─────────────────

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Order, OrderAddress, OrderStatus, PaymentStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
@@ -38,6 +39,7 @@ export class OrdersService {
     @InjectRepository(Store)
     private readonly storeRepository: Repository<Store>,
     private readonly cartService: CartService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(userId: string, dto: CreateOrderDto): Promise<Order> {
@@ -165,7 +167,19 @@ export class OrdersService {
       // Cart may not exist
     }
 
-    return this.findOne(savedOrder.id);
+    const full = await this.findOne(savedOrder.id);
+
+    // COD / confirmed orders can queue logistics immediately
+    if (isCod) {
+      this.eventEmitter.emit('order.created', { orderId: full.id });
+      this.eventEmitter.emit('order.status_changed', {
+        orderId: full.id,
+        oldStatus: OrderStatus.PENDING,
+        newStatus: full.status,
+      });
+    }
+
+    return full;
   }
 
   async findAll(
@@ -231,13 +245,34 @@ export class OrdersService {
     return order;
   }
 
-  async updateStatus(id: string, dto: UpdateOrderStatusDto): Promise<Order> {
+  async updateStatus(
+    id: string,
+    dtoOrStatus: UpdateOrderStatusDto | OrderStatus | string,
+    note?: string,
+  ): Promise<Order> {
+    const dto: UpdateOrderStatusDto =
+      typeof dtoOrStatus === 'string'
+        ? { status: dtoOrStatus as OrderStatus, note }
+        : dtoOrStatus;
+
     const order = await this.findOne(id);
+    const oldStatus = order.status;
     const validTransitions = this.getValidStatusTransitions(order.status);
-    if (!validTransitions.includes(dto.status)) {
-      throw new BadRequestException(
-        `Cannot transition from "${order.status}" to "${dto.status}". Valid transitions: ${validTransitions.join(', ')}`,
-      );
+    // Allow logistics sync even if transition table is strict
+    if (validTransitions.length && !validTransitions.includes(dto.status)) {
+      const logisticsSync = [
+        OrderStatus.PROCESSING,
+        OrderStatus.SHIPPED,
+        OrderStatus.DELIVERED,
+        OrderStatus.CANCELLED,
+        OrderStatus.REFUNDED,
+        OrderStatus.RETURNED,
+      ];
+      if (!logisticsSync.includes(dto.status)) {
+        throw new BadRequestException(
+          `Cannot transition from "${order.status}" to "${dto.status}". Valid transitions: ${validTransitions.join(', ')}`,
+        );
+      }
     }
 
     order.status = dto.status;
@@ -255,22 +290,70 @@ export class OrdersService {
     });
     order.statusHistory = statusHistory;
 
-    return this.orderRepository.save(order);
+    const saved = await this.orderRepository.save(order);
+    this.eventEmitter.emit('order.status_changed', {
+      orderId: saved.id,
+      oldStatus,
+      newStatus: saved.status,
+    });
+    return saved;
   }
 
   async updatePaymentStatus(id: string, paymentStatus: PaymentStatus): Promise<Order> {
+    return this.applyPaymentWebhook(id, paymentStatus);
+  }
+
+  async applyPaymentWebhook(
+    id: string,
+    paymentStatus: PaymentStatus,
+    meta?: { gateway?: string; action?: string },
+  ): Promise<Order> {
     const order = await this.findOne(id);
     order.paymentStatus = paymentStatus;
     if (paymentStatus === PaymentStatus.PAID && order.status === OrderStatus.PENDING) {
       order.status = OrderStatus.CONFIRMED;
     }
+    if (paymentStatus === PaymentStatus.FAILED && order.status === OrderStatus.PENDING) {
+      // keep pending so customer can retry
+    }
+    if (paymentStatus === PaymentStatus.REFUNDED) {
+      order.status = OrderStatus.REFUNDED;
+    }
+
     const statusHistory = order.statusHistory || [];
     statusHistory.push({
       status: order.status,
-      note: `Payment status: ${paymentStatus}`,
+      note: `Payment status: ${paymentStatus}${meta?.gateway ? ` via ${meta.gateway}` : ''}${meta?.action ? ` (${meta.action})` : ''}`,
       timestamp: new Date().toISOString(),
     });
     order.statusHistory = statusHistory;
+    order.metadata = {
+      ...(order.metadata || {}),
+      lastPaymentWebhook: meta || null,
+      lastPaymentStatusAt: new Date().toISOString(),
+    };
+
+    return this.orderRepository.save(order);
+  }
+
+  async updateTracking(id: string, trackingNumber: string): Promise<Order> {
+    const order = await this.findOne(id);
+    order.trackingNumber = trackingNumber;
+    if (order.status === OrderStatus.CONFIRMED || order.status === OrderStatus.PENDING) {
+      order.status = OrderStatus.PROCESSING;
+    }
+    order.statusHistory = [
+      ...(order.statusHistory || []),
+      {
+        status: order.status,
+        note: `Tracking assigned: ${trackingNumber}`,
+        timestamp: new Date().toISOString(),
+      },
+    ];
+    order.metadata = {
+      ...(order.metadata || {}),
+      shipmentQueued: true,
+    };
     return this.orderRepository.save(order);
   }
 
