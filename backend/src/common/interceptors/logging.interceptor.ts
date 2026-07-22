@@ -143,4 +143,4 @@ export class LoggingInterceptor implements NestInterceptor {
       return 0;
     }
   }
-}\n
+}

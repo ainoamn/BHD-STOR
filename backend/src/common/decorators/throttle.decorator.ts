@@ -18,4 +18,4 @@ export const THROTTLE_KEY = 'throttle';
  * @Post('login')
  * async login() { ... }
  */
-export const Throttle = (level: ThrottleLevel) => SetMetadata(THROTTLE_KEY, level);\n
+export const Throttle = (level: ThrottleLevel) => SetMetadata(THROTTLE_KEY, level);

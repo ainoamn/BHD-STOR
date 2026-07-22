@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import * as crypto from 'crypto';
@@ -48,8 +48,7 @@ export class OmanNetService {
     this.returnUrl = this.configService.get<string>('APP_URL') || 'https://bhd.marketplace.com';
 
     if (!this.merchantId || !this.apiKey) {
-      this.logger.error('Oman Net configuration is missing');
-      throw new InternalServerErrorException('Oman Net credentials not configured');
+      this.logger.warn('Oman Net configuration is missing. Oman Net features will degrade safely.');
     }
 
     this.httpClient = axios.create({
@@ -72,6 +71,16 @@ export class OmanNetService {
     });
   }
 
+  isConfigured(): boolean {
+    return Boolean(this.merchantId && this.apiKey);
+  }
+
+  private ensureConfigured(): void {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableException('Oman Net is not configured');
+    }
+  }
+
   /**
    * Initiate an Oman Net payment
    * Returns a redirect URL that the customer must be sent to
@@ -84,6 +93,7 @@ export class OmanNetService {
     customerEmail?: string,
     customerName?: string,
   ): Promise<OmanNetPaymentResult> {
+    this.ensureConfigured();
     try {
       const payload = {
         merchant_id: this.merchantId,
@@ -134,6 +144,7 @@ export class OmanNetService {
    * Verify an Oman Net payment status
    */
   async verifyPayment(transactionId: string): Promise<OmanNetVerifyResult> {
+    this.ensureConfigured();
     try {
       const payload = {
         merchant_id: this.merchantId,
@@ -174,6 +185,7 @@ export class OmanNetService {
    * Process callback from Oman Net gateway
    */
   async processCallback(data: any): Promise<OmanNetVerifyResult> {
+    this.ensureConfigured();
     try {
       const { transaction_id, order_id, status, amount, hash, card_number } = data;
 
@@ -216,6 +228,7 @@ export class OmanNetService {
    * Create a refund via Oman Net
    */
   async createRefund(transactionId: string, amount?: number, reason?: string): Promise<OmanNetRefundResult> {
+    this.ensureConfigured();
     try {
       const payload = {
         merchant_id: this.merchantId,
@@ -253,6 +266,7 @@ export class OmanNetService {
    * Get transaction details
    */
   async getTransactionDetails(transactionId: string): Promise<any> {
+    this.ensureConfigured();
     try {
       const response = await this.httpClient.get(`/payments/${transactionId}`, {
         params: {

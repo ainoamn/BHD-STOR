@@ -189,4 +189,4 @@ export class HttpExceptionFilter implements ExceptionFilter {
   private generateRequestId(): string {
     return `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
-}\n
+}

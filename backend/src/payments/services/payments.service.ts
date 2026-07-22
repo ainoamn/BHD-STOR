@@ -546,10 +546,18 @@ export class PaymentsService {
         }
 
         case 'paypal': {
-          const verification = await this.paypalService.verifyWebhookSignature(headers, payload);
           const skipVerify =
             allowSkipVerify &&
             this.configService.get<string>('PAYPAL_SKIP_WEBHOOK_VERIFY') === 'true';
+
+          if (!skipVerify) {
+            const webhookId = this.configService.get<string>('PAYPAL_WEBHOOK_ID');
+            if (!this.paypalService.isConfigured() || !webhookId) {
+              throw new BadRequestException('PayPal webhook configuration is missing');
+            }
+          }
+
+          const verification = await this.paypalService.verifyWebhookSignature(headers, payload);
           if (!verification.verified && !skipVerify) {
             throw new BadRequestException('PayPal webhook signature verification failed');
           }

@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 
@@ -55,8 +55,7 @@ export class PayPalService {
       : 'https://api-m.sandbox.paypal.com';
 
     if (!this.clientId || !this.clientSecret) {
-      this.logger.error('PayPal credentials are not configured');
-      throw new InternalServerErrorException('PayPal configuration is missing');
+      this.logger.warn('PayPal credentials are not configured. PayPal features will degrade safely.');
     }
 
     this.httpClient = axios.create({
@@ -95,10 +94,21 @@ export class PayPalService {
     );
   }
 
+  isConfigured(): boolean {
+    return Boolean(this.clientId && this.clientSecret);
+  }
+
+  private ensureConfigured(): void {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableException('PayPal is not configured');
+    }
+  }
+
   /**
    * Get PayPal OAuth2 access token
    */
   async getAccessToken(): Promise<string> {
+    this.ensureConfigured();
     // Return cached token if still valid
     if (this.accessToken && this.tokenExpiry && new Date() < this.tokenExpiry) {
       return this.accessToken;
@@ -143,6 +153,7 @@ export class PayPalService {
     cancelUrl?: string,
     description?: string,
   ): Promise<PayPalOrderResult> {
+    this.ensureConfigured();
     try {
       const token = await this.getAccessToken();
 
@@ -211,6 +222,7 @@ export class PayPalService {
    * Capture a PayPal order payment
    */
   async captureOrder(paypalOrderId: string): Promise<PayPalCaptureResult> {
+    this.ensureConfigured();
     try {
       const token = await this.getAccessToken();
 
@@ -252,6 +264,7 @@ export class PayPalService {
    * Create a refund for a captured payment
    */
   async createRefund(captureId: string, amount?: number, reason?: string): Promise<PayPalRefundResult> {
+    this.ensureConfigured();
     try {
       const token = await this.getAccessToken();
 
@@ -302,6 +315,7 @@ export class PayPalService {
    * Get order details from PayPal
    */
   async getOrderDetails(paypalOrderId: string): Promise<any> {
+    this.ensureConfigured();
     try {
       const token = await this.getAccessToken();
 
@@ -323,6 +337,7 @@ export class PayPalService {
    * Generic HTTP request helper for PayPal API
    */
   async makeRequest(endpoint: string, method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET', data?: any): Promise<any> {
+    this.ensureConfigured();
     try {
       const response = await this.httpClient.request({
         url: endpoint,
@@ -341,6 +356,11 @@ export class PayPalService {
    * Verify PayPal webhook signature
    */
   async verifyWebhookSignature(headers: Record<string, any>, body: any): Promise<PayPalWebhookVerificationResult> {
+    if (!this.webhookId || !this.isConfigured()) {
+      this.logger.warn('PayPal webhook verification skipped: missing webhook id or credentials');
+      return { verified: false };
+    }
+
     try {
       const token = await this.getAccessToken();
 
@@ -469,6 +489,7 @@ export class PayPalService {
    * Create a payout to a PayPal email (for store payouts)
    */
   async createPayout(recipientEmail: string, amount: number, currency: string = 'OMR', senderBatchId?: string): Promise<{ success: boolean; payoutBatchId?: string; error?: string }> {
+    this.ensureConfigured();
     try {
       const token = await this.getAccessToken();
 

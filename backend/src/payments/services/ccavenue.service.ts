@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import * as crypto from 'crypto';
@@ -50,8 +50,7 @@ export class CCAvenueService {
     this.isSandbox = this.configService.get<string>('CCAVENUE_ENVIRONMENT') !== 'production';
 
     if (!this.merchantId || !this.workingKey || !this.accessCode) {
-      this.logger.error('CCAvenue configuration is missing');
-      throw new InternalServerErrorException('CCAvenue credentials not configured');
+      this.logger.warn('CCAvenue configuration is missing. CCAvenue features will degrade safely.');
     }
 
     this.gatewayUrl = this.isSandbox
@@ -64,6 +63,16 @@ export class CCAvenueService {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
     });
+  }
+
+  isConfigured(): boolean {
+    return Boolean(this.merchantId && this.workingKey && this.accessCode);
+  }
+
+  private ensureConfigured(): void {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableException('CCAvenue is not configured');
+    }
   }
 
   /**
@@ -81,6 +90,7 @@ export class CCAvenueService {
     customerPhone?: string,
     billingAddress?: string,
   ): Promise<CCAvenuePaymentResult> {
+    this.ensureConfigured();
     try {
       const merchantParam = {
         merchant_id: this.merchantId,
@@ -132,6 +142,7 @@ export class CCAvenueService {
    * CCAvenue returns encrypted response that needs to be decrypted
    */
   async verifyPayment(encResponse: string): Promise<CCAvenueVerifyResult> {
+    this.ensureConfigured();
     try {
       // Decrypt the response
       const decryptedData = this.decrypt(encResponse);
@@ -175,6 +186,7 @@ export class CCAvenueService {
     refundCurrency?: string;
     refundReason?: string;
   }): Promise<CCAvenueRefundResult> {
+    this.ensureConfigured();
     try {
       const refundData = {
         reference_no: params.referenceNo,
@@ -242,6 +254,7 @@ export class CCAvenueService {
    * Get transaction status from CCAvenue
    */
   async getTransactionStatus(orderId: string): Promise<CCAvenueVerifyResult> {
+    this.ensureConfigured();
     try {
       const requestData = {
         order_no: orderId,
@@ -294,6 +307,7 @@ export class CCAvenueService {
    * Cancel a pending order
    */
   async cancelOrder(orderId: string): Promise<{ success: boolean; error?: string }> {
+    this.ensureConfigured();
     try {
       const requestData = {
         order_no: orderId,

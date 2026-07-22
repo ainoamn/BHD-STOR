@@ -80,7 +80,7 @@
 
 ### أ) نواة المتجر (يجب إنجازها أولاً)
 
-- [ ] تشغيل Backend حقيقي (`npm run start:dev`) بدون أخطاء TypeScript  
+- [~] تشغيل Backend حقيقي (`npm run start:dev`) بدون أخطاء TypeScript (بوابات الدفع soft-boot؛ البناء الكامل ما زال يحتاج إكمال stubs اللوجستيات/الحزم)  
 - [x] ربط Frontend بـ API وإيقاف الاعتماد على Demo للمسارات الحرجة (كتالوج منتجات/متاجر + قوائم الأدمن لا تعود لبيانات وهمية عند فشل API؛ Demo فقط إن `NEXT_PUBLIC_DEMO_MODE=true`)  
 - [x] واجهة السلة والدفع: `/cart` + `/checkout` + `SmartCart` (طلب API: checkout مربوط بـ `POST /orders` + COD/بوابات)
 - [x] **Checkout:** خيارات الشحن من `GET /shipping/carriers` وبوابات الدفع من `GET /payments/gateways` (مع fallback محلي إن فشل API)
@@ -93,7 +93,7 @@
 
 ### ب) التكاملات
 
-- [~] Stripe / PayPal / Thawani / Oman Net — sandbox + webhooks موقّعة (Stripe rawBody إلزامي؛ Thawani fail-closed + skip flag للتطوير فقط؛ PayPal skip معطّل في production؛ Oman Net لاحقاً)  
+- [~] Stripe / PayPal / Thawani / Oman Net — sandbox + webhooks موقّعة (Stripe/Thawani/PayPal fail-closed؛ كل بوابات الدفع soft-boot بدون مفاتيح؛ Oman Net لاحقاً لـ E2E)  
 - [~] Oman Post / Aramex — محاكٍ موثّق + fail-closed في production بدون مفاتيح (`SHIPPING_ALLOW_MOCK` / حالة `configured` للأدمن)؛ DHL/FedEx/UPS لاحقاً؛ مفاتيح sandbox حقيقية عند التوفر  
 
 - [x] OpenAI — مفتاح + حدود معدل محلية + فشل آمن (503/429 بدل 400؛ soft fallback للـ assistant/embeddings؛ health يعكس configured)  
@@ -114,7 +114,7 @@ Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification 
 
 ### هـ) جودة وهندسة
 
-- [ ] `npm run build` ناجح لـ frontend وbackend  
+- [ ] `npm run build` ناجح لـ frontend وbackend (أُضيف `@nestjs/cli` + `tsconfig.build.json` + تخفيف strict للـ Nest؛ لا يزال فشل البناء بسبب ملفات لوجستيات/حزم ناقصة — ليس جاهزاً بعد)  
 - [ ] اختبارات وحدة/تكامل تعمل على CI  
 - [ ] لا مسارات API حساسة بدون Auth  
 - [ ] أسرار فقط عبر `.env` (لا تُرفع إلى Git)

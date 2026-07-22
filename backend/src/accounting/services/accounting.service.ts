@@ -489,7 +489,7 @@ export class AccountingService {
     totalOperating: number;
     investing: Array<{ description: string; inflow: number; outflow: number }>;
     totalInvesting: number;
-    financing: Array<{ description: string; inflow: number; outflow: number };
+    financing: Array<{ description: string; inflow: number; outflow: number }>;
     totalFinancing: number;
     netCashFlow: number;
   }> {

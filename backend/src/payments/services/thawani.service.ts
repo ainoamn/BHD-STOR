@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 
@@ -51,8 +51,7 @@ export class ThawaniService {
     this.isSandbox = this.configService.get<string>('THAWANI_ENVIRONMENT') !== 'production';
 
     if (!this.secretKey || !this.publicKey) {
-      this.logger.error('Thawani configuration is missing');
-      throw new InternalServerErrorException('Thawani API keys not configured');
+      this.logger.warn('Thawani configuration is missing. Thawani features will degrade safely.');
     }
 
     this.apiUrl = this.isSandbox
@@ -70,6 +69,16 @@ export class ThawaniService {
     });
   }
 
+  isConfigured(): boolean {
+    return Boolean(this.secretKey && this.publicKey);
+  }
+
+  private ensureConfigured(): void {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableException('Thawani is not configured');
+    }
+  }
+
   /**
    * Create a Thawani checkout session
    */
@@ -82,6 +91,7 @@ export class ThawaniService {
     customerName?: string,
     metadata?: Record<string, any>,
   ): Promise<ThawaniSessionResult> {
+    this.ensureConfigured();
     try {
       // Thawani expects amount in baisa (smallest OMR unit, 1000 baisa = 1 OMR)
       const amountInBaisa = Math.round(amount * 1000);
@@ -144,6 +154,7 @@ export class ThawaniService {
    * Retrieve a Thawani session by ID
    */
   async retrieveSession(sessionId: string): Promise<ThawaniSessionDetails> {
+    this.ensureConfigured();
     try {
       const response = await this.httpClient.get(`/checkout/session/${sessionId}`);
 
@@ -242,6 +253,7 @@ export class ThawaniService {
    * Create a refund for a Thawani payment
    */
   async createRefund(paymentId: string, amount?: number, reason?: string): Promise<ThawaniRefundResult> {
+    this.ensureConfigured();
     try {
       const refundData: any = {
         payment_intent: paymentId,
@@ -281,6 +293,7 @@ export class ThawaniService {
    * Cancel a checkout session
    */
   async cancelSession(sessionId: string): Promise<{ success: boolean; error?: string }> {
+    this.ensureConfigured();
     try {
       const response = await this.httpClient.put(`/checkout/session/${sessionId}/cancel`, {});
 
@@ -306,6 +319,7 @@ export class ThawaniService {
    * List all checkout sessions
    */
   async listSessions(limit: number = 10, skip: number = 0): Promise<any> {
+    this.ensureConfigured();
     try {
       const response = await this.httpClient.get('/checkout/session', {
         params: { limit, skip },

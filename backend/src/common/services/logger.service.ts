@@ -126,4 +126,4 @@ export class WinstonLoggerService implements LoggerService {
   verbose(message: string, context?: string, meta?: Record<string, any>): void {
     this.logger.verbose(message, { context, ...meta });
   }
-}\n
+}

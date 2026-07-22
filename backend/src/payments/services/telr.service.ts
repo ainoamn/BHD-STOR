@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import * as crypto from 'crypto';
@@ -45,8 +45,7 @@ export class TelrService {
     this.isSandbox = this.configService.get<string>('TELR_ENVIRONMENT') !== 'production';
 
     if (!this.storeId || !this.authKey) {
-      this.logger.error('Telr configuration is missing');
-      throw new InternalServerErrorException('Telr credentials not configured');
+      this.logger.warn('Telr configuration is missing. Telr features will degrade safely.');
     }
 
     this.apiUrl = this.isSandbox
@@ -62,6 +61,16 @@ export class TelrService {
     });
   }
 
+  isConfigured(): boolean {
+    return Boolean(this.storeId && this.authKey);
+  }
+
+  private ensureConfigured(): void {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableException('Telr is not configured');
+    }
+  }
+
   /**
    * Create a Telr payment
    * Returns a redirect URL for the payment page
@@ -75,6 +84,7 @@ export class TelrService {
     customerName?: string,
     returnUrl?: string,
   ): Promise<TelrPaymentResult> {
+    this.ensureConfigured();
     try {
       const payload = {
         ivp_method: 'create',
@@ -135,6 +145,7 @@ export class TelrService {
    * Check payment status via Telr API
    */
   async checkPayment(transactionId: string): Promise<TelrPaymentStatus> {
+    this.ensureConfigured();
     try {
       const payload = {
         ivp_method: 'check',
@@ -186,6 +197,7 @@ export class TelrService {
    * Process callback from Telr
    */
   async processCallback(data: any): Promise<TelrPaymentStatus> {
+    this.ensureConfigured();
     try {
       const { order_ref, status, amount, currency, tran_ref, auth_code, last_four } = data;
 
@@ -222,6 +234,7 @@ export class TelrService {
    * Cancel a pending payment
    */
   async cancelPayment(transactionId: string): Promise<{ success: boolean; error?: string }> {
+    this.ensureConfigured();
     try {
       const payload = {
         ivp_method: 'cancel',
@@ -258,6 +271,7 @@ export class TelrService {
    * Process a refund through Telr
    */
   async createRefund(transactionId: string, amount?: number, reason?: string): Promise<TelrRefundResult> {
+    this.ensureConfigured();
     try {
       const payload: any = {
         ivp_method: 'refund',
@@ -309,6 +323,7 @@ export class TelrService {
    * Capture an authorized payment
    */
   async capturePayment(transactionId: string, amount?: number): Promise<TelrPaymentResult> {
+    this.ensureConfigured();
     try {
       const payload: any = {
         ivp_method: 'capture',

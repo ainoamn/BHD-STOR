@@ -89,4 +89,4 @@ export class TransformInterceptor<T>
       executionTime,
     };
   }
-}\n
+}

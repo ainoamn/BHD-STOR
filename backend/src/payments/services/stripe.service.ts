@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 
@@ -40,7 +40,7 @@ export interface PaymentMethodResult {
 
 @Injectable()
 export class StripeService {
-  private readonly stripe: Stripe;
+  private stripe: Stripe | null = null;
   private readonly logger = new Logger(StripeService.name);
   private readonly webhookSecret: string;
 
@@ -49,15 +49,24 @@ export class StripeService {
     this.webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET') || '';
 
     if (!secretKey) {
-      this.logger.error('STRIPE_SECRET_KEY is not configured');
-      throw new InternalServerErrorException('Stripe configuration is missing');
+      this.logger.warn('STRIPE_SECRET_KEY is not configured. Stripe features will degrade safely.');
+    } else {
+      this.stripe = new Stripe(secretKey, {
+        apiVersion: '2024-06-20',
+        typescript: true,
+        maxNetworkRetries: 3,
+      });
     }
+  }
 
-    this.stripe = new Stripe(secretKey, {
-      apiVersion: '2024-06-20',
-      typescript: true,
-      maxNetworkRetries: 3,
-    });
+  isConfigured(): boolean {
+    return Boolean(this.stripe);
+  }
+
+  private ensureConfigured(): void {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableException('Stripe is not configured');
+    }
   }
 
   /**
@@ -71,6 +80,7 @@ export class StripeService {
     paymentMethodId?: string,
     metadata?: Record<string, any>,
   ): Promise<StripePaymentResult> {
+    this.ensureConfigured();
     try {
       // Stripe expects amounts in smallest currency unit (e.g., baisa for OMR)
       const amountInSmallestUnit = this.convertToSmallestUnit(amount, currency);
@@ -99,7 +109,7 @@ export class StripeService {
         paymentIntentData.off_session = true;
       }
 
-      const paymentIntent = await this.stripe.paymentIntents.create(paymentIntentData);
+      const paymentIntent = await this.stripe!.paymentIntents.create(paymentIntentData);
 
       this.logger.log(`PaymentIntent created: ${paymentIntent.id} for order ${orderId}`);
 
@@ -125,13 +135,14 @@ export class StripeService {
    * Confirm a PaymentIntent (for manual confirmation flow)
    */
   async confirmPayment(paymentIntentId: string, paymentMethodId?: string): Promise<StripePaymentResult> {
+    this.ensureConfigured();
     try {
       const params: Stripe.PaymentIntentConfirmParams = {};
       if (paymentMethodId) {
         params.payment_method = paymentMethodId;
       }
 
-      const paymentIntent = await this.stripe.paymentIntents.confirm(paymentIntentId, params);
+      const paymentIntent = await this.stripe!.paymentIntents.confirm(paymentIntentId, params);
 
       this.logger.log(`PaymentIntent confirmed: ${paymentIntentId}, status: ${paymentIntent.status}`);
 
@@ -155,6 +166,7 @@ export class StripeService {
    * Create a refund for a payment
    */
   async createRefund(paymentIntentId: string, amount?: number, reason?: string): Promise<StripeRefundResult> {
+    this.ensureConfigured();
     try {
       const refundData: Stripe.RefundCreateParams = {
         payment_intent: paymentIntentId,
@@ -168,7 +180,7 @@ export class StripeService {
         refundData.reason = this.mapRefundReason(reason);
       }
 
-      const refund = await this.stripe.refunds.create(refundData);
+      const refund = await this.stripe!.refunds.create(refundData);
 
       this.logger.log(`Refund created: ${refund.id} for PaymentIntent ${paymentIntentId}`);
 
@@ -192,12 +204,18 @@ export class StripeService {
    */
   constructEvent(payload: Buffer | string, signature: string, secret?: string): Stripe.Event {
     try {
+      if (!this.stripe) {
+        throw new BadRequestException('Stripe is not configured');
+      }
       const webhookSecret = secret || this.webhookSecret;
       if (!webhookSecret) {
         throw new BadRequestException('Webhook secret is not configured');
       }
       return this.stripe.webhooks.constructEvent(payload, signature, webhookSecret);
     } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       this.logger.error(`Webhook signature verification failed: ${error.message}`);
       throw new BadRequestException(`Webhook Error: ${error.message}`);
     }
@@ -284,8 +302,9 @@ export class StripeService {
    * Create a Stripe customer
    */
   async createCustomer(userId: string, email: string, name?: string): Promise<StripeCustomerResult> {
+    this.ensureConfigured();
     try {
-      const customer = await this.stripe.customers.create({
+      const customer = await this.stripe!.customers.create({
         email,
         name: name || email,
         metadata: {
@@ -312,13 +331,14 @@ export class StripeService {
    * Attach a payment method to a customer
    */
   async attachPaymentMethod(customerId: string, paymentMethodId: string): Promise<{ success: boolean; error?: string }> {
+    this.ensureConfigured();
     try {
-      await this.stripe.paymentMethods.attach(paymentMethodId, {
+      await this.stripe!.paymentMethods.attach(paymentMethodId, {
         customer: customerId,
       });
 
       // Set as default payment method
-      await this.stripe.customers.update(customerId, {
+      await this.stripe!.customers.update(customerId, {
         invoice_settings: {
           default_payment_method: paymentMethodId,
         },
@@ -340,8 +360,9 @@ export class StripeService {
    * Get payment methods for a customer
    */
   async getPaymentMethods(customerId: string): Promise<{ success: boolean; methods?: PaymentMethodResult[]; error?: string }> {
+    this.ensureConfigured();
     try {
-      const paymentMethods = await this.stripe.paymentMethods.list({
+      const paymentMethods = await this.stripe!.paymentMethods.list({
         customer: customerId,
         type: 'card',
       });
@@ -376,8 +397,9 @@ export class StripeService {
    * Create a payout to a connected account (for store payouts)
    */
   async createPayout(connectedAccountId: string, amount: number, currency: string = 'OMR'): Promise<{ success: boolean; payoutId?: string; error?: string }> {
+    this.ensureConfigured();
     try {
-      const payout = await this.stripe.transfers.create({
+      const payout = await this.stripe!.transfers.create({
         amount: this.convertToSmallestUnit(amount, currency),
         currency: currency.toLowerCase(),
         destination: connectedAccountId,
@@ -402,14 +424,16 @@ export class StripeService {
    * Retrieve a PaymentIntent by ID
    */
   async retrievePaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
-    return this.stripe.paymentIntents.retrieve(paymentIntentId);
+    this.ensureConfigured();
+    return this.stripe!.paymentIntents.retrieve(paymentIntentId);
   }
 
   /**
    * Create a SetupIntent for saving payment methods
    */
   async createSetupIntent(customerId: string): Promise<{ clientSecret: string | null; setupIntentId: string }> {
-    const setupIntent = await this.stripe.setupIntents.create({
+    this.ensureConfigured();
+    const setupIntent = await this.stripe!.setupIntents.create({
       customer: customerId,
       automatic_payment_methods: { enabled: true },
     });
@@ -424,7 +448,8 @@ export class StripeService {
    * Create a connected account for a store (Stripe Connect)
    */
   async createConnectedAccount(storeEmail: string, storeName: string, country: string = 'OM'): Promise<{ accountId: string }> {
-    const account = await this.stripe.accounts.create({
+    this.ensureConfigured();
+    const account = await this.stripe!.accounts.create({
       type: 'standard',
       country,
       email: storeEmail,
@@ -440,7 +465,8 @@ export class StripeService {
    * Create an account link for onboarding
    */
   async createAccountLink(accountId: string, refreshUrl: string, returnUrl: string): Promise<{ url: string }> {
-    const accountLink = await this.stripe.accountLinks.create({
+    this.ensureConfigured();
+    const accountLink = await this.stripe!.accountLinks.create({
       account: accountId,
       refresh_url: refreshUrl,
       return_url: returnUrl,
@@ -500,6 +526,7 @@ export class StripeService {
    * Get the underlying Stripe SDK instance for advanced operations
    */
   getStripeInstance(): Stripe {
-    return this.stripe;
+    this.ensureConfigured();
+    return this.stripe!;
   }
 }
