@@ -1,9 +1,10 @@
-import { Injectable, Logger, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { ShippingAddress } from '../dto/create-shipment.dto';
 import { LocationDto, ShippingRate } from '../dto/rate-request.dto';
 import { TrackingResult, TrackingEvent } from '../dto/tracking-request.dto';
+import { shippingMockAllowed } from './shipping-provider.util';
 
 export interface OmanPostShipmentResult {
   success: boolean;
@@ -40,8 +41,10 @@ export class OmanPostService {
     this.accountNumber = this.configService.get<string>('OMAN_POST_ACCOUNT_NUMBER') || '';
     this.isSandbox = this.configService.get<string>('OMAN_POST_ENVIRONMENT') !== 'production';
 
-    if (!this.apiKey || !this.accountNumber) {
-      this.logger.warn('Oman Post credentials not fully configured - service will use mock data');
+    if (!this.isConfigured()) {
+      this.logger.warn(
+        'Oman Post credentials not fully configured — mock rates only (set OMAN_POST_API_KEY + OMAN_POST_ACCOUNT_NUMBER)',
+      );
     }
 
     this.apiUrl = this.isSandbox
@@ -73,6 +76,35 @@ export class OmanPostService {
         return Promise.reject(error);
       },
     );
+  }
+
+  isConfigured(): boolean {
+    return Boolean(this.apiKey && this.accountNumber);
+  }
+
+  getProviderStatus(): {
+    code: string;
+    configured: boolean;
+    sandbox: boolean;
+    mockAllowed: boolean;
+  } {
+    return {
+      code: 'oman_post',
+      configured: this.isConfigured(),
+      sandbox: this.isSandbox,
+      mockAllowed: shippingMockAllowed(this.configService),
+    };
+  }
+
+  private assertCanCreateLiveShipment(): void {
+    if (this.isConfigured()) {
+      return;
+    }
+    if (!shippingMockAllowed(this.configService)) {
+      throw new ServiceUnavailableException(
+        'Oman Post is not configured. Set OMAN_POST_API_KEY and OMAN_POST_ACCOUNT_NUMBER (or SHIPPING_ALLOW_MOCK=true for non-production).',
+      );
+    }
   }
 
   /**
@@ -109,7 +141,11 @@ export class OmanPostService {
       };
 
       // If API not configured, return mock rates for Oman Post
-      if (!this.apiKey) {
+      if (!this.isConfigured()) {
+        if (!shippingMockAllowed(this.configService)) {
+          this.logger.warn('Oman Post not configured and mock rates disabled');
+          return [];
+        }
         return this.getMockRates(origin, destination, weight);
       }
 
@@ -135,10 +171,16 @@ export class OmanPostService {
         }));
       }
 
-      return this.getMockRates(origin, destination, weight);
+      if (shippingMockAllowed(this.configService)) {
+        return this.getMockRates(origin, destination, weight);
+      }
+      return [];
     } catch (error) {
       this.logger.error(`Oman Post rate request failed: ${error.message}`);
-      return this.getMockRates(origin, destination, weight);
+      if (shippingMockAllowed(this.configService)) {
+        return this.getMockRates(origin, destination, weight);
+      }
+      throw new ServiceUnavailableException(`Oman Post rates unavailable: ${error.message}`);
     }
   }
 
@@ -213,9 +255,11 @@ export class OmanPostService {
         },
       };
 
-      if (!this.apiKey) {
-        // Return mock shipment data
+      if (!this.isConfigured()) {
+        this.assertCanCreateLiveShipment();
+        // Mock shipment (dev / SHIPPING_ALLOW_MOCK)
         const trackingNumber = `OMP${Date.now()}${Math.floor(Math.random() * 1000)}`;
+        this.logger.warn(`Oman Post mock shipment created for order ${orderId}: ${trackingNumber}`);
         return {
           success: true,
           shipmentId: `shp-omp-${Date.now()}`,
@@ -262,7 +306,7 @@ export class OmanPostService {
    */
   async getTracking(trackingNumber: string): Promise<TrackingResult> {
     try {
-      if (!this.apiKey) {
+      if (!this.isConfigured()) {
         return this.getMockTracking(trackingNumber);
       }
 
@@ -318,7 +362,7 @@ export class OmanPostService {
    */
   async generateLabel(shipmentId: string, format: 'pdf' | 'zpl' | 'png' = 'pdf'): Promise<{ labelData: string; contentType: string }> {
     try {
-      if (!this.apiKey) {
+      if (!this.isConfigured()) {
         return { labelData: '', contentType: 'application/pdf' };
       }
 
@@ -344,7 +388,7 @@ export class OmanPostService {
    */
   async cancelShipment(shipmentId: string): Promise<{ success: boolean; refundAmount?: number; error?: string }> {
     try {
-      if (!this.apiKey) {
+      if (!this.isConfigured()) {
         return { success: true };
       }
 

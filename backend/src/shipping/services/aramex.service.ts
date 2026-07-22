@@ -1,9 +1,10 @@
-import { Injectable, Logger, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { ShippingAddress } from '../dto/create-shipment.dto';
 import { LocationDto, ShippingRate } from '../dto/rate-request.dto';
 import { TrackingResult, TrackingEvent } from '../dto/tracking-request.dto';
+import { shippingMockAllowed } from './shipping-provider.util';
 
 export interface AramexShipmentResult {
   success: boolean;
@@ -49,8 +50,10 @@ export class AramexService {
     this.password = this.configService.get<string>('ARAMEX_PASSWORD') || '';
     this.isSandbox = this.configService.get<string>('ARAMEX_ENVIRONMENT') !== 'production';
 
-    if (!this.accountNumber || !this.accountPin) {
-      this.logger.warn('Aramex credentials not fully configured - service will use mock data');
+    if (!this.isConfigured()) {
+      this.logger.warn(
+        'Aramex credentials not fully configured — mock rates only (set ARAMEX_ACCOUNT_NUMBER + ARAMEX_ACCOUNT_PIN + username/password)',
+      );
     }
 
     this.apiUrl = this.isSandbox
@@ -65,6 +68,37 @@ export class AramexService {
         Accept: 'application/json',
       },
     });
+  }
+
+  isConfigured(): boolean {
+    return Boolean(
+      this.accountNumber && this.accountPin && this.username && this.password,
+    );
+  }
+
+  getProviderStatus(): {
+    code: string;
+    configured: boolean;
+    sandbox: boolean;
+    mockAllowed: boolean;
+  } {
+    return {
+      code: 'aramex',
+      configured: this.isConfigured(),
+      sandbox: this.isSandbox,
+      mockAllowed: shippingMockAllowed(this.configService),
+    };
+  }
+
+  private assertCanCreateLiveShipment(): void {
+    if (this.isConfigured()) {
+      return;
+    }
+    if (!shippingMockAllowed(this.configService)) {
+      throw new ServiceUnavailableException(
+        'Aramex is not configured. Set ARAMEX_* credentials (or SHIPPING_ALLOW_MOCK=true for non-production).',
+      );
+    }
   }
 
   /**
@@ -91,7 +125,11 @@ export class AramexService {
         },
       };
 
-      if (!this.accountNumber) {
+      if (!this.isConfigured()) {
+        if (!shippingMockAllowed(this.configService)) {
+          this.logger.warn('Aramex not configured and mock rates disabled');
+          return [];
+        }
         return this.getMockRates(origin, destination, weight);
       }
 
@@ -121,10 +159,16 @@ export class AramexService {
         ];
       }
 
-      return this.getMockRates(origin, destination, weight);
+      if (shippingMockAllowed(this.configService)) {
+        return this.getMockRates(origin, destination, weight);
+      }
+      return [];
     } catch (error) {
       this.logger.error(`Aramex rate request failed: ${error.message}`);
-      return this.getMockRates(origin, destination, weight);
+      if (shippingMockAllowed(this.configService)) {
+        return this.getMockRates(origin, destination, weight);
+      }
+      throw new ServiceUnavailableException(`Aramex rates unavailable: ${error.message}`);
     }
   }
 
@@ -231,8 +275,10 @@ export class AramexService {
         },
       };
 
-      if (!this.accountNumber) {
+      if (!this.isConfigured()) {
+        this.assertCanCreateLiveShipment();
         const awbNumber = `ARAMEX${Date.now()}`;
+        this.logger.warn(`Aramex mock shipment created for order ${data.orderId}: ${awbNumber}`);
         return {
           success: true,
           shipmentId: `shp-aramex-${Date.now()}`,
@@ -288,7 +334,7 @@ export class AramexService {
         GetLastScannedActivityOnly: false,
       };
 
-      if (!this.accountNumber) {
+      if (!this.isConfigured()) {
         return this.getMockTracking(trackingNumber);
       }
 
@@ -344,7 +390,7 @@ export class AramexService {
    */
   async generateLabel(awbNumber: string, format: 'pdf' | 'html' = 'pdf'): Promise<{ labelData: string; contentType: string }> {
     try {
-      if (!this.accountNumber) {
+      if (!this.isConfigured()) {
         return { labelData: '', contentType: 'application/pdf' };
       }
 
@@ -374,7 +420,7 @@ export class AramexService {
    */
   async cancelShipment(awbNumber: string): Promise<{ success: boolean; error?: string }> {
     try {
-      if (!this.accountNumber) {
+      if (!this.isConfigured()) {
         return { success: true };
       }
 
@@ -474,7 +520,7 @@ export class AramexService {
         },
       };
 
-      if (!this.accountNumber) {
+      if (!this.isConfigured()) {
         return { success: true, pickupId: `PKP-${Date.now()}` };
       }
 

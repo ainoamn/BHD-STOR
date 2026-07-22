@@ -7,6 +7,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ShippingCarrier } from '../entities/shipping-carrier.entity';
+import { OmanPostService } from './oman-post.service';
+import { AramexService } from './aramex.service';
 
 /** Maps DB seed codes → calculator service keys */
 const RATE_SERVICE_ALIASES: Record<string, string> = {
@@ -27,6 +29,8 @@ export class ShippingCarriersService {
   constructor(
     @InjectRepository(ShippingCarrier)
     private readonly carrierRepository: Repository<ShippingCarrier>,
+    private readonly omanPostService: OmanPostService,
+    private readonly aramexService: AramexService,
   ) {}
 
   normalizeCode(code: string): string {
@@ -73,8 +77,30 @@ export class ShippingCarriersService {
 
   async listAllForAdmin() {
     await this.ensureDefaultCarriers();
-    return this.carrierRepository.find({
+    const rows = await this.carrierRepository.find({
       order: { displayOrder: 'ASC' },
+    });
+
+    const oman = this.omanPostService.getProviderStatus();
+    const aramex = this.aramexService.getProviderStatus();
+    const byRateCode: Record<
+      string,
+      { configured: boolean; sandbox: boolean; mockAllowed: boolean }
+    > = {
+      oman_post: oman,
+      aramex: aramex,
+    };
+
+    return rows.map((row) => {
+      const rateCode = this.toRateServiceCode(row.code);
+      const provider = rateCode ? byRateCode[rateCode] : undefined;
+      return {
+        ...row,
+        rateServiceCode: rateCode,
+        configured: provider?.configured ?? null,
+        sandbox: provider?.sandbox ?? null,
+        mockAllowed: provider?.mockAllowed ?? null,
+      };
     });
   }
 

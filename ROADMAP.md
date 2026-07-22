@@ -94,7 +94,8 @@
 ### ب) التكاملات
 
 - [~] Stripe / PayPal / Thawani / Oman Net — sandbox + webhooks موقّعة (Stripe rawBody إلزامي؛ Thawani fail-closed + skip flag للتطوير فقط؛ PayPal skip معطّل في production؛ Oman Net لاحقاً)  
-- [ ] Oman Post / Aramex / DHL — مفاتيح حقيقية أو محاكٍ موثّق  
+- [~] Oman Post / Aramex — محاكٍ موثّق + fail-closed في production بدون مفاتيح (`SHIPPING_ALLOW_MOCK` / حالة `configured` للأدمن)؛ DHL/FedEx/UPS لاحقاً؛ مفاتيح sandbox حقيقية عند التوفر  
+
 - [x] OpenAI — مفتاح + حدود معدل محلية + فشل آمن (503/429 بدل 400؛ soft fallback للـ assistant/embeddings؛ health يعكس configured)  
 - [x] WhatsApp (Twilio/Meta) — webhook تحقق + أوامر `/track` `/order` مربوطة بطلبات/شحنات حية + `POST /whatsapp/simulate`  
 
