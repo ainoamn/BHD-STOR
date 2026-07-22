@@ -53,5 +53,6 @@ echo        customer@bhdoman.com / Customer@123!
 echo        seller@bhdoman.com / Seller@123!
 echo   5. After API is up: node scripts\smoke-buy-path.mjs
 echo   6. Preflight: node scripts\check-env.mjs
+echo   7. Ready probe: curl http://localhost:3001/health/ready
 echo.
 pause

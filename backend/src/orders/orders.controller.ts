@@ -28,6 +28,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { requireRequestUserId } from '../auth/utils/request-user';
 
 @ApiTags('Orders')
 @Controller('orders')
@@ -43,7 +44,7 @@ export class OrdersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Product or address not found' })
   async create(@Body() dto: CreateOrderDto, @Request() req) {
-    const order = await this.ordersService.create(req.user.userId, dto);
+    const order = await this.ordersService.create(requireRequestUserId(req.user), dto);
     return {
       success: true,
       message: 'Order created successfully',
@@ -71,7 +72,7 @@ export class OrdersController {
     @Query('status') status?: OrderStatus,
     @Query('storeId') storeId?: string,
   ) {
-    const result = await this.ordersService.findAll(req.user.userId, {
+    const result = await this.ordersService.findAll(requireRequestUserId(req.user), {
       page: +page,
       limit: +limit,
       status,
@@ -159,7 +160,7 @@ export class OrdersController {
     @Body('reason') reason: string,
     @Request() req,
   ) {
-    const order = await this.ordersService.cancel(id, req.user.userId, reason);
+    const order = await this.ordersService.cancel(id, requireRequestUserId(req.user), reason);
     return {
       success: true,
       message: 'Order cancelled successfully',
@@ -191,7 +192,7 @@ export class OrdersController {
     @Body('code') code: string,
     @Request() req,
   ) {
-    const result = await this.ordersService.validateCoupon(code, req.user.userId);
+    const result = await this.ordersService.validateCoupon(code, requireRequestUserId(req.user));
     return {
       success: true,
       data: result,
