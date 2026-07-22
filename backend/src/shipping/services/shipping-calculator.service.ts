@@ -5,6 +5,7 @@ import { AramexService } from './aramex.service';
 import { DHLService } from './dhl.service';
 import { FedExService } from './fedex.service';
 import { UPSService } from './ups.service';
+import { ShippingCarriersService } from './shipping-carriers.service';
 import { LocationDto, ShippingRate, RateComparisonResult } from '../dto/rate-request.dto';
 import { ShippingAddress } from '../dto/create-shipment.dto';
 
@@ -78,6 +79,7 @@ export class ShippingCalculatorService {
     private readonly dhlService: DHLService,
     private readonly fedExService: FedExService,
     private readonly upsService: UPSService,
+    private readonly carriersService: ShippingCarriersService,
   ) {}
 
   /**
@@ -112,11 +114,12 @@ export class ShippingCalculatorService {
       let allRates: ShippingRate[] = [];
 
       if (preferredCarrier) {
+        await this.carriersService.assertCarrierEnabled(preferredCarrier);
         const rates = await this.getCarrierRates(preferredCarrier, origin, destination, totalWeight, totalDimensions);
         allRates = rates;
       } else {
-        // Get rates from all carriers in parallel
-        const carrierPromises = ['oman_post', 'aramex', 'dhl', 'fedex', 'ups'].map(async (carrier) => {
+        const activeCarriers = await this.carriersService.getActiveRateServiceCodes();
+        const carrierPromises = activeCarriers.map(async (carrier) => {
           try {
             return await this.getCarrierRates(carrier, origin, destination, totalWeight, totalDimensions);
           } catch (error) {
@@ -169,7 +172,7 @@ export class ShippingCalculatorService {
     try {
       this.logger.log(`Comparing rates: ${origin.city} -> ${destination.city}, ${weight}kg`);
 
-      const carriers = ['oman_post', 'aramex', 'dhl', 'fedex', 'ups'];
+      const carriers = await this.carriersService.getActiveRateServiceCodes();
       const allRates: ShippingRate[] = [];
 
       const promises = carriers.map(async (carrier) => {
@@ -463,7 +466,11 @@ export class ShippingCalculatorService {
     weight: number,
     dimensions?: any,
   ): Promise<ShippingRate[]> {
-    switch (carrier) {
+    const key =
+      this.carriersService.toRateServiceCode(carrier) ||
+      carrier.toLowerCase().replace(/-/g, '_');
+
+    switch (key) {
       case 'oman_post':
         return this.omanPostService.getRates(origin, destination, weight, dimensions);
       case 'aramex':

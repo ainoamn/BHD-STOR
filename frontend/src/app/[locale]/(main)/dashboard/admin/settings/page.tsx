@@ -1,6 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
+import { toast } from 'sonner';
+import {
+  useAdminShippingCarriers,
+  useAdminToggleShippingCarrier,
+} from '@/hooks/useAdmin';
 import {
   Save,
   Globe,
@@ -9,11 +14,12 @@ import {
   Mail,
   Share2,
   AlertTriangle,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
 
 const BHD_GREEN = '#006400';
 const BHD_GOLD = '#D4AF37';
-const BHD_RED = '#C41E3A';
 
 const tabs = [
   { key: 'general', label: 'General', icon: <Globe size={18} /> },
@@ -27,9 +33,28 @@ export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
   const [saved, setSaved] = useState(false);
 
+  const {
+    data: carriers = [],
+    isLoading: carriersLoading,
+    isError: carriersError,
+    refetch: refetchCarriers,
+  } = useAdminShippingCarriers();
+  const toggleCarrier = useAdminToggleShippingCarrier();
+
   const handleSave = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleToggleCarrier = async (idOrCode: string, next: boolean) => {
+    try {
+      await toggleCarrier.mutateAsync({ idOrCode, isActive: next });
+      toast.success(next ? 'Carrier enabled' : 'Carrier disabled');
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to update carrier';
+      toast.error(message);
+    }
   };
 
   return (
@@ -42,14 +67,16 @@ export default function AdminSettingsPage() {
             Configure your marketplace settings
           </p>
         </div>
-        <button
-          onClick={handleSave}
-          className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white rounded-lg hover:opacity-90 transition-opacity"
-          style={{ backgroundColor: BHD_GREEN }}
-        >
-          <Save size={16} />
-          Save Changes
-        </button>
+        {activeTab !== 'shipping' && (
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white rounded-lg hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: BHD_GREEN }}
+          >
+            <Save size={16} />
+            Save Changes
+          </button>
+        )}
       </div>
 
       {saved && (
@@ -293,77 +320,176 @@ export default function AdminSettingsPage() {
 
       {/* Shipping Settings */}
       {activeTab === 'shipping' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Shipping Settings
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Standard Shipping Cost (OMR)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                defaultValue="2.00"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                style={{ '--tw-ring-color': BHD_GREEN } as React.CSSProperties}
-              />
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Shipping Carriers
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Only enabled carriers appear in rate quotes and checkout.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => refetchCarriers()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-lg hover:bg-gray-50"
+              >
+                <RefreshCw size={13} />
+                Refresh
+              </button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Express Shipping Cost (OMR)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                defaultValue="5.00"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                style={{ '--tw-ring-color': BHD_GREEN } as React.CSSProperties}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Free Shipping Threshold (OMR)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                defaultValue="50.00"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                style={{ '--tw-ring-color': BHD_GREEN } as React.CSSProperties}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Delivery Time (Standard)
-              </label>
-              <input
-                type="text"
-                defaultValue="3-5 business days"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                style={{ '--tw-ring-color': BHD_GREEN } as React.CSSProperties}
-              />
+
+            {carriersLoading && (
+              <p className="text-sm text-gray-500">Loading carriers…</p>
+            )}
+
+            {carriersError && (
+              <div className="flex items-center gap-2 text-sm text-red-600">
+                <AlertCircle size={16} />
+                Could not load carriers. Sign in as admin and ensure the API is
+                running.
+              </div>
+            )}
+
+            <div className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
+              {carriers.map((carrier) => (
+                <div
+                  key={carrier.id || carrier.code}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-4"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Truck size={16} className="text-gray-400 shrink-0" />
+                      <span className="font-medium text-gray-900">
+                        {carrier.name}
+                      </span>
+                      <span className="font-mono text-xs text-gray-500">
+                        {carrier.code}
+                      </span>
+                      {carrier.supportsCod && (
+                        <span
+                          className="text-xs px-2 py-0.5 rounded-md"
+                          style={{
+                            backgroundColor: `${BHD_GOLD}22`,
+                            color: '#92650a',
+                          }}
+                        >
+                          COD
+                        </span>
+                      )}
+                    </div>
+                    {carrier.nameAr && (
+                      <p className="text-xs text-gray-500 mt-1" dir="rtl">
+                        {carrier.nameAr}
+                      </p>
+                    )}
+                  </div>
+
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none shrink-0">
+                    <span className="text-xs text-gray-500">
+                      {carrier.isActive ? 'Enabled' : 'Disabled'}
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={carrier.isActive}
+                      disabled={toggleCarrier.isPending}
+                      onClick={() =>
+                        handleToggleCarrier(
+                          carrier.id || carrier.code,
+                          !carrier.isActive
+                        )
+                      }
+                      className="relative w-11 h-6 rounded-full transition-colors disabled:opacity-50"
+                      style={{
+                        backgroundColor: carrier.isActive
+                          ? BHD_GREEN
+                          : '#d1d5db',
+                      }}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                          carrier.isActive ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </label>
+                </div>
+              ))}
+
+              {!carriersLoading &&
+                !carriersError &&
+                carriers.length === 0 && (
+                  <p className="px-4 py-8 text-sm text-gray-500 text-center">
+                    No carriers found. They are created on first API call.
+                  </p>
+                )}
             </div>
           </div>
-          <div className="space-y-3">
-            {[
-              { key: 'free_ship', label: 'Enable Free Shipping', defaultChecked: true },
-              { key: 'express', label: 'Enable Express Shipping', defaultChecked: true },
-              { key: 'pickup', label: 'Enable Store Pickup', defaultChecked: false },
-            ].map((opt) => (
-              <div key={opt.key} className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id={opt.key}
-                  defaultChecked={opt.defaultChecked}
-                  className="w-4 h-4 rounded border-gray-300"
-                />
-                <label htmlFor={opt.key} className="text-sm text-gray-700">
-                  {opt.label}
+
+          <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Default Rates (display defaults)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Standard Shipping Cost (OMR)
                 </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  defaultValue="2.00"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
+                  style={
+                    { '--tw-ring-color': BHD_GREEN } as React.CSSProperties
+                  }
+                />
               </div>
-            ))}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Express Shipping Cost (OMR)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  defaultValue="5.00"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
+                  style={
+                    { '--tw-ring-color': BHD_GREEN } as React.CSSProperties
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Free Shipping Threshold (OMR)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  defaultValue="50.00"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
+                  style={
+                    { '--tw-ring-color': BHD_GREEN } as React.CSSProperties
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Delivery Time (Standard)
+                </label>
+                <input
+                  type="text"
+                  defaultValue="3-5 business days"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
+                  style={
+                    { '--tw-ring-color': BHD_GREEN } as React.CSSProperties
+                  }
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -8,6 +8,7 @@ import { AdminProductsController } from './controllers/admin-products.controller
 import { AdminOrdersController } from './controllers/admin-orders.controller';
 import { AdminPaymentsController } from './controllers/admin-payments.controller';
 import { AdminSubscriptionsController } from './controllers/admin-subscriptions.controller';
+import { AdminShippingController } from './controllers/admin-shipping.controller';
 
 import { AdminDashboardService } from './services/admin-dashboard.service';
 import { AdminUsersService } from './services/admin-users.service';
@@ -19,6 +20,7 @@ import { AdminSubscriptionsService } from './services/admin-subscriptions.servic
 
 import { AdminGuard } from './guards/admin.guard';
 import { PaymentsModule } from '../payments/payments.module';
+import { ShippingModule } from '../shipping/shipping.module';
 
 // Entities
 import { User } from '../users/entities/user.entity';
@@ -36,6 +38,7 @@ import { Payout } from '../payments/entities/payout.entity';
 @Module({
   imports: [
     PaymentsModule,
+    ShippingModule,
     TypeOrmModule.forFeature([
       User,
       Store,
@@ -58,6 +61,7 @@ import { Payout } from '../payments/entities/payout.entity';
     AdminOrdersController,
     AdminPaymentsController,
     AdminSubscriptionsController,
+    AdminShippingController,
   ],
   providers: [
     AdminDashboardService,

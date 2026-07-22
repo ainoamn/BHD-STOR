@@ -37,6 +37,8 @@ import { ShippingAddress } from './dto/create-shipment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
+import { ShippingCarriersService } from './services/shipping-carriers.service';
 
 @ApiTags('Shipping')
 @Controller('shipping')
@@ -51,6 +53,7 @@ export class ShippingController {
     private readonly dhlService: DHLService,
     private readonly fedExService: FedExService,
     private readonly upsService: UPSService,
+    private readonly carriersService: ShippingCarriersService,
   ) {}
 
   /**
@@ -341,68 +344,30 @@ export class ShippingController {
   }
 
   /**
-   * List available carriers
+   * List available carriers (active only)
    */
+  @Public()
   @Get('carriers')
   @ApiOperation({
     summary: 'List carriers',
-    description: 'Get a list of all available shipping carriers.',
+    description: 'Get active shipping carriers enabled by admin.',
   })
   @ApiResponse({ status: 200, description: 'List of carriers' })
   async listCarriers() {
+    const carriers = await this.carriersService.listPublicCarriers();
     return {
-      carriers: [
-        {
-          id: 'oman_post',
-          name: 'Oman Post',
-          services: ['standard', 'express', 'registered'],
-          domestic: true,
-          international: true,
-          tracking: true,
-          codAvailable: true,
-          logo: '/assets/carriers/oman-post.svg',
-        },
-        {
-          id: 'aramex',
-          name: 'Aramex',
-          services: ['express', 'domestic'],
-          domestic: true,
-          international: true,
-          tracking: true,
-          codAvailable: true,
-          logo: '/assets/carriers/aramex.svg',
-        },
-        {
-          id: 'dhl',
-          name: 'DHL Express',
-          services: ['express', 'economy'],
-          domestic: true,
-          international: true,
-          tracking: true,
-          codAvailable: false,
-          logo: '/assets/carriers/dhl.svg',
-        },
-        {
-          id: 'fedex',
-          name: 'FedEx',
-          services: ['priority', 'economy'],
-          domestic: true,
-          international: true,
-          tracking: true,
-          codAvailable: false,
-          logo: '/assets/carriers/fedex.svg',
-        },
-        {
-          id: 'ups',
-          name: 'UPS',
-          services: ['express', 'expedited'],
-          domestic: true,
-          international: true,
-          tracking: true,
-          codAvailable: false,
-          logo: '/assets/carriers/ups.svg',
-        },
-      ],
+      success: true,
+      data: carriers,
+      carriers: carriers.map((c) => ({
+        id: c.code,
+        name: c.name,
+        nameAr: c.nameAr,
+        domestic: true,
+        international: c.code !== 'local_delivery_muscat',
+        tracking: c.tracking,
+        codAvailable: c.supportsCod,
+        rateServiceCode: c.rateServiceCode,
+      })),
     };
   }
 

@@ -241,3 +241,48 @@ export async function getEstimatedDelivery(
   });
   return response.data.data;
 }
+
+// ---------------------------------------------------------------------------
+// Admin carriers
+// ---------------------------------------------------------------------------
+
+export interface AdminShippingCarrier {
+  id: string;
+  name: string;
+  nameAr?: string | null;
+  code: string;
+  isActive: boolean;
+  supportsCod?: boolean;
+  displayOrder?: number;
+  trackingUrlTemplate?: string | null;
+  apiEndpoint?: string | null;
+}
+
+export async function getAdminCarriers(): Promise<AdminShippingCarrier[]> {
+  const response = await api.get<{ success: boolean; data: AdminShippingCarrier[] }>(
+    '/admin/shipping/carriers'
+  );
+  return response.data.data;
+}
+
+export async function setAdminCarrierActive(
+  idOrCode: string,
+  isActive: boolean
+): Promise<AdminShippingCarrier> {
+  const response = await api.patch<{
+    success: boolean;
+    data: AdminShippingCarrier;
+  }>(`/admin/shipping/carriers/${encodeURIComponent(idOrCode)}`, { isActive });
+  return response.data.data;
+}
+
+export const shippingService = {
+  calculateRates,
+  createShipment,
+  getShipment,
+  schedulePickup,
+  downloadLabel,
+  getEstimatedDelivery,
+  getAdminCarriers,
+  setAdminCarrierActive,
+};

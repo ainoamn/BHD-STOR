@@ -11,6 +11,7 @@ import { storesService } from '@/services/stores.service';
 import { productsService } from '@/services/products.service';
 import { ordersService } from '@/services/orders.service';
 import { paymentsService } from '@/services/payments.service';
+import { shippingService } from '@/services/shipping.service';
 import type {
   AdminDashboardStats,
   AdminAnalyticsPeriod,
@@ -44,6 +45,7 @@ import type {
   PaginatedAdminPayments,
   AdminPaymentGateway,
 } from '@/services/payments.service';
+import type { AdminShippingCarrier } from '@/services/shipping.service';
 
 // ------------------------------------------------------------------
 // Query & Mutation Keys
@@ -78,6 +80,10 @@ export const adminKeys = {
     list: (filters: AdminPaymentFilters) =>
       [...adminKeys.payments.all(), filters] as const,
     gateways: () => [...adminKeys.payments.all(), 'gateways'] as const,
+  },
+  shipping: {
+    all: () => [...adminKeys.all, 'shipping'] as const,
+    carriers: () => [...adminKeys.shipping.all(), 'carriers'] as const,
   },
 };
 
@@ -313,6 +319,38 @@ export function useAdminTogglePaymentGateway(): UseMutationResult<
       paymentsService.setAdminGatewayActive(idOrCode, isActive),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.payments.gateways() });
+    },
+  });
+}
+
+/**
+ * Hook: useAdminShippingCarriers
+ */
+export function useAdminShippingCarriers(): UseQueryResult<
+  AdminShippingCarrier[],
+  Error
+> {
+  return useQuery({
+    queryKey: adminKeys.shipping.carriers(),
+    queryFn: () => shippingService.getAdminCarriers(),
+    staleTime: 1000 * 30,
+  });
+}
+
+/**
+ * Hook: useAdminToggleShippingCarrier
+ */
+export function useAdminToggleShippingCarrier(): UseMutationResult<
+  AdminShippingCarrier,
+  Error,
+  { idOrCode: string; isActive: boolean }
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ idOrCode, isActive }) =>
+      shippingService.setAdminCarrierActive(idOrCode, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.shipping.carriers() });
     },
   });
 }
