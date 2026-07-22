@@ -133,8 +133,11 @@ export class AuthService {
         throw new UnauthorizedException('Account is deactivated. Please contact support.');
       }
 
-      // Check if email is verified
-      if (!user.isEmailVerified) {
+      // Check if email is verified (can be relaxed in development)
+      const requireVerified =
+        this.configService.get<string>('AUTH_REQUIRE_EMAIL_VERIFICATION', 'false') === 'true' ||
+        this.configService.get<string>('NODE_ENV') === 'production';
+      if (requireVerified && !user.isEmailVerified) {
         throw new UnauthorizedException('Please verify your email address before logging in.');
       }
 

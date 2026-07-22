@@ -185,8 +185,10 @@ api.interceptors.response.use(
 
       const refreshToken = getRefreshToken();
 
-      // No refresh token — redirect to login
-      if (!refreshToken) {
+      // Prefer cookie-based refresh (HttpOnly) even when localStorage is empty
+      const canRefresh = Boolean(refreshToken) || typeof window !== 'undefined';
+
+      if (!canRefresh) {
         removeAuthToken();
         redirectToLogin();
         return Promise.reject(formatApiError(error));
@@ -211,8 +213,11 @@ api.interceptors.response.use(
       try {
         const refreshResponse = await axios.post(
           `${API_BASE_URL}/auth/refresh`,
-          { refreshToken },
-          { headers: { 'Content-Type': 'application/json' } }
+          refreshToken ? { refreshToken } : {},
+          {
+            headers: { 'Content-Type': 'application/json' },
+            withCredentials: true,
+          }
         );
 
         const {

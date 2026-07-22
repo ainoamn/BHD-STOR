@@ -103,6 +103,38 @@ export class User {
   @Column({ type: 'boolean', default: false, name: 'phone_verified' })
   phoneVerified: boolean;
 
+  /** Auth/users compatibility aliases */
+  get isEmailVerified(): boolean {
+    return this.emailVerified;
+  }
+  set isEmailVerified(value: boolean) {
+    this.emailVerified = value;
+  }
+
+  get isPhoneVerified(): boolean {
+    return this.phoneVerified;
+  }
+  set isPhoneVerified(value: boolean) {
+    this.phoneVerified = value;
+  }
+
+  get isActive(): boolean {
+    // Treat verified pending accounts as usable until admin suspension
+    if (this.status === UserStatus.SUSPENDED || this.status === UserStatus.INACTIVE) {
+      return false;
+    }
+    return !this.isLocked();
+  }
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'reset_token' })
+  resetToken: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true, name: 'reset_token_expiry' })
+  resetTokenExpiry: Date | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'email_verification_token' })
+  emailVerificationToken: string | null;
+
   @Column({ type: 'boolean', default: false, name: 'two_factor_enabled' })
   twoFactorEnabled: boolean;
 

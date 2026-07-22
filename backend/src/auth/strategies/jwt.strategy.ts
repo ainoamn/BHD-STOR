@@ -35,7 +35,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     const jwtAudience = configService.get<string>('JWT_AUDIENCE', 'bhd-oman-api');
 
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req) => {
+          if (req?.cookies?.accessToken) {
+            return req.cookies.accessToken;
+          }
+          return null;
+        },
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: jwtSecret,
       issuer: jwtIssuer,

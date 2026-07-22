@@ -2,24 +2,36 @@ import type { User } from "@/types";
 
 const USER_KEY = "bhd_user";
 
+/**
+ * Persist user profile locally. JWTs are stored in HttpOnly cookies by the API
+ * (accessToken / refreshToken). A non-sensitive bhd_session flag helps middleware.
+ */
 export function persistAuthSession(
-  accessToken: string,
-  refreshToken: string,
+  accessToken: string | null | undefined,
+  refreshToken: string | null | undefined,
   user: User
 ): void {
   if (typeof window === "undefined") return;
 
   try {
-    localStorage.setItem("bhd_access_token", accessToken);
-    localStorage.setItem("bhd_refresh_token", refreshToken);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
+    // Keep tokens out of document.cookie (XSS). Optional memory/localStorage
+    // fallback remains in api.ts for Bearer clients / transition.
+    if (accessToken) {
+      localStorage.setItem("bhd_access_token", accessToken);
+    }
+    if (refreshToken) {
+      localStorage.setItem("bhd_refresh_token", refreshToken);
+    }
   } catch {
     // ignore
   }
 
   const maxAge = 60 * 60 * 24 * 7;
-  document.cookie = `auth-token=${encodeURIComponent(accessToken)}; path=/; max-age=${maxAge}; SameSite=Lax`;
-  document.cookie = `refresh-token=${encodeURIComponent(refreshToken)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+  document.cookie = `bhd_session=1; path=/; max-age=${maxAge}; SameSite=Lax`;
+  // Clear legacy JS-readable JWT cookies if present
+  document.cookie = "auth-token=; path=/; max-age=0; SameSite=Lax";
+  document.cookie = "refresh-token=; path=/; max-age=0; SameSite=Lax";
 }
 
 export function getPersistedUser(): User | null {
@@ -46,6 +58,7 @@ export function clearAuthSession(): void {
     // ignore
   }
 
+  document.cookie = "bhd_session=; path=/; max-age=0; SameSite=Lax";
   document.cookie = "auth-token=; path=/; max-age=0; SameSite=Lax";
   document.cookie = "refresh-token=; path=/; max-age=0; SameSite=Lax";
 }

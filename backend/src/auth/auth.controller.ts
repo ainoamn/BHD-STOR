@@ -7,6 +7,8 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Res,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,6 +17,8 @@ import {
   ApiBearerAuth,
   ApiBody,
 } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
@@ -27,11 +31,15 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { clearAuthCookies, setAuthCookies } from './utils/auth-cookies';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   /**
    * Register new user
@@ -47,29 +55,6 @@ export class AuthController {
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'User registered successfully',
-    schema: {
-      example: {
-        data: {
-          user: {
-            id: '550e8400-e29b-41d4-a716-446655440000',
-            email: 'user@example.com',
-            firstName: 'John',
-            lastName: 'Doe',
-            role: 'customer',
-          },
-          tokens: {
-            accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-            refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-            expiresIn: 900,
-            tokenType: 'Bearer',
-          },
-        },
-        meta: {
-          timestamp: '2024-01-15T10:30:00.000Z',
-          requestId: 'req-12345',
-        },
-      },
-    },
   })
   @ApiResponse({
     status: HttpStatus.CONFLICT,
@@ -79,8 +64,15 @@ export class AuthController {
     status: HttpStatus.BAD_REQUEST,
     description: 'Validation error',
   })
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.register(registerDto);
+    if (result?.tokens) {
+      setAuthCookies(res, result.tokens, this.configService);
+    }
+    return result;
   }
 
   /**
@@ -92,48 +84,27 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Login',
-    description: 'Authenticate with email and password to receive JWT tokens.',
+    description: 'Authenticate with email and password. Sets HttpOnly auth cookies and returns tokens for API clients.',
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Login successful',
-    schema: {
-      example: {
-        data: {
-          user: {
-            id: '550e8400-e29b-41d4-a716-446655440000',
-            email: 'user@example.com',
-            firstName: 'John',
-            lastName: 'Doe',
-            role: 'customer',
-            avatar: 'https://cdn.example.com/avatars/user.jpg',
-          },
-          tokens: {
-            accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-            refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-            expiresIn: 900,
-            tokenType: 'Bearer',
-          },
-        },
-        meta: {
-          timestamp: '2024-01-15T10:30:00.000Z',
-          requestId: 'req-12345',
-        },
-      },
-    },
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
     description: 'Invalid credentials',
   })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Validation error',
-  })
-  async login(@Body() _loginDto: LoginDto, @CurrentUser() user: any) {
-    // User is attached by LocalAuthGuard
-    return this.authService.login(_loginDto);
+  async login(
+    @Body() _loginDto: LoginDto,
+    @CurrentUser() _user: any,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(_loginDto);
+    if (result?.tokens) {
+      setAuthCookies(res, result.tokens, this.configService);
+    }
+    return result;
   }
 
   /**
@@ -145,30 +116,22 @@ export class AuthController {
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Logout',
-    description: 'Invalidate current JWT tokens and logout the user.',
+    description: 'Invalidate current JWT tokens and clear auth cookies.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Logout successful',
-    schema: {
-      example: {
-        data: { message: 'Logged out successfully' },
-        meta: {
-          timestamp: '2024-01-15T10:30:00.000Z',
-          requestId: 'req-12345',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Invalid or expired token',
   })
   async logout(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('userId') userId: string,
     @Body('token') token?: string,
+    @Res({ passthrough: true }) res?: Response,
   ) {
-    return this.authService.logout(userId, token);
+    const result = await this.authService.logout(userId, token);
+    if (res) {
+      clearAuthCookies(res, this.configService);
+    }
+    return result;
   }
 
   /**
@@ -179,33 +142,30 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Refresh tokens',
-    description: 'Get a new access token using a valid refresh token.',
+    description: 'Get a new access token using refresh token from body or HttpOnly cookie.',
   })
-  @ApiBody({ type: RefreshTokenDto })
+  @ApiBody({ type: RefreshTokenDto, required: false })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Tokens refreshed successfully',
-    schema: {
-      example: {
-        data: {
-          accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-          refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-          expiresIn: 900,
-          tokenType: 'Bearer',
-        },
-        meta: {
-          timestamp: '2024-01-15T10:30:00.000Z',
-          requestId: 'req-12345',
-        },
-      },
-    },
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
     description: 'Invalid or expired refresh token',
   })
-  async refreshTokens(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refreshTokens(refreshTokenDto);
+  async refreshTokens(
+    @Body() refreshTokenDto: RefreshTokenDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken =
+      refreshTokenDto?.refreshToken ||
+      (req.cookies?.refreshToken as string | undefined);
+    const result = await this.authService.refreshTokens({ refreshToken: refreshToken || '' });
+    if (result?.accessToken && result?.refreshToken) {
+      setAuthCookies(res, result, this.configService);
+    }
+    return result;
   }
 
   /**
@@ -312,7 +272,7 @@ export class AuthController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Invalid or expired token',
   })
-  async getMe(@CurrentUser('sub') userId: string) {
+  async getMe(@CurrentUser('userId') userId: string) {
     return this.authService.getMe(userId);
   }
 
@@ -347,7 +307,7 @@ export class AuthController {
     description: 'Invalid or expired token',
   })
   async updateMe(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('userId') userId: string,
     @Body() updateData: { firstName?: string; lastName?: string; phone?: string; avatar?: string },
   ) {
     return this.authService.updateMe(userId, updateData);

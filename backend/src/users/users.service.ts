@@ -91,8 +91,8 @@ export class UsersService {
       'user.phone',
       'user.role',
       'user.status',
-      'user.isEmailVerified',
-      'user.isActive',
+      'user.emailVerified',
+      'user.phoneVerified',
       'user.avatar',
       'user.lastLoginAt',
       'user.preferredLanguage',
@@ -134,9 +134,8 @@ export class UsersService {
         'phone',
         'role',
         'status',
-        'isEmailVerified',
-        'isActive',
-        'isPhoneVerified',
+        'emailVerified',
+        'phoneVerified',
         'twoFactorEnabled',
         'avatar',
         'lastLoginAt',
@@ -158,9 +157,12 @@ export class UsersService {
    * Get user by email (includes password for auth)
    */
   async findByEmail(email: string): Promise<User | null> {
-    return this.userRepository.findOne({
-      where: { email, deletedAt: null },
-    });
+    return this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.email = :email', { email })
+      .andWhere('user.deleted_at IS NULL')
+      .getOne();
   }
 
   /**
@@ -293,7 +295,6 @@ export class UsersService {
     }
 
     user.status = status;
-    user.isActive = status === UserStatus.ACTIVE;
     const updatedUser = await this.userRepository.save(user);
 
     this.logger.log(`Updated status for user ${user.email} to ${status}`, 'UsersService');

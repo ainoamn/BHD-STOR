@@ -191,11 +191,15 @@ export default function middleware(request: NextRequest) {
   // Check authentication for protected paths (client-side auth check)
   // Note: Full auth verification happens in the application layer
   if (isProtectedPath(pathname)) {
-    const authToken = request.cookies.get('auth-token')?.value;
-    const refreshToken = request.cookies.get('refresh-token')?.value;
+    const authToken =
+      request.cookies.get('accessToken')?.value ||
+      request.cookies.get('auth-token')?.value;
+    const refreshToken =
+      request.cookies.get('refreshToken')?.value ||
+      request.cookies.get('refresh-token')?.value;
+    const sessionFlag = request.cookies.get('bhd_session')?.value;
 
-    if (!authToken && !refreshToken) {
-      // Redirect to login with return URL
+    if (!authToken && !refreshToken && sessionFlag !== '1') {
       const locale = locales.find((l) => pathname.startsWith(`/${l}`)) || defaultLocale;
       const loginUrl = new URL(`/${locale}/auth/login`, request.url);
       loginUrl.searchParams.set('redirect', pathname);
