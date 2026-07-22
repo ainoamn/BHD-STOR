@@ -4,7 +4,6 @@ import {
   Post,
   Delete,
   Param,
-  Query,
   UseGuards,
   Request,
   HttpCode,
@@ -41,45 +40,17 @@ export class WishlistController {
     };
   }
 
-  @Post(':productId')
+  @Get('count')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Add to wishlist', description: 'Add a product to the user wishlist' })
-  @ApiParam({ name: 'productId', description: 'Product UUID', format: 'uuid' })
-  @ApiResponse({ status: 201, description: 'Product added to wishlist' })
+  @ApiOperation({ summary: 'Get wishlist count', description: 'Get the number of items in wishlist' })
+  @ApiResponse({ status: 200, description: 'Count retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Product not found' })
-  @ApiResponse({ status: 409, description: 'Product already in wishlist' })
-  async addToWishlist(
-    @Param('productId', ParseUUIDPipe) productId: string,
-    @Request() req,
-  ) {
-    const wishlist = await this.wishlistService.addToWishlist(requireRequestUserId(req.user), productId);
+  async getWishlistCount(@Request() req) {
+    const count = await this.wishlistService.getWishlistCount(requireRequestUserId(req.user));
     return {
       success: true,
-      message: 'Product added to wishlist',
-      data: wishlist,
-    };
-  }
-
-  @Delete(':productId')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Remove from wishlist', description: 'Remove a product from the user wishlist' })
-  @ApiParam({ name: 'productId', description: 'Product UUID', format: 'uuid' })
-  @ApiResponse({ status: 200, description: 'Product removed from wishlist' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Product not in wishlist' })
-  async removeFromWishlist(
-    @Param('productId', ParseUUIDPipe) productId: string,
-    @Request() req,
-  ) {
-    const wishlist = await this.wishlistService.removeFromWishlist(requireRequestUserId(req.user), productId);
-    return {
-      success: true,
-      message: 'Product removed from wishlist',
-      data: wishlist,
+      data: { count },
     };
   }
 
@@ -122,17 +93,45 @@ export class WishlistController {
     };
   }
 
-  @Get('count')
+  @Post(':productId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get wishlist count', description: 'Get the number of items in wishlist' })
-  @ApiResponse({ status: 200, description: 'Count retrieved' })
+  @ApiOperation({ summary: 'Add to wishlist', description: 'Add a product to the user wishlist' })
+  @ApiParam({ name: 'productId', description: 'Product UUID', format: 'uuid' })
+  @ApiResponse({ status: 201, description: 'Product added to wishlist' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getWishlistCount(@Request() req) {
-    const count = await this.wishlistService.getWishlistCount(requireRequestUserId(req.user));
+  @ApiResponse({ status: 404, description: 'Product not found' })
+  @ApiResponse({ status: 409, description: 'Product already in wishlist' })
+  async addToWishlist(
+    @Param('productId', ParseUUIDPipe) productId: string,
+    @Request() req,
+  ) {
+    const wishlist = await this.wishlistService.addToWishlist(requireRequestUserId(req.user), productId);
     return {
       success: true,
-      data: { count },
+      message: 'Product added to wishlist',
+      data: wishlist,
+    };
+  }
+
+  @Delete(':productId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove from wishlist', description: 'Remove a product from the user wishlist' })
+  @ApiParam({ name: 'productId', description: 'Product UUID', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Product removed from wishlist' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Product not in wishlist' })
+  async removeFromWishlist(
+    @Param('productId', ParseUUIDPipe) productId: string,
+    @Request() req,
+  ) {
+    const wishlist = await this.wishlistService.removeFromWishlist(requireRequestUserId(req.user), productId);
+    return {
+      success: true,
+      message: 'Product removed from wishlist',
+      data: wishlist,
     };
   }
 

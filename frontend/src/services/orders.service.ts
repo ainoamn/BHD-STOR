@@ -181,7 +181,18 @@ export async function getAdminOrders(
 export async function getOrders(
   filters?: OrderFilters
 ): Promise<PaginatedResponse<Order>> {
-  const query = buildQueryString((filters ?? {}) as Record<string, unknown>);
+  const raw = { ...(filters ?? {}) } as Record<string, unknown>;
+  // Align FE filter names with Nest query params
+  if (raw.store && !raw.storeId) {
+    raw.storeId = raw.store;
+    delete raw.store;
+  }
+  if (raw.perPage != null && raw.limit == null) {
+    raw.limit = raw.perPage;
+  }
+  delete raw.perPage;
+
+  const query = buildQueryString(raw);
   const response = await api.get<any>(`/orders${query}`);
   const body = response.data;
   // Backend returns { success, data: Order[], meta: { total, page, limit, totalPages } }

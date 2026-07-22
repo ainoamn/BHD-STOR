@@ -1,8 +1,9 @@
 // =============================================================================
-// BHD Oman Marketplace - Wishlist Service
+// BHD Oman Marketplace - Wishlist Service (aligned with Nest wishlist routes)
 // =============================================================================
 
 import { api } from './api';
+import { addToCart } from './cart.service';
 import { Product } from '../types';
 
 export interface WishlistItem {
@@ -20,125 +21,129 @@ export interface Wishlist {
   totalItems: number;
 }
 
-function toWishlist(products: Product[]): Wishlist {
-  return {
-    items: products.map((p) => ({
-      id: p.id,
-      productId: p.id,
-      name: p.name,
-      price: p.price,
-      image: p.images?.[0]?.url ?? '',
-      addedAt: p.createdAt ?? new Date().toISOString(),
-      product: p,
-    })),
-    totalItems: products.length,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Local types
-// ---------------------------------------------------------------------------
-
 export interface WishlistToggleResponse {
   inWishlist: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Wishlist Endpoints
-// ---------------------------------------------------------------------------
-
-/**
- * Get the current user's wishlist items.
- * @returns List of wishlisted products
- */
-export async function getWishlist(): Promise<Product[]> {
-  const response = await api.get<{ success: boolean; data: Product[] }>('/wishlist');
-  return response.data.data;
-}
-
-/**
- * Add a product to the wishlist.
- * @param productId - Product UUID
- * @returns Updated wishlist
- */
-export async function addToWishlist(productId: string): Promise<Product[]> {
-  const response = await api.post<{ success: boolean; data: Product[] }>('/wishlist', {
-    productId,
-  });
-  return response.data.data;
-}
-
-/**
- * Remove a product from the wishlist.
- * @param productId - Product UUID
- * @returns Updated wishlist
- */
-export async function removeFromWishlist(productId: string): Promise<Product[]> {
-  const response = await api.delete<{ success: boolean; data: Product[] }>(
-    `/wishlist/${productId}`
+function productName(product: any): string {
+  return (
+    product?.nameAr ||
+    product?.nameEn ||
+    product?.name ||
+    product?.title ||
+    'Product'
   );
-  return response.data.data;
 }
 
-/**
- * Check if a product is in the current user's wishlist.
- * @param productId - Product UUID
- * @returns true if product is wishlisted
- */
+function productImage(product: any): string {
+  const img = product?.images?.[0];
+  if (typeof img === 'string') return img;
+  return img?.url || product?.thumbnail || product?.image || '';
+}
+
+function mapEntry(entry: any): WishlistItem {
+  const product = entry?.product || entry;
+  const productId = entry?.productId || product?.id || '';
+  return {
+    id: entry?.id || productId,
+    productId,
+    name: productName(product),
+    price: Number(product?.salePrice ?? product?.price ?? 0),
+    image: productImage(product),
+    addedAt:
+      entry?.addedAt ||
+      entry?.createdAt ||
+      product?.createdAt ||
+      new Date().toISOString(),
+    product,
+  };
+}
+
+function normalizeWishlist(payload: any): Wishlist {
+  if (!payload) return { items: [], totalItems: 0 };
+
+  if (Array.isArray(payload?.items)) {
+    const items = payload.items.map(mapEntry);
+    return {
+      items,
+      totalItems: Number(payload.count ?? payload.totalItems ?? items.length),
+    };
+  }
+
+  if (Array.isArray(payload)) {
+    const items = payload.map(mapEntry);
+    return { items, totalItems: items.length };
+  }
+
+  if (payload?.productId || payload?.product) {
+    const item = mapEntry(payload);
+    return { items: [item], totalItems: 1 };
+  }
+
+  return { items: [], totalItems: 0 };
+}
+
+export async function getWishlist(): Promise<Wishlist> {
+  const response = await api.get<{ success: boolean; data: any }>('/wishlist');
+  return normalizeWishlist(response.data.data);
+}
+
+export async function addToWishlist(productId: string): Promise<Wishlist> {
+  await api.post(`/wishlist/${productId}`);
+  return getWishlist();
+}
+
+export async function removeFromWishlist(productId: string): Promise<Wishlist> {
+  await api.delete(`/wishlist/${productId}`);
+  return getWishlist();
+}
+
 export async function isInWishlist(productId: string): Promise<boolean> {
   const response = await api.get<{ success: boolean; data: { inWishlist: boolean } }>(
-    `/wishlist/${productId}/check`
+    `/wishlist/check/${productId}`,
   );
-  return response.data.data.inWishlist;
+  return Boolean(response.data.data?.inWishlist);
 }
 
-/**
- * Toggle a product's presence in the wishlist.
- * @param productId - Product UUID
- * @returns Object with the new wishlist status
- */
 export async function toggleWishlist(
-  productId: string
+  productId: string,
 ): Promise<WishlistToggleResponse> {
-  const response = await api.post<{ success: boolean; data: WishlistToggleResponse }>(
-    `/wishlist/toggle`,
-    { productId }
-  );
-  return response.data.data;
+  const response = await api.post<{
+    success: boolean;
+    data: WishlistToggleResponse;
+  }>(`/wishlist/toggle/${productId}`);
+  return {
+    inWishlist: Boolean(response.data.data?.inWishlist),
+  };
 }
 
-/**
- * Move a wishlist item to the cart.
- * @param productId - Product UUID
- * @param variantId - Optional variant ID
- * @returns Success message
- */
+/** No dedicated BE endpoint — add to cart then remove from wishlist. */
 export async function moveToCart(
   productId: string,
-  variantId?: string
+  variantId?: string,
 ): Promise<{ message: string }> {
-  const response = await api.post<{ success: boolean; data: { message: string } }>(
-    '/wishlist/move-to-cart',
-    { productId, variantId }
-  );
-  return response.data.data;
+  await addToCart({
+    productId,
+    quantity: 1,
+    ...(variantId ? { variantId } : {}),
+  });
+  try {
+    await api.delete(`/wishlist/${productId}`);
+  } catch {
+    // cart add succeeded; wishlist cleanup is best-effort
+  }
+  return { message: 'Moved to cart' };
 }
 
-/**
- * Clear all items from the wishlist.
- * @returns Empty confirmation
- */
 export async function clearWishlist(): Promise<{ message: string }> {
-  const response = await api.delete<{ success: boolean; data: { message: string } }>(
-    '/wishlist'
-  );
-  return response.data.data;
+  await api.delete('/wishlist');
+  return { message: 'Wishlist cleared' };
 }
 
 export const wishlistService = {
-  getWishlist: async () => toWishlist(await getWishlist()),
-  addToWishlist: async (productId: string) => toWishlist(await addToWishlist(productId)),
-  removeFromWishlist: async (productId: string) => toWishlist(await removeFromWishlist(productId)),
+  getWishlist,
+  addToWishlist,
+  removeFromWishlist,
   isInWishlist,
   toggleWishlist,
   moveToCart,

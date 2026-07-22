@@ -122,7 +122,7 @@ export default function StoreDashboardPage() {
     refetch: refetchOrders,
   } = useOrders(
     storeId
-      ? { store: storeId, perPage: 5, page: 1 }
+      ? { storeId, perPage: 5, page: 1 }
       : { perPage: 5, page: 1 }
   );
 

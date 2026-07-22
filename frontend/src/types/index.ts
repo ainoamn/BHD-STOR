@@ -447,6 +447,8 @@ export interface OrderFilters {
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
   store?: string;
+  /** Preferred Nest query param (also accepts legacy `store`) */
+  storeId?: string;
   user?: string;
   fromDate?: string;
   toDate?: string;
@@ -454,6 +456,7 @@ export interface OrderFilters {
   maxTotal?: number;
   page?: number;
   perPage?: number;
+  limit?: number;
   sortBy?: 'createdAt' | 'grandTotal' | 'status';
   sortOrder?: 'asc' | 'desc';
 }

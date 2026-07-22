@@ -205,14 +205,18 @@ export default function CheckoutPage() {
       const orderId = (order as any)?.id || (order as any)?.data?.id;
 
       if (orderId) {
+        const locale =
+          typeof window !== "undefined"
+            ? window.location.pathname.split("/").filter(Boolean)[0] || "ar"
+            : "ar";
         const payment = await processPayment.mutateAsync({
           orderId,
           method: paymentMethodForGateway(gateway),
           gateway,
           returnUrl:
             typeof window !== "undefined"
-              ? `${window.location.origin}/orders`
-              : "/orders",
+              ? `${window.location.origin}/${locale}/orders/${orderId}`
+              : `/orders/${orderId}`,
         } as any);
 
         if (gateway !== "cod") {

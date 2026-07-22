@@ -195,12 +195,37 @@ export class OrdersService {
     const { page = 1, limit = 10, status, storeId, role } = filter;
     const skip = (page - 1) * limit;
     const where: Record<string, unknown> = {};
+    const roleNorm = String(role || '').toLowerCase();
+    const isStaff = ['admin', 'super_admin', 'moderator'].includes(roleNorm);
+    const isSeller = roleNorm === 'seller' || roleNorm === 'vendor';
 
-    if (role !== 'admin' && role !== 'super_admin' && role !== 'moderator') {
+    if (isStaff) {
+      if (storeId) where.storeId = storeId;
+    } else if (isSeller) {
+      let sellerStoreId = storeId;
+      if (sellerStoreId) {
+        const owned = await this.storeRepository.findOne({
+          where: { id: sellerStoreId, ownerId: userId },
+        });
+        if (!owned) {
+          throw new ForbiddenException('You do not own this store');
+        }
+      } else {
+        const mine = await this.storeRepository.findOne({
+          where: { ownerId: userId },
+        });
+        if (!mine) {
+          return { data: [], total: 0, page, limit, totalPages: 0 };
+        }
+        sellerStoreId = mine.id;
+      }
+      where.storeId = sellerStoreId;
+    } else {
       where.userId = userId;
+      if (storeId) where.storeId = storeId;
     }
+
     if (status) where.status = status;
-    if (storeId) where.storeId = storeId;
 
     const [data, total] = await this.orderRepository.findAndCount({
       where,
@@ -215,7 +240,7 @@ export class OrdersService {
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit) || 0,
     };
   }
 
@@ -297,9 +322,16 @@ export class OrdersService {
     const privileged = ['admin', 'super_admin', 'moderator'].includes(
       String(role || '').toLowerCase(),
     );
-    if (!privileged && order.userId && order.userId !== userId) {
-      throw new ForbiddenException('You do not have access to this order');
-    }
+    if (privileged) return;
+    if (order.userId && order.userId === userId) return;
+
+    const storeOwnerId =
+      (order as any).store?.ownerId ||
+      (order as any).store?.owner?.id ||
+      null;
+    if (storeOwnerId && storeOwnerId === userId) return;
+
+    throw new ForbiddenException('You do not have access to this order');
   }
 
   async updateStatus(
