@@ -1,10 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Package, ShoppingBag, Trash2, Plus, Minus, Loader2 } from "lucide-react";
+import {
+  Package,
+  ShoppingBag,
+  Trash2,
+  Plus,
+  Minus,
+  Loader2,
+  Tag,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -12,6 +23,8 @@ import {
   useUpdateCartItem,
   useRemoveFromCart,
   useClearCart,
+  useApplyCoupon,
+  useRemoveCoupon,
 } from "@/hooks/useCart";
 import { useCurrency } from "@/hooks/useCurrency";
 
@@ -22,20 +35,59 @@ export default function CartPage() {
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveFromCart();
   const clearCart = useClearCart();
+  const applyCoupon = useApplyCoupon();
+  const removeCoupon = useRemoveCoupon();
+  const [couponCode, setCouponCode] = useState("");
 
   const rawCart = cart as any;
   const items = rawCart?.items ?? [];
   const subtotal =
     rawCart?.subtotal ??
     rawCart?.grandTotal ??
-    items.reduce((sum: number, item: any) => sum + Number(item.price) * Number(item.quantity), 0);
-  const discount = rawCart?.discount ?? rawCart?.couponDiscount ?? rawCart?.discountTotal ?? 0;
+    items.reduce(
+      (sum: number, item: any) =>
+        sum + Number(item.price) * Number(item.quantity),
+      0,
+    );
+  const discount =
+    rawCart?.discount ?? rawCart?.couponDiscount ?? rawCart?.discountTotal ?? 0;
   const shipping = rawCart?.shipping ?? rawCart?.shippingTotal ?? 0;
-  const total = rawCart?.total ?? rawCart?.grandTotal ?? subtotal - Number(discount) + Number(shipping);
+  const total =
+    rawCart?.total ??
+    rawCart?.grandTotal ??
+    subtotal - Number(discount) + Number(shipping);
+  const appliedCoupon =
+    rawCart?.coupon ??
+    (rawCart?.couponCode ? { code: rawCart.couponCode } : null);
+
+  const onApplyCoupon = () => {
+    const code = couponCode.trim();
+    if (!code) {
+      toast.warning(t("summary.couponPlaceholder"));
+      return;
+    }
+    applyCoupon.mutate(code, {
+      onSuccess: () => {
+        toast.success(t("summary.couponApplied"));
+        setCouponCode("");
+      },
+      onError: () => {
+        toast.error(t("summary.invalidCoupon"));
+      },
+    });
+  };
+
+  const onRemoveCoupon = () => {
+    removeCoupon.mutate(undefined, {
+      onSuccess: () => toast.success(t("cartUpdated")),
+      onError: (err: any) =>
+        toast.error(err?.message || "تعذر إزالة الكوبون"),
+    });
+  };
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-10 space-y-4 max-w-5xl">
+      <div className="container mx-auto max-w-5xl space-y-4 px-4 py-10">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-32 w-full" />
@@ -45,10 +97,12 @@ export default function CartPage() {
 
   if (isError || items.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center space-y-4">
-        <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground opacity-40" />
+      <div className="container mx-auto space-y-4 px-4 py-16 text-center">
+        <ShoppingBag className="mx-auto h-16 w-16 text-muted-foreground opacity-40" />
         <h1 className="text-2xl font-bold">{t("empty")}</h1>
-        <p className="text-muted-foreground max-w-md mx-auto">{t("emptySubtitle")}</p>
+        <p className="mx-auto max-w-md text-muted-foreground">
+          {t("emptySubtitle")}
+        </p>
         <Button onClick={() => (window.location.href = "/products")}>
           {t("browseProducts")}
         </Button>
@@ -57,8 +111,8 @@ export default function CartPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-10 max-w-5xl">
-      <div className="flex items-center justify-between gap-4 mb-8">
+    <div className="container mx-auto max-w-5xl px-4 py-10">
+      <div className="mb-8 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">{t("title")}</h1>
         <Button
           variant="ghost"
@@ -79,10 +133,11 @@ export default function CartPage() {
           {items.map((item: any) => (
             <div
               key={item.id}
-              className="flex gap-4 p-4 border rounded-lg bg-card"
+              className="flex gap-4 rounded-lg border bg-card p-4"
             >
-              <div className="h-24 w-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden shrink-0">
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
                 {item.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={item.image}
                     alt={item.name}
@@ -92,12 +147,14 @@ export default function CartPage() {
                   <Package className="h-8 w-8 text-muted-foreground" />
                 )}
               </div>
-              <div className="flex-1 min-w-0 space-y-2">
+              <div className="min-w-0 flex-1 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-medium">{item.name}</p>
                     {item.storeName ? (
-                      <p className="text-sm text-muted-foreground">{item.storeName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.storeName}
+                      </p>
                     ) : null}
                   </div>
                   <Button
@@ -106,7 +163,9 @@ export default function CartPage() {
                     onClick={() =>
                       removeItem.mutate(
                         { itemId: item.id },
-                        { onSuccess: () => toast.success(t("itemRemoved")) }
+                        {
+                          onSuccess: () => toast.success(t("itemRemoved")),
+                        },
                       )
                     }
                   >
@@ -129,7 +188,9 @@ export default function CartPage() {
                     >
                       <Minus className="h-3 w-3" />
                     </Button>
-                    <span className="w-8 text-center text-sm">{item.quantity}</span>
+                    <span className="w-8 text-center text-sm">
+                      {item.quantity}
+                    </span>
                     <Button
                       variant="outline"
                       size="icon"
@@ -154,11 +215,63 @@ export default function CartPage() {
           ))}
         </div>
 
-        <aside className="border rounded-lg p-5 h-fit space-y-4 bg-muted/20">
+        <aside className="h-fit space-y-4 rounded-lg border bg-muted/20 p-5">
           <h2 className="font-semibold">{t("summary.title")}</h2>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{t("summary.coupon")}</p>
+            {appliedCoupon?.code ? (
+              <div className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm">
+                <span className="inline-flex items-center gap-2 font-medium">
+                  <Tag className="h-4 w-4 text-primary" />
+                  {appliedCoupon.code}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-destructive hover:text-destructive"
+                  disabled={removeCoupon.isPending}
+                  onClick={onRemoveCoupon}
+                >
+                  {removeCoupon.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <X className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Tag className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder={t("summary.couponPlaceholder")}
+                    className="ps-9"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && onApplyCoupon()}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={onApplyCoupon}
+                  disabled={applyCoupon.isPending}
+                >
+                  {applyCoupon.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    t("summary.applyCoupon")
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("summary.subtotal")}</span>
+              <span className="text-muted-foreground">
+                {t("summary.subtotal")}
+              </span>
               <span>{formatPrice(Number(subtotal))}</span>
             </div>
             {Number(discount) > 0 && (
@@ -168,7 +281,9 @@ export default function CartPage() {
               </div>
             )}
             <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("summary.shipping")}</span>
+              <span className="text-muted-foreground">
+                {t("summary.shipping")}
+              </span>
               <span>
                 {Number(shipping) > 0
                   ? formatPrice(Number(shipping))
@@ -176,7 +291,7 @@ export default function CartPage() {
               </span>
             </div>
             <Separator />
-            <div className="flex justify-between font-semibold text-base">
+            <div className="flex justify-between text-base font-semibold">
               <span>{t("summary.total")}</span>
               <span>{formatPrice(Number(total))}</span>
             </div>
@@ -195,10 +310,14 @@ export default function CartPage() {
           >
             {t("continueShopping")}
           </Button>
-          <p className="text-xs text-center text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground">
             {t("summary.secureCheckout")}
           </p>
-          {clearCart.isPending || updateItem.isPending || removeItem.isPending ? (
+          {clearCart.isPending ||
+          updateItem.isPending ||
+          removeItem.isPending ||
+          applyCoupon.isPending ||
+          removeCoupon.isPending ? (
             <div className="flex justify-center text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
