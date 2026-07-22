@@ -83,6 +83,7 @@
 - [ ] تشغيل Backend حقيقي (`npm run start:dev`) بدون أخطاء TypeScript  
 - [ ] ربط Frontend بـ API وإيقاف الاعتماد على Demo للمسارات الحرجة  
 - [x] واجهة السلة والدفع: `/cart` + `/checkout` + `SmartCart` (طلب API: checkout مربوط بـ `POST /orders` + COD/بوابات)
+- [x] **Checkout:** خيارات الشحن من `GET /shipping/carriers` وبوابات الدفع من `GET /payments/gateways` (مع fallback محلي إن فشل API)
 - [x] **هوية متجر فريدة (متسلسل + باركود/QR):** توليد تلقائي؛ `/ar/s/{serial}` يفتح المتجر فقط؛ تحميل صورة/ملف وطباعة الملصق من لوحة التاجر **ومن صفحة المتجر العامة** 
 - [ ] إكمال دورة: تسجيل → متجر → منتج → سلة → طلب → دفع تجريبي موقّع → شحنة (الطلب+COD+webhook→DB+شحنة+عمولة جاهزة؛ يحتاج تشغيل DB + E2E)
 - [~] توحيد كيان المستخدم والأدوار (كيان واحد عبر re-export؛ أدوار موحّدة؛ middleware/JWT cookies + same-origin proxy)

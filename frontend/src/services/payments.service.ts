@@ -148,11 +148,34 @@ export async function createRefund(
  * @returns List of active payment gateways
  */
 export async function getGateways(): Promise<PaymentGateway[]> {
-  const response = await api.get<{ success: boolean; data: PaymentGateway[] }>(
-    '/payments/gateways'
-  );
-  return response.data.data;
+  const response = await api.get<{
+    success: boolean;
+    data: Array<{
+      id?: string;
+      code: string;
+      name: string;
+      isActive?: boolean;
+      isConfigured?: boolean;
+      displayOrder?: number;
+      supportedMethods?: string[];
+    }>;
+  }>('/payments/gateways');
+
+  return (response.data.data || [])
+    .filter((g) => g.isActive !== false && (g.isConfigured !== false || g.code === 'cod' || g.code === 'cash_on_delivery'))
+    .map((g) => ({
+      id: g.id || g.code,
+      name: g.name,
+      code: g.code === 'cash_on_delivery' ? 'cod' : g.code,
+      isActive: true,
+      supportsRefund: false,
+      supportsSaveCard: false,
+      supportedMethods: (g.supportedMethods || []) as PaymentGateway['supportedMethods'],
+      sortOrder: g.displayOrder ?? 0,
+    }));
 }
+
+export const getPaymentGateways = getGateways;
 
 export interface AdminPaymentGateway {
   id: string;
@@ -355,6 +378,7 @@ export const paymentsService = {
   getPaymentDetails,
   createRefund,
   getGateways,
+  getPaymentGateways: getGateways,
   getAdminGateways,
   setAdminGatewayActive,
   getSavedCards,

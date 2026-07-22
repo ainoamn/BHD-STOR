@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Package, Loader2 } from "lucide-react";
@@ -14,22 +14,49 @@ import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useCreateOrder } from "@/hooks/useOrders";
-import { useProcessPayment } from "@/hooks/usePayments";
+import { useProcessPayment, useGateways } from "@/hooks/usePayments";
+import { useCarriers } from "@/hooks/useShipping";
 
-function mapPaymentGateway(method: string): string {
-  switch (method) {
-    case "cod":
-      return "cod";
-    case "omanNet":
-      return "oman_net";
-    case "thawani":
-      return "thawani";
-    case "card":
-      return "stripe";
-    default:
-      return method;
-  }
+/** Client-side fee estimate aligned with backend order totals. */
+function estimateShippingFee(carrierCode: string, subtotal: number): number {
+  const code = (carrierCode || "standard").toLowerCase().replace(/-/g, "_");
+  if (code === "standard" && subtotal >= 10) return 0;
+  if (code === "express") return 3;
+  if (code === "same_day" || code === "sameday") return 5;
+  if (code.includes("local")) return 1.5;
+  if (code.includes("aramex")) return 3.5;
+  if (code === "dhl" || code === "dhl_oman" || code === "fedex" || code === "ups")
+    return 5;
+  if (code === "oman_post") return 2;
+  return 2;
 }
+
+function mapPaymentGateway(code: string): string {
+  const n = (code || "").toLowerCase().replace(/-/g, "_");
+  if (n === "cash_on_delivery") return "cod";
+  if (n === "omanNet" || n === "omannet") return "oman_net";
+  if (n === "card") return "stripe";
+  return n;
+}
+
+function paymentMethodForGateway(gateway: string): string {
+  const g = mapPaymentGateway(gateway);
+  if (g === "cod") return "cash_on_delivery";
+  return "credit_card";
+}
+
+const FALLBACK_SHIPPING = [
+  { code: "standard", name: "Standard" },
+  { code: "express", name: "Express" },
+  { code: "sameDay", name: "Same day" },
+];
+
+const FALLBACK_PAYMENTS = [
+  { code: "cod", name: "Cash on Delivery" },
+  { code: "thawani", name: "Thawani" },
+  { code: "oman_net", name: "Oman Net" },
+  { code: "stripe", name: "Card" },
+];
 
 export default function CheckoutPage() {
   const t = useTranslations("checkout");
@@ -40,23 +67,82 @@ export default function CheckoutPage() {
   const { data: cart, isLoading } = useCart();
   const createOrder = useCreateOrder();
   const processPayment = useProcessPayment();
+  const { data: carriersData, isLoading: carriersLoading } = useCarriers();
+  const { data: gatewaysData, isLoading: gatewaysLoading } = useGateways();
 
   const [fullName, setFullName] = useState(user?.fullName ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [city, setCity] = useState("");
   const [street, setStreet] = useState("");
-  const [shippingMethod, setShippingMethod] = useState("standard");
-  const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [shippingMethod, setShippingMethod] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const carriers = useMemo(() => {
+    const list = (carriersData || []).filter((c) => c.isActive !== false);
+    if (list.length > 0) {
+      return list.map((c) => ({
+        code: c.code || c.id,
+        name: c.name,
+      }));
+    }
+    return FALLBACK_SHIPPING.map((c) => ({
+      code: c.code,
+      name:
+        c.code === "standard"
+          ? t("shipping.methods.standard")
+          : c.code === "express"
+            ? t("shipping.methods.express")
+            : t("shipping.methods.sameDay"),
+    }));
+  }, [carriersData, t]);
+
+  const gateways = useMemo(() => {
+    const list = (gatewaysData || []).filter((g) => g.isActive !== false);
+    if (list.length > 0) {
+      return list.map((g) => ({
+        code: mapPaymentGateway(g.code),
+        name: g.name,
+      }));
+    }
+    return FALLBACK_PAYMENTS.map((g) => ({
+      code: g.code,
+      name:
+        g.code === "cod"
+          ? t("payment.methods.cod")
+          : g.code === "oman_net"
+            ? t("payment.methods.omanNet")
+            : g.code === "thawani"
+              ? t("payment.methods.thawani")
+              : t("payment.methods.creditCard"),
+    }));
+  }, [gatewaysData, t]);
+
+  useEffect(() => {
+    if (!shippingMethod && carriers.length > 0) {
+      setShippingMethod(carriers[0].code);
+    }
+  }, [carriers, shippingMethod]);
+
+  useEffect(() => {
+    if (!paymentMethod && gateways.length > 0) {
+      const cod = gateways.find((g) => g.code === "cod");
+      setPaymentMethod(cod?.code || gateways[0].code);
+    }
+  }, [gateways, paymentMethod]);
 
   const rawCart = cart as any;
   const items = rawCart?.items ?? [];
   const subtotal =
     rawCart?.subtotal ??
-    items.reduce((sum: number, item: any) => sum + Number(item.price ?? item.unitPrice) * Number(item.quantity), 0);
-  const discount = rawCart?.discount ?? rawCart?.couponDiscount ?? rawCart?.discountTotal ?? 0;
-  const shipping =
-    shippingMethod === "express" ? 3 : shippingMethod === "sameDay" ? 5 : 1.5;
+    items.reduce(
+      (sum: number, item: any) =>
+        sum + Number(item.price ?? item.unitPrice) * Number(item.quantity),
+      0
+    );
+  const discount =
+    rawCart?.discount ?? rawCart?.couponDiscount ?? rawCart?.discountTotal ?? 0;
+  const shipping = estimateShippingFee(shippingMethod || "standard", Number(subtotal));
   const total = Number(subtotal) - Number(discount) + shipping;
 
   const handlePlaceOrder = async () => {
@@ -67,6 +153,14 @@ export default function CheckoutPage() {
     }
     if (!fullName.trim() || !phone.trim() || !city.trim() || !street.trim()) {
       toast.error(t("errors.addressRequired"));
+      return;
+    }
+    if (!shippingMethod) {
+      toast.error(t("errors.addressRequired"));
+      return;
+    }
+    if (!paymentMethod) {
+      toast.error(t("errors.paymentFailed"));
       return;
     }
     if (items.length === 0) {
@@ -88,6 +182,8 @@ export default function CheckoutPage() {
       return;
     }
 
+    const gateway = mapPaymentGateway(paymentMethod);
+
     setSubmitting(true);
     try {
       const order = await createOrder.mutateAsync({
@@ -100,19 +196,18 @@ export default function CheckoutPage() {
           country: "OM",
           governorate: city.trim(),
         },
-        paymentMethod,
+        paymentMethod: gateway,
         shippingMethod,
         currency: "OMR",
         couponCode: rawCart?.couponCode || undefined,
       });
 
       const orderId = (order as any)?.id || (order as any)?.data?.id;
-      const gateway = mapPaymentGateway(paymentMethod);
 
-      if (orderId && gateway !== "cod") {
+      if (orderId) {
         const payment = await processPayment.mutateAsync({
           orderId,
-          method: paymentMethod === "cod" ? "cash_on_delivery" : "credit_card",
+          method: paymentMethodForGateway(gateway),
           gateway,
           returnUrl:
             typeof window !== "undefined"
@@ -120,20 +215,16 @@ export default function CheckoutPage() {
               : "/orders",
         } as any);
 
-        const redirectUrl =
-          (payment as any)?.checkoutUrl ||
-          (payment as any)?.redirectUrl ||
-          (payment as any)?.payment?.checkoutUrl;
-        if (redirectUrl) {
-          window.location.href = redirectUrl;
-          return;
+        if (gateway !== "cod") {
+          const redirectUrl =
+            (payment as any)?.checkoutUrl ||
+            (payment as any)?.redirectUrl ||
+            (payment as any)?.payment?.checkoutUrl;
+          if (redirectUrl) {
+            window.location.href = redirectUrl;
+            return;
+          }
         }
-      } else if (orderId && gateway === "cod") {
-        await processPayment.mutateAsync({
-          orderId,
-          method: "cash_on_delivery",
-          gateway: "cod",
-        } as any);
       }
 
       toast.success(t("confirmation.title"));
@@ -214,27 +305,38 @@ export default function CheckoutPage() {
 
             <div className="pt-2 space-y-3">
               <h3 className="font-medium">{t("shipping.methods.title")}</h3>
+              {carriersLoading && (
+                <p className="text-xs text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  …
+                </p>
+              )}
               <div className="space-y-2">
-                {[
-                  { id: "standard", label: t("shipping.methods.standard"), desc: t("shipping.methods.standardDesc") },
-                  { id: "express", label: t("shipping.methods.express"), desc: t("shipping.methods.expressDesc") },
-                  { id: "sameDay", label: t("shipping.methods.sameDay"), desc: t("shipping.methods.sameDayDesc") },
-                ].map((method) => (
+                {carriers.map((method) => (
                   <label
-                    key={method.id}
+                    key={method.code}
                     className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer"
                   >
                     <input
                       type="radio"
                       name="shippingMethod"
-                      value={method.id}
-                      checked={shippingMethod === method.id}
-                      onChange={() => setShippingMethod(method.id)}
+                      value={method.code}
+                      checked={shippingMethod === method.code}
+                      onChange={() => setShippingMethod(method.code)}
                       className="mt-1"
                     />
-                    <div>
-                      <p className="font-medium text-sm">{method.label}</p>
-                      <p className="text-xs text-muted-foreground">{method.desc}</p>
+                    <div className="flex-1">
+                      <div className="flex justify-between gap-2">
+                        <p className="font-medium text-sm">{method.name}</p>
+                        <p className="text-sm font-medium">
+                          {formatPrice(
+                            estimateShippingFee(method.code, Number(subtotal))
+                          )}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        {method.code}
+                      </p>
                     </div>
                   </label>
                 ))}
@@ -244,29 +346,32 @@ export default function CheckoutPage() {
 
           <section className="space-y-4 border rounded-lg p-5">
             <h2 className="font-semibold text-lg">{t("payment.title")}</h2>
+            {gatewaysLoading && (
+              <p className="text-xs text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                …
+              </p>
+            )}
             <div className="space-y-2">
-              {[
-                { id: "cod", label: t("payment.methods.cod") },
-                { id: "omanNet", label: t("payment.methods.omanNet") },
-                { id: "thawani", label: t("payment.methods.thawani") },
-                { id: "card", label: t("payment.methods.creditCard") },
-              ].map((method) => (
+              {gateways.map((method) => (
                 <label
-                  key={method.id}
+                  key={method.code}
                   className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer"
                 >
                   <input
                     type="radio"
                     name="paymentMethod"
-                    value={method.id}
-                    checked={paymentMethod === method.id}
-                    onChange={() => setPaymentMethod(method.id)}
+                    value={method.code}
+                    checked={paymentMethod === method.code}
+                    onChange={() => setPaymentMethod(method.code)}
                   />
-                  <span className="text-sm font-medium">{method.label}</span>
+                  <span className="text-sm font-medium">{method.name}</span>
                 </label>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">{t("payment.secureNote")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("payment.secureNote")}
+            </p>
           </section>
         </div>
 
@@ -287,11 +392,17 @@ export default function CheckoutPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm truncate">{item.name || item.product?.name}</p>
-                  <p className="text-xs text-muted-foreground">×{item.quantity}</p>
+                  <p className="text-sm truncate">
+                    {item.name || item.product?.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    ×{item.quantity}
+                  </p>
                 </div>
                 <p className="text-sm font-medium">
-                  {formatPrice(Number(item.price ?? item.unitPrice) * Number(item.quantity))}
+                  {formatPrice(
+                    Number(item.price ?? item.unitPrice) * Number(item.quantity)
+                  )}
                 </p>
               </div>
             ))}
@@ -299,7 +410,9 @@ export default function CheckoutPage() {
           <Separator />
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("review.subtotal")}</span>
+              <span className="text-muted-foreground">
+                {t("review.subtotal")}
+              </span>
               <span>{formatPrice(Number(subtotal))}</span>
             </div>
             {Number(discount) > 0 && (
@@ -309,7 +422,9 @@ export default function CheckoutPage() {
               </div>
             )}
             <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("review.shipping")}</span>
+              <span className="text-muted-foreground">
+                {t("review.shipping")}
+              </span>
               <span>{formatPrice(shipping)}</span>
             </div>
             <Separator />
@@ -322,7 +437,13 @@ export default function CheckoutPage() {
             className="w-full"
             size="lg"
             onClick={handlePlaceOrder}
-            disabled={submitting || createOrder.isPending || processPayment.isPending}
+            disabled={
+              submitting ||
+              createOrder.isPending ||
+              processPayment.isPending ||
+              !shippingMethod ||
+              !paymentMethod
+            }
           >
             {submitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />

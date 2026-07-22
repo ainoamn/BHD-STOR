@@ -397,10 +397,7 @@ export class OrdersService {
   ): OrderTotals {
     const subtotal = items.reduce((sum, item) => sum + Number(item.totalPrice), 0);
     const tax = Math.round(subtotal * 0.05 * 1000) / 1000;
-    let shipping = 1.5;
-    if (shippingMethod === 'express') shipping = 3;
-    if (shippingMethod === 'sameDay') shipping = 5;
-    if (subtotal >= 10 && shippingMethod === 'standard') shipping = 0;
+    const shipping = this.estimateShippingAmount(shippingMethod, subtotal);
 
     return {
       subtotal: Math.round(subtotal * 1000) / 1000,
@@ -410,6 +407,22 @@ export class OrdersService {
       total: Math.round((subtotal + tax + shipping) * 1000) / 1000,
       currency,
     };
+  }
+
+  private estimateShippingAmount(shippingMethod: string | undefined, subtotal: number): number {
+    const code = (shippingMethod || 'standard').toLowerCase().replace(/-/g, '_');
+    if (code === 'standard' && subtotal >= 10) return 0;
+    if (code === 'express') return 3;
+    if (code === 'same_day' || code === 'sameday') return 5;
+    if (code.includes('local')) return 1.5;
+    if (code.includes('aramex')) return 3.5;
+    if (code === 'dhl' || code === 'dhl_oman' || code === 'fedex' || code === 'ups') {
+      return 5;
+    }
+    if (code === 'oman_post') return 2;
+    // Legacy / unknown carrier codes
+    if (code === 'standard') return 1.5;
+    return 2;
   }
 
   private validateCoupon(code: string, subtotal: number): {

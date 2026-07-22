@@ -12,6 +12,15 @@ import {
   Address,
 } from '../types';
 
+export type {
+  ShippingRate,
+  RateRequest as ShippingRateRequest,
+  Shipment,
+  TrackingResult as TrackingInfo,
+  Carrier,
+  Address,
+};
+
 // ---------------------------------------------------------------------------
 // Local types
 // ---------------------------------------------------------------------------
@@ -104,10 +113,43 @@ export async function trackShipment(
  * @returns List of available carriers and their services
  */
 export async function getCarriers(): Promise<Carrier[]> {
-  const response = await api.get<{ success: boolean; data: Carrier[] }>(
-    '/shipping/carriers'
-  );
-  return response.data.data;
+  const response = await api.get<{
+    success: boolean;
+    data?: Array<{
+      id?: string;
+      code: string;
+      name: string;
+      nameAr?: string | null;
+      isActive?: boolean;
+      supportsCod?: boolean;
+      logo?: string;
+    }>;
+    carriers?: Array<{ id: string; name: string; logo?: string }>;
+  }>('/shipping/carriers');
+
+  const rows =
+    response.data.data ||
+    (response.data.carriers || []).map((c) => ({
+      id: c.id,
+      code: c.id,
+      name: c.name,
+      logo: c.logo,
+      isActive: true,
+    }));
+
+  return rows.map((c) => ({
+    id: c.id || c.code,
+    name: c.name,
+    code: c.code,
+    logo: c.logo,
+    isActive: c.isActive !== false,
+    supportedServices: [],
+  }));
+}
+
+/** Alias used by useShippingRates */
+export async function getShippingRates(data: RateRequest): Promise<ShippingRate[]> {
+  return calculateRates(data);
 }
 
 /**
@@ -278,8 +320,12 @@ export async function setAdminCarrierActive(
 
 export const shippingService = {
   calculateRates,
+  getShippingRates,
   createShipment,
   getShipment,
+  trackShipment,
+  getCarriers,
+  validateAddress,
   schedulePickup,
   downloadLabel,
   getEstimatedDelivery,
