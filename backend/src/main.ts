@@ -66,6 +66,8 @@ async function bootstrap() {
       'Accept',
       'X-Request-ID',
       'X-Client-Version',
+      'X-XSRF-TOKEN',
+      'X-CSRF-TOKEN',
     ],
     exposedHeaders: ['X-Request-ID', 'X-Total-Count', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
     maxAge: 86400,

@@ -20,6 +20,7 @@
  */
 
 import { Module, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -91,9 +92,13 @@ import { SecurityScannerService } from './scanner/security-scanner.service';
     XssInterceptor,
     XssGuard,
 
-    // CSRF Protection
+    // CSRF Protection (global — webhooks/Bearer/API-key exempt inside guard)
     CsrfService,
     CsrfGuard,
+    {
+      provide: APP_GUARD,
+      useClass: CsrfGuard,
+    },
 
     // Encryption
     EncryptionService,

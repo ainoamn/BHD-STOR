@@ -27,6 +27,32 @@ const TOKEN_EXPIRES_KEY = 'bhd_token_expires';
 let __memoryToken: string | null = null;
 let __isRefreshing = false;
 let __refreshSubscribers: Array<(token: string) => void> = [];
+let __csrfToken: string | null = null;
+let __csrfFetch: Promise<string | null> | null = null;
+
+async function ensureCsrfToken(): Promise<string | null> {
+  if (__csrfToken) return __csrfToken;
+  if (__csrfFetch) return __csrfFetch;
+  __csrfFetch = (async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/csrf-token`, {
+        withCredentials: true,
+        timeout: Number(process.env.NEXT_PUBLIC_API_TIMEOUT) || 3000,
+      });
+      const token =
+        res.data?.token ||
+        res.data?.data?.token ||
+        null;
+      __csrfToken = token;
+      return token;
+    } catch {
+      return null;
+    } finally {
+      __csrfFetch = null;
+    }
+  })();
+  return __csrfFetch;
+}
 
 // ---------------------------------------------------------------------------
 // Token helpers
@@ -130,12 +156,22 @@ const api: AxiosInstance = axios.create({
 // ---------------------------------------------------------------------------
 
 api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
     const token = getAuthToken();
 
     // Attach Authorization header if token exists
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Cookie-only mutating calls need double-submit CSRF (Bearer skips server-side)
+    const method = (config.method || 'get').toUpperCase();
+    const isSafe = ['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method);
+    if (!isSafe && !token) {
+      const csrf = await ensureCsrfToken();
+      if (csrf && config.headers) {
+        config.headers['X-XSRF-TOKEN'] = csrf;
+      }
     }
 
     // Set Content-Type for FormData requests

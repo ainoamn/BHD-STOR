@@ -51,7 +51,7 @@
 | 8 | Webhooks Stripe/PayPal/Thawani fail-closed | `payments.service.ts` | P0 | ✅ |
 | 9 | Telr بدون تحقق توقيع قوي | `payments.service.ts` case telr | P1 | ⚠️ مفتوح |
 | 10 | Throttle على webhook | `ThrottlerGuard` + `WEBHOOK` | P1 | ✅ منطق / ⚠️ مخزن in-memory |
-| 11 | CSRF غير مفعّل عالمياً | `security/csrf` | P1 | ⚠️ مفتوح |
+| 11 | CSRF غير مفعّل عالمياً | `security/csrf` | P1 | ✅ **أُصلح 2026-07-23** (`APP_GUARD` + استثناء webhooks دفع/واتساب + FE header) |
 | 12 | Open redirect بعد login | `auth/login/page.tsx` | P1 | ✅ **أُصلح** (مسارات نسبية فقط) |
 | 13 | returnUrl للدفع غير مقيد | `payments.service.ts` | P1 | ✅ **أُصلح** (`sanitizePaymentReturnUrl`) |
 | 14 | WhatsApp verify token ثابت | `whatsapp.controller.ts` | P1 | ✅ **أُصلح** (لا fallback؛ فارغ يرفض) |
@@ -110,4 +110,4 @@
 
 ---
 
-*آخر تحديث: 2026-07-23 — تدقيق + إغلاق P0 تحديث الحالة وP1 التوجيه/واتساب.*
+*آخر تحديث: 2026-07-23 — تدقيق + CSRF عالمي + إغلاق IDOR/returnUrl/واتساب.*

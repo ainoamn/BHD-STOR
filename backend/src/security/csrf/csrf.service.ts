@@ -68,7 +68,9 @@ export class CsrfService {
       this.generateFallbackSecret(),
     );
 
-    this.isEnabled = this.configService.get<boolean>('CSRF_ENABLED', true);
+    this.isEnabled =
+      String(this.configService.get<string | boolean>('CSRF_ENABLED', 'true')) !==
+      'false';
 
     const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
     const isProduction = nodeEnv === 'production';
@@ -76,7 +78,7 @@ export class CsrfService {
     this.cookieOptions = {
       httpOnly: false, // Must be accessible by JavaScript for double-submit
       secure: isProduction,
-      sameSite: isProduction ? 'strict' : 'lax',
+      sameSite: isProduction ? 'lax' : 'lax',
       maxAge: TOKEN_TTL_SECONDS * 1000,
       path: '/',
       domain: this.configService.get<string>('CSRF_COOKIE_DOMAIN'),
@@ -88,11 +90,26 @@ export class CsrfService {
     if (origins) {
       origins.split(',').forEach((o) => this.trustedOrigins.add(o.trim()));
     }
-    // Always trust the app origin
-    const appOrigin = this.configService.get<string>('APP_ORIGIN');
-    if (appOrigin) {
-      this.trustedOrigins.add(appOrigin);
+    for (const key of [
+      'APP_ORIGIN',
+      'FRONTEND_URL',
+      'PUBLIC_APP_URL',
+      'NEXT_PUBLIC_APP_URL',
+      'APP_URL',
+    ]) {
+      const value = this.configService.get<string>(key);
+      if (value) {
+        try {
+          this.trustedOrigins.add(new URL(value).origin);
+        } catch {
+          this.trustedOrigins.add(value.replace(/\/$/, ''));
+        }
+      }
     }
+    // Local defaults for same-origin Next proxy / Nest
+    this.trustedOrigins.add('http://localhost:3000');
+    this.trustedOrigins.add('http://127.0.0.1:3000');
+    this.trustedOrigins.add('http://localhost:3001');
   }
 
   /**
@@ -276,18 +293,26 @@ export class CsrfService {
    * Webhooks, API key endpoints, and OAuth callbacks may need exemptions.
    */
   isExemptPath(path: string): boolean {
+    const normalized = (path || '').split('?')[0] || '';
     const exemptPatterns = [
       /^\/webhooks\//,
       /^\/api\/v\d+\/auth\/callback/,
       /^\/api\/v\d+\/oauth/,
+      /^\/v\d+\/auth\/callback/,
       /^\/health/,
       /^\/metrics/,
       /^\/api\/v\d+\/public\//,
-      /^\/graphql$/, // If using API key auth for GraphQL
-      /^\/api\/v\d+\/payments\/webhook/,
-      /^\/api\/v\d+\/s\/webhook/, // Short webhook URLs
+      // Payment gateway webhooks (no browser CSRF)
+      /^\/api\/v\d+\/payments\/webhook(\/|$)/,
+      /^\/v\d+\/payments\/webhook(\/|$)/,
+      /^\/payments\/webhook(\/|$)/,
+      // WhatsApp provider webhooks
+      /^\/api\/v\d+\/whatsapp\/webhook(\/|$)/,
+      /^\/v\d+\/whatsapp\/webhook(\/|$)/,
+      /^\/whatsapp\/webhook(\/|$)/,
+      /^\/api\/v\d+\/s\/webhook/,
     ];
 
-    return exemptPatterns.some((pattern) => pattern.test(path));
+    return exemptPatterns.some((pattern) => pattern.test(normalized));
   }
 }

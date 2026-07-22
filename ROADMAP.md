@@ -124,6 +124,7 @@ Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification 
 - [x] ملكية الاسترداد + `GET /payments/:id/verify` + صفحة `/payments/return`  
 - [x] صفحات تاجر إنشاء/تعديل المنتج (`/dashboard/store/products/...`)  
 - [x] تدقيق حماية 2026-07-23 + إغلاق IDOR حالة الطلب وتقييد returnUrl (انظر `docs/SECURITY-AUDIT-2026-07-23.md`)  
+- [x] CSRF عالمي (`CsrfGuard` APP_GUARD + استثناء webhooks + FE `X-XSRF-TOKEN`)  
 - [~] أسرار فقط عبر `.env` (لا تُرفع إلى Git؛ `setup-env.bat` ينشئ `.env` محلياً؛ `docker-compose.infra.yml` لـ Postgres/Redis)  
 
 ---
