@@ -15,6 +15,7 @@ import { Store } from '../stores/entities/store.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CartService } from './cart.service';
+import { isStaffRole } from '../auth/utils/roles';
 
 export interface OrderTotals {
   subtotal: number;
@@ -196,7 +197,7 @@ export class OrdersService {
     const skip = (page - 1) * limit;
     const where: Record<string, unknown> = {};
     const roleNorm = String(role || '').toLowerCase();
-    const isStaff = ['admin', 'super_admin', 'moderator'].includes(roleNorm);
+    const isStaff = isStaffRole(roleNorm);
     const isSeller = roleNorm === 'seller' || roleNorm === 'vendor';
 
     if (isStaff) {
@@ -319,10 +320,7 @@ export class OrdersService {
   }
 
   assertOrderAccess(order: Order, userId: string, role?: string): void {
-    const privileged = ['admin', 'super_admin', 'moderator'].includes(
-      String(role || '').toLowerCase(),
-    );
-    if (privileged) return;
+    if (isStaffRole(role)) return;
     if (order.userId && order.userId === userId) return;
 
     const storeOwnerId =
@@ -336,10 +334,7 @@ export class OrdersService {
 
   /** Staff or store owner may manage status — buying customer cannot. */
   assertOrderManageAccess(order: Order, userId: string, role?: string): void {
-    const privileged = ['admin', 'super_admin', 'moderator'].includes(
-      String(role || '').toLowerCase(),
-    );
-    if (privileged) return;
+    if (isStaffRole(role)) return;
 
     const storeOwnerId =
       (order as any).store?.ownerId ||

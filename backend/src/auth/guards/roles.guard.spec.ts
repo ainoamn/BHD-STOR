@@ -50,7 +50,16 @@ describe('RolesGuard', () => {
   it('roleSatisfies helper', () => {
     const { guard } = mockContext(null, []);
     expect(guard.roleSatisfies('super_admin', 'admin')).toBe(true);
+    expect(guard.roleSatisfies('admin', 'moderator')).toBe(true);
     expect(guard.roleSatisfies('admin', 'admin')).toBe(true);
     expect(guard.roleSatisfies('customer', 'admin')).toBe(false);
+  });
+
+  it('admin satisfies moderator route', () => {
+    const { guard, ctx } = mockContext(
+      { role: 'admin', email: 'a@b.c' },
+      ['moderator'],
+    );
+    expect(guard.canActivate(ctx)).toBe(true);
   });
 });

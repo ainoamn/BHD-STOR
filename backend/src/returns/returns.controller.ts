@@ -27,6 +27,9 @@ import { UpdateReturnDto } from './dto/update-return.dto';
 import { ReturnRequest, ReturnStatus } from './entities/return-request.entity';
 import { ReturnPolicy } from './entities/return-policy.entity';
 import { requireRequestUserId } from '../auth/utils/request-user';
+import { isStaffRole } from '../auth/utils/roles';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
 @ApiTags('Returns & Exchanges')
 @Controller('returns')
@@ -78,12 +81,12 @@ export class ReturnsController {
     @Req() req?: any,
   ): Promise<{ items: ReturnRequest[]; total: number }> {
     const requestingUserId = requireRequestUserId(req.user);
-    // Only admins can filter by other userIds
-    const isAdmin = req.user?.role === 'admin';
+    // Staff can filter by other userIds; customers only see their own
+    const staff = isStaffRole(req.user?.role);
 
     return this.returnsService.findAll({
       status,
-      userId: isAdmin ? userId : requestingUserId,
+      userId: staff ? userId : requestingUserId,
       orderId,
       page: page ? +page : 1,
       limit: limit ? +limit : 20,
@@ -91,6 +94,7 @@ export class ReturnsController {
   }
 
   @Get('admin/all')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all return requests (admin)' })
   @ApiQuery({ name: 'status', enum: ReturnStatus, required: false })
@@ -131,6 +135,7 @@ export class ReturnsController {
   }
 
   @Patch(':id/status')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update return status' })
   @ApiParam({ name: 'id', description: 'Return request ID' })
@@ -146,6 +151,7 @@ export class ReturnsController {
   }
 
   @Post(':id/approve')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Approve a return request' })
   @ApiParam({ name: 'id', description: 'Return request ID' })
@@ -158,6 +164,7 @@ export class ReturnsController {
   }
 
   @Post(':id/reject')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Reject a return request' })
   @ApiParam({ name: 'id', description: 'Return request ID' })
@@ -170,6 +177,7 @@ export class ReturnsController {
   }
 
   @Post(':id/schedule-pickup')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Schedule pickup for a return' })
   @ApiParam({ name: 'id', description: 'Return request ID' })
@@ -183,6 +191,7 @@ export class ReturnsController {
   }
 
   @Post(':id/process-refund')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Process refund for a return' })
   @ApiParam({ name: 'id', description: 'Return request ID' })
@@ -192,6 +201,7 @@ export class ReturnsController {
   }
 
   @Post(':id/process-exchange')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Process exchange for a return' })
   @ApiParam({ name: 'id', description: 'Return request ID' })
@@ -201,6 +211,7 @@ export class ReturnsController {
   }
 
   @Post(':id/mark-received')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark return item as received' })
   @ApiParam({ name: 'id', description: 'Return request ID' })

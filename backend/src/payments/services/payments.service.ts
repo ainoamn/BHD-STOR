@@ -23,6 +23,7 @@ import { ThawaniService } from './thawani.service';
 import { TelrService } from './telr.service';
 import { CCAvenueService } from './ccavenue.service';
 import { OrdersService } from '../../orders/orders.service';
+import { isStaffRole } from '../../auth/utils/roles';
 import { PaymentStatus } from '../../orders/entities/order.entity';
 
 export interface PaymentResult {
@@ -1123,8 +1124,7 @@ export class PaymentsService {
     userId: string,
     role?: string,
   ): Promise<void> {
-    const roleNorm = String(role || '').toLowerCase();
-    if (['admin', 'super_admin', 'moderator'].includes(roleNorm)) {
+    if (isStaffRole(role)) {
       return;
     }
 
@@ -1151,8 +1151,7 @@ export class PaymentsService {
     userId: string,
     role?: string,
   ): Promise<void> {
-    const roleNorm = String(role || '').toLowerCase();
-    if (['admin', 'super_admin', 'moderator'].includes(roleNorm)) {
+    if (isStaffRole(role)) {
       return;
     }
     if (payment.userId && payment.userId === userId) {

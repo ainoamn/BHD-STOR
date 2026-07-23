@@ -32,9 +32,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductFilterDto } from './dto/product-filter.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { requireRequestUserId } from '../auth/utils/request-user';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { isStaffRole } from '../auth/utils/roles';
 import { UploadService } from '../upload/upload.service';
 import { Public } from '../common/decorators/public.decorator';
 
@@ -196,7 +194,7 @@ export class ProductsController {
   ) {
     const product = await this.productsService.findOne(id);
     const isOwner = await this.productsService.checkOwnership(id, product.store?.id);
-    if (!isOwner && req.user.role !== UserRole.ADMIN) {
+    if (!isOwner && !isStaffRole(req.user.role)) {
       return {
         success: false,
         message: 'You do not have permission to update this product',
@@ -223,7 +221,7 @@ export class ProductsController {
   async remove(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
     const product = await this.productsService.findOne(id);
     const isOwner = await this.productsService.checkOwnership(id, product.store?.id);
-    if (!isOwner && req.user.role !== UserRole.ADMIN) {
+    if (!isOwner && !isStaffRole(req.user.role)) {
       return {
         success: false,
         message: 'You do not have permission to delete this product',

@@ -24,7 +24,7 @@
     "migration:revert": "typeorm-ts-node-commonjs migration:revert",
     "seed": "ts-node src/seeds/run-seeder.ts",
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test:security": "jest --testPathPattern=\"(request-user|assert-production-secrets|throttler\\.guard)\" --passWithNoTests",
+    "test:security": "jest --testPathPattern=\"(request-user|assert-production-secrets|throttler\\.guard|roles)\" --passWithNoTests",
     "check:env": "node ../scripts/check-env.mjs",
     "smoke": "node ../scripts/smoke-buy-path.mjs"
   },

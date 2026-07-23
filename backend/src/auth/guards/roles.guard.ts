@@ -8,6 +8,7 @@
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { Role, ROLES_KEY } from '@common/decorators/roles.decorator';
+import { roleSatisfies } from '../utils/roles';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -30,7 +31,7 @@ export class RolesGuard implements CanActivate {
     const { user } = context.switchToHttp().getRequest();
 
     if (!user) {
-      this.logger.warn('Roles guard: No user found in request', 'RolesGuard');
+      this.logger.warn('Roles guard: No user found in request');
       throw new ForbiddenException({
         statusCode: 403,
         message: 'Authentication required',
@@ -38,15 +39,13 @@ export class RolesGuard implements CanActivate {
       });
     }
 
-    const userRole = String(user.role || '');
     const hasRole = requiredRoles.some((role) =>
-      this.roleSatisfies(userRole, String(role)),
+      roleSatisfies(user.role, role),
     );
 
     if (!hasRole) {
       this.logger.warn(
         `User ${user.email} with role ${user.role} attempted to access resource requiring roles: ${requiredRoles.join(', ')}`,
-        'RolesGuard',
       );
       throw new ForbiddenException({
         statusCode: 403,
@@ -59,15 +58,8 @@ export class RolesGuard implements CanActivate {
     return true;
   }
 
-  /** Exact match; super_admin also satisfies admin and moderator. */
+  /** @deprecated Prefer importing roleSatisfies from auth/utils/roles */
   roleSatisfies(userRole: string, required: string): boolean {
-    if (userRole === required) return true;
-    if (userRole === 'super_admin') {
-      return (
-        required === 'admin' ||
-        required === 'moderator'
-      );
-    }
-    return false;
+    return roleSatisfies(userRole, required);
   }
 }

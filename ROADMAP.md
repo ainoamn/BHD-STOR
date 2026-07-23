@@ -4,7 +4,7 @@
 > الخطط التاريخية في `docs/plans/` محفوظة للأرشيف فقط — لا تُكرَّر هنا ولا تُحدَّث كخطط عمل نشطة.  
 > المستودع الرسمي: [github.com/ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR)
 
-آخر مراجعة: 2026-07-23 · Redis throttle + Demo fail-closed · المسار المعتمد: `C:\dev\bhd-app`  
+آخر مراجعة: 2026-07-23 · توحيد أدوار staff · المسار المعتمد: `C:\dev\bhd-app`  
 نقل لجهاز ثانٍ: [`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md)
 
 ---
@@ -67,14 +67,14 @@
 | P0 ✓ | **JwtAuthGuard + RolesGuard عالميان** (`APP_GUARD`) + `@Public()` للمسارات العامة | كان كثير من الـ controllers مفتوحاً |
 | P0 ✓ | حماية HR / CRM / Accounting / Audit بـ `Roles(ADMIN…)` | بيانات داخلية حساسة |
 | P0 ✓ | صفحات `/cart` + `/checkout` + تفعيل `SmartCart` | مسار البيع كان مقطوعاً في الواجهة |
-| P1 | ازدواجية كيان المستخدم (`database/entities` vs `users/entities`) وصلاحيات مثل `MODERATOR` غير متسقة | ثغرات صلاحيات / أعطال تشغيل |
+| P1 ✓ | توحيد أدوار staff: `isStaffRole`/`roleSatisfies` + إصلاح فحوصات ADMIN اليدوية + حماية مسارات المرتجعات | ثغرات صلاحيات / أعطال تشغيل |
 | P1 | تكاملات الدفع/الشحن تحتاج sandbox keys واختبار webhooks | أموال وشحنات خاطئة |
 | P1 ✓ | SECURITY.md: جدول الحالة صادق (TypeORM، لا SOC2، MFA جزئي) | تضليل تشغيلي |
 | P1 ✓ | Redis-backed rate limit (`ThrottlerGuard` + memory fallback) | حدود معدل عبر عدة عمليات |
 | ملاحظة | مراجعة ChatGPT عن «مستودع فارغ / main غير مربوط» | **قديمة/خاطئة جزئياً**: `main` موجود على `cf4c6f9` والملفات ظاهرة عبر API؛ `size=0` في GitHub API لا يعني أن المستودع فارغ |
 | P2 | Elasticsearch / CDN / K8s مذكورة كجاهزة وغالباً إعداد فقط | توقع خاطئ للأداء |
 
-**الخلاصة الأمنية:** مستوى الحماية **التصميمية** جيد ومتعدد الطبقات؛ Demo Mode مُغلق في الإنتاج وحدود المعدل عبر Redis. يبقى العزل الإنتاجي غير مكتمل حتى تُفعَّل مفاتيح الدفع/الشحن، تُوحَّد الأدوار المتبقية، ويُختبر البناء ضد PostgreSQL/Redis (smoke).
+**الخلاصة الأمنية:** مستوى الحماية **التصميمية** جيد ومتعدد الطبقات؛ Demo Mode مُغلق، حدود المعدل عبر Redis، وأدوار staff موحّدة. يبقى العزل الإنتاجي غير مكتمل حتى تُفعَّل مفاتيح الدفع/الشحن ويُختبر البناء ضد PostgreSQL/Redis (smoke).
 
 ---
 
@@ -130,6 +130,7 @@ Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification 
 - [x] Telr webhook fail-closed (order_ref + API check قبل paid)  
 - [x] كوبون على صفحة `/cart` (تطبيق/إزالة)  
 - [x] Redis-backed throttle + إغلاق Demo Mode في الإنتاج + تصحيح SECURITY.md checklist  
+- [x] توحيد أدوار staff (`auth/utils/roles`) + حماية عمليات المرتجعات الإدارية  
 - [~] أسرار فقط عبر `.env` (لا تُرفع إلى Git؛ `setup-env.bat` ينشئ `.env` محلياً؛ `docker-compose.infra.yml` لـ Postgres/Redis)  
 
 ---

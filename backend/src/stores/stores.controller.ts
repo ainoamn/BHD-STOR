@@ -32,6 +32,7 @@ import { UpdateStoreDto } from './dto/update-store.dto';
 import { StoreFilterDto, StoreStatus } from './dto/store-filter.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { requireRequestUserId } from '../auth/utils/request-user';
+import { isStaffRole } from '../auth/utils/roles';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
@@ -157,7 +158,7 @@ export class StoresController {
     @Request() req,
   ) {
     const isOwner = await this.storesService.checkOwnership(id, requireRequestUserId(req.user));
-    if (!isOwner && req.user.role !== UserRole.ADMIN) {
+    if (!isOwner && !isStaffRole(req.user.role)) {
       return {
         success: false,
         message: 'You do not have permission to update this store',
@@ -183,7 +184,7 @@ export class StoresController {
   @ApiResponse({ status: 404, description: 'Store not found' })
   async remove(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
     const isOwner = await this.storesService.checkOwnership(id, requireRequestUserId(req.user));
-    if (!isOwner && req.user.role !== UserRole.ADMIN) {
+    if (!isOwner && !isStaffRole(req.user.role)) {
       return {
         success: false,
         message: 'You do not have permission to delete this store',

@@ -4,6 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { isAdminRole } from '../../auth/utils/roles';
 
 @Injectable()
 export class AdminGuard extends JwtAuthGuard {
@@ -19,13 +20,12 @@ export class AdminGuard extends JwtAuthGuard {
       });
     }
 
-    const allowedRoles = ['admin', 'super_admin'];
-    if (!allowedRoles.includes(user.role)) {
+    if (!isAdminRole(user.role)) {
       throw new ForbiddenException({
         success: false,
         message: 'Access denied. Admin privileges required.',
         code: 'ADMIN_ACCESS_REQUIRED',
-        requiredRoles: allowedRoles,
+        requiredRoles: ['admin', 'super_admin'],
         currentRole: user.role,
       });
     }
