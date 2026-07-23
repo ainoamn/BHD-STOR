@@ -1,7 +1,7 @@
 # دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-07-23  
-**HEAD على `main`:** *(بعد الدفع)* — Redis throttle · Demo Mode fail-closed · SECURITY.md  
+**HEAD على `main`:** `932a5f8` — Redis throttle · Demo Mode fail-closed · SECURITY.md  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 
 > اقرأ هذا الملف أولاً على الجهاز الجديد، ثم `ROADMAP.md` و`docs/SESSION-2026-07-21.md` و`docs/SECURITY-AUDIT-2026-07-23.md`.
