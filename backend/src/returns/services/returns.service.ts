@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository } from 'typeorm';
 import {
   ReturnRequest,
   ReturnStatus,
@@ -15,6 +15,9 @@ import {
 import { ReturnPolicy } from '../entities/return-policy.entity';
 import { CreateReturnDto } from '../dto/create-return.dto';
 import { UpdateReturnDto } from '../dto/update-return.dto';
+import { Store } from '../../stores/entities/store.entity';
+import { isStaffRole } from '../../auth/utils/roles';
+import { assertReturnAccess as assertReturnAccessFn } from '../utils/return-access';
 
 export interface ReturnsQuery {
   status?: ReturnStatus;
@@ -41,7 +44,32 @@ export class ReturnsService {
     private readonly returnRepo: Repository<ReturnRequest>,
     @InjectRepository(ReturnPolicy)
     private readonly policyRepo: Repository<ReturnPolicy>,
+    @InjectRepository(Store)
+    private readonly storeRepo: Repository<Store>,
   ) {}
+
+  /** Owner or platform staff may view. */
+  assertReturnAccess(
+    returnRequest: ReturnRequest,
+    userId: string,
+    role?: string,
+  ): void {
+    assertReturnAccessFn(returnRequest, userId, role);
+  }
+
+  /** Staff or store owner may update that store's return policy. */
+  async assertStorePolicyAccess(
+    storeId: string,
+    userId: string,
+    role?: string,
+  ): Promise<void> {
+    if (isStaffRole(role)) return;
+    const store = await this.storeRepo.findOne({ where: { id: storeId } });
+    if (store?.ownerId && store.ownerId === userId) return;
+    throw new ForbiddenException(
+      'Only the store owner or staff can update return policy',
+    );
+  }
 
   async createReturn(userId: string, dto: CreateReturnDto): Promise<ReturnRequest> {
     // Check eligibility
@@ -406,12 +434,35 @@ export class ReturnsService {
     return this.findOne(id);
   }
 
-  async update(id: string, dto: UpdateReturnDto): Promise<ReturnRequest> {
+  async update(
+    id: string,
+    dto: UpdateReturnDto,
+    userId: string,
+    role?: string,
+  ): Promise<ReturnRequest> {
     const returnRequest = await this.findOne(id);
+    this.assertReturnAccess(returnRequest, userId, role);
+
+    const staff = isStaffRole(role);
+    if (!staff) {
+      if (returnRequest.status !== ReturnStatus.PENDING) {
+        throw new BadRequestException(
+          'Only pending returns can be updated by the customer',
+        );
+      }
+      // Customers cannot set status, refund, admin notes, or assign drivers
+      dto = {
+        pickupDate: dto.pickupDate,
+        trackingNumber: dto.trackingNumber,
+      };
+    }
 
     const updates: Partial<ReturnRequest> = {};
 
     if (dto.status && dto.status !== returnRequest.status) {
+      if (!staff) {
+        throw new ForbiddenException('Only staff can change return status');
+      }
       this.validateStatusTransition(returnRequest.status, dto.status);
       updates.status = dto.status;
 
@@ -419,17 +470,35 @@ export class ReturnsService {
         status: dto.status,
         note: `Status updated to ${dto.status}`,
         timestamp: new Date().toISOString(),
+        actor: userId,
       };
       updates.timeline = [...(returnRequest.timeline || []), timelineEntry];
     }
 
-    if (dto.adminNotes) updates.adminNotes = dto.adminNotes;
-    if (dto.refundAmount) updates.refundAmount = dto.refundAmount;
+    if (staff && dto.adminNotes) updates.adminNotes = dto.adminNotes;
+    if (staff && dto.refundAmount) updates.refundAmount = dto.refundAmount;
     if (dto.pickupDate) updates.pickupDate = new Date(dto.pickupDate);
     if (dto.trackingNumber) updates.trackingNumber = dto.trackingNumber;
 
+    if (Object.keys(updates).length === 0) {
+      return returnRequest;
+    }
+
     await this.returnRepo.update(id, updates);
     return this.findOne(id);
+  }
+
+  async remove(id: string, userId: string, role?: string): Promise<void> {
+    const returnRequest = await this.findOne(id);
+    this.assertReturnAccess(returnRequest, userId, role);
+
+    if (!isStaffRole(role) && returnRequest.status !== ReturnStatus.PENDING) {
+      throw new BadRequestException(
+        'Only pending returns can be cancelled by the customer',
+      );
+    }
+
+    await this.returnRepo.remove(returnRequest);
   }
 
   private validateStatusTransition(
@@ -457,10 +526,5 @@ export class ReturnsService {
         `Invalid status transition from ${current} to ${next}`,
       );
     }
-  }
-
-  async remove(id: string): Promise<void> {
-    const returnRequest = await this.findOne(id);
-    await this.returnRepo.remove(returnRequest);
   }
 }

@@ -120,7 +120,7 @@ export class Subscription {
   @JoinColumn({ name: 'user_id' })
   user: Relation<User>;
 
-  @ManyToOne(() => Store, (store) => store.subscriptions, { onDelete: 'SET NULL' })
+  @ManyToOne(() => Store, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'store_id' })
   store: Relation<Store> | null;
 

@@ -10,7 +10,6 @@ import {
   Query,
   HttpStatus,
   HttpCode,
-  UseGuards,
   Req,
 } from '@nestjs/common';
 import {
@@ -30,6 +29,7 @@ import { requireRequestUserId } from '../auth/utils/request-user';
 import { isStaffRole } from '../auth/utils/roles';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Returns & Exchanges')
 @Controller('returns')
@@ -81,7 +81,6 @@ export class ReturnsController {
     @Req() req?: any,
   ): Promise<{ items: ReturnRequest[]; total: number }> {
     const requestingUserId = requireRequestUserId(req.user);
-    // Staff can filter by other userIds; customers only see their own
     const staff = isStaffRole(req.user?.role);
 
     return this.returnsService.findAll({
@@ -112,14 +111,69 @@ export class ReturnsController {
     });
   }
 
+  @Public()
+  @Get('policy/:storeId')
+  @ApiOperation({ summary: 'Get store return policy' })
+  @ApiParam({ name: 'storeId', description: 'Store ID' })
+  @ApiResponse({ status: HttpStatus.OK, type: ReturnPolicy })
+  async getPolicy(@Param('storeId') storeId: string): Promise<ReturnPolicy | null> {
+    return this.returnsService.getReturnPolicy(storeId);
+  }
+
+  @Put('policy/:storeId')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update store return policy (owner or staff)' })
+  @ApiParam({ name: 'storeId', description: 'Store ID' })
+  @ApiResponse({ status: HttpStatus.OK, type: ReturnPolicy })
+  async updatePolicy(
+    @Param('storeId') storeId: string,
+    @Body()
+    data: {
+      returnWindow?: number;
+      exchangeWindow?: number;
+      conditions?: string[];
+      nonReturnableCategories?: string[];
+      restockingFee?: number;
+      autoApprove?: boolean;
+    },
+    @Req() req: any,
+  ): Promise<ReturnPolicy> {
+    const userId = requireRequestUserId(req.user);
+    await this.returnsService.assertStorePolicyAccess(
+      storeId,
+      userId,
+      req.user?.role,
+    );
+    return this.returnsService.updateReturnPolicy(storeId, data);
+  }
+
+  @Post('check-eligibility')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Check if a product is eligible for return' })
+  @ApiResponse({ status: HttpStatus.OK })
+  async checkEligibility(
+    @Body('orderId') orderId: string,
+    @Body('productId') productId: string,
+    @Req() req?: any,
+  ): Promise<{ eligible: boolean; reason?: string }> {
+    const userId = requireRequestUserId(req.user);
+    return this.returnsService.checkEligibility(orderId, productId, userId);
+  }
+
   @Get(':id')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a return request by ID' })
   @ApiParam({ name: 'id', description: 'Return request ID' })
   @ApiResponse({ status: HttpStatus.OK, type: ReturnRequest })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Return not found' })
-  async findOne(@Param('id') id: string): Promise<ReturnRequest> {
-    return this.returnsService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @Req() req: any,
+  ): Promise<ReturnRequest> {
+    const userId = requireRequestUserId(req.user);
+    const returnRequest = await this.returnsService.findOne(id);
+    this.returnsService.assertReturnAccess(returnRequest, userId, req.user?.role);
+    return returnRequest;
   }
 
   @Put(':id')
@@ -130,8 +184,10 @@ export class ReturnsController {
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateReturnDto,
+    @Req() req: any,
   ): Promise<ReturnRequest> {
-    return this.returnsService.update(id, dto);
+    const userId = requireRequestUserId(req.user);
+    return this.returnsService.update(id, dto, userId, req.user?.role);
   }
 
   @Patch(':id/status')
@@ -226,49 +282,8 @@ export class ReturnsController {
   @ApiOperation({ summary: 'Delete a return request' })
   @ApiParam({ name: 'id', description: 'Return request ID' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Return deleted' })
-  async remove(@Param('id') id: string): Promise<void> {
-    return this.returnsService.remove(id);
-  }
-
-  // Return Policy Endpoints
-
-  @Get('policy/:storeId')
-  @ApiOperation({ summary: 'Get store return policy' })
-  @ApiParam({ name: 'storeId', description: 'Store ID' })
-  @ApiResponse({ status: HttpStatus.OK, type: ReturnPolicy })
-  async getPolicy(@Param('storeId') storeId: string): Promise<ReturnPolicy | null> {
-    return this.returnsService.getReturnPolicy(storeId);
-  }
-
-  @Put('policy/:storeId')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update store return policy' })
-  @ApiParam({ name: 'storeId', description: 'Store ID' })
-  @ApiResponse({ status: HttpStatus.OK, type: ReturnPolicy })
-  async updatePolicy(
-    @Param('storeId') storeId: string,
-    @Body() data: {
-      returnWindow?: number;
-      exchangeWindow?: number;
-      conditions?: string[];
-      nonReturnableCategories?: string[];
-      restockingFee?: number;
-      autoApprove?: boolean;
-    },
-  ): Promise<ReturnPolicy> {
-    return this.returnsService.updateReturnPolicy(storeId, data);
-  }
-
-  @Post('check-eligibility')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Check if a product is eligible for return' })
-  @ApiResponse({ status: HttpStatus.OK })
-  async checkEligibility(
-    @Body('orderId') orderId: string,
-    @Body('productId') productId: string,
-    @Req() req?: any,
-  ): Promise<{ eligible: boolean; reason?: string }> {
+  async remove(@Param('id') id: string, @Req() req: any): Promise<void> {
     const userId = requireRequestUserId(req.user);
-    return this.returnsService.checkEligibility(orderId, productId, userId);
+    return this.returnsService.remove(id, userId, req.user?.role);
   }
 }

@@ -189,9 +189,17 @@ export class OmanNetService {
     try {
       const { transaction_id, order_id, status, amount, hash, card_number } = data;
 
-      // Verify callback integrity
+      if (!hash) {
+        this.logger.error(`Oman Net callback missing hash for order ${order_id}`);
+        return {
+          success: false,
+          error: 'Missing callback hash - rejecting unsigned callback',
+        };
+      }
+
+      // Verify callback integrity (fail-closed)
       const expectedHash = this.generateCallbackHash(data);
-      if (hash && hash !== expectedHash) {
+      if (hash !== expectedHash) {
         this.logger.error(`Oman Net callback hash mismatch for order ${order_id}`);
         return {
           success: false,
