@@ -4,7 +4,8 @@
 > الخطط التاريخية في `docs/plans/` محفوظة للأرشيف فقط — لا تُكرَّر هنا ولا تُحدَّث كخطط عمل نشطة.  
 > المستودع الرسمي: [github.com/ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR)
 
-آخر مراجعة: 2026-07-23 · المسار المعتمد: `C:\dev\bhd-app`
+آخر مراجعة: 2026-07-23 · HEAD `eddb135` · المسار المعتمد: `C:\dev\bhd-app`  
+نقل لجهاز ثانٍ: [`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md)
 
 ---
 
@@ -222,6 +223,10 @@ npm run dev
 سجل جلسة التطوير (ما نوقش / نُفّذ / التالي — لأجهزة متعددة):
 
 → **[`docs/SESSION-2026-07-21.md`](./docs/SESSION-2026-07-21.md)**
+
+دليل الجهاز الثاني (ابدأ هنا على PC جديد):
+
+→ **[`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md)**
 
 تدقيق الحماية والتشفير والأداء (2026-07-23):
 
