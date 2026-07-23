@@ -60,26 +60,27 @@ BHD Oman Marketplace implements enterprise-grade security measures to protect us
 
 | Feature | Status | Details |
 |---------|--------|---------|
-| HTTPS/TLS 1.3 | ✅ | All traffic encrypted |
-| JWT Authentication | ✅ | Short-lived access tokens |
-| OAuth 2.0 / OpenID Connect | ✅ | Google, Apple, Facebook |
-| Multi-Factor Authentication | ✅ | SMS and TOTP |
-| Role-Based Access Control | ✅ | Admin, Seller, Buyer roles |
-| Rate Limiting | ✅ | Per-endpoint configurable |
-| SQL Injection Prevention | ✅ | Prisma ORM parameterization |
+| HTTPS/TLS 1.3 | 🎯 Target / edge | Enforce at reverse proxy / CDN in production |
+| JWT Authentication | ✅ | Short-lived access + refresh; cookie or Bearer |
+| OAuth 2.0 / OpenID Connect | ⚠️ Partial | Planned / stubs — not fully productized |
+| Multi-Factor Authentication | ⚠️ Partial | Entity/docs exist; not fully enforced as product MFA |
+| Role-Based Access Control | ✅ | RolesGuard + `@Roles`; `super_admin` satisfies `admin` |
+| Rate Limiting | ✅ | Redis-backed `ThrottlerGuard` with in-memory fallback |
+| SQL Injection Prevention | ✅ | **TypeORM** parameterized queries (not Prisma) |
 | XSS Prevention | ✅ | Output encoding, CSP headers |
-| CSRF Protection | ✅ | Double-submit cookie pattern |
-| File Upload Security | ✅ | Type validation, virus scanning |
-| Data Encryption at Rest | ✅ | AES-256 for sensitive fields |
-| Data Encryption in Transit | ✅ | TLS 1.2+ for all connections |
+| CSRF Protection | ✅ | Double-submit cookie (`CsrfGuard` APP_GUARD) |
+| File Upload Security | ⚠️ Partial | Type validation; virus scanning depends on deploy |
+| Data Encryption at Rest | ✅ | AES-256-GCM for sensitive fields; prod key fail-closed |
+| Data Encryption in Transit | 🎯 Target | TLS at edge / load balancer |
 | Password Hashing | ✅ | Argon2id / Bcrypt |
-| Audit Logging | ✅ | All actions logged |
-| DDoS Protection | ✅ | Rate limiting + Cloudflare |
-| Security Headers | ✅ | Full OWASP header set |
-| Input Validation | ✅ | Zod schema validation |
-| API Security | ✅ | API keys, webhook signatures |
-| Payment Security | ✅ | PCI DSS compliant flow |
-| Session Management | ✅ | Secure, HttpOnly cookies |
+| Audit Logging | ⚠️ Partial | Module present; coverage varies by feature |
+| DDoS Protection | 🎯 Target | App rate limits + edge (e.g. Cloudflare) when deployed |
+| Security Headers | ✅ | Helmet / OWASP-oriented set |
+| Input Validation | ✅ | class-validator / DTO pipes (not only Zod) |
+| API Security | ✅ | Webhook signatures; fail-closed where required |
+| Payment Security | ⚠️ In progress | Gateway ownership checks + signed webhooks; PCI scope at processor |
+| Session Management | ✅ | HttpOnly cookies + refresh rotation |
+| SOC 2 | ❌ | **Not certified** — do not claim compliance |
 
 ---
 
@@ -423,7 +424,9 @@ add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; prelo
 
 ## 🚦 Rate Limiting Rules
 
-### Rate Limit Configuration
+> **التنفيذ الحالي:** `ThrottlerGuard` يستخدم **Redis** (`INCR` + `PEXPIRE`، مفتاح `bhd:rl:*`) عند توفر العميل، مع **fallback في الذاكرة** إن فشل Redis. مستويات: DEFAULT / STRICT / LENIENT / LOGIN / REGISTER / WEBHOOK.
+
+### Rate Limit Configuration (تصميم مرجعي / مستويات الكود)
 
 ```typescript
 // Rate limiting tiers
@@ -734,11 +737,11 @@ GET /api/v1/admin/audit-log/export?format=csv&from=2024-01-01&to=2024-01-31
 |---|------|--------|------------|
 | A01 | Broken Access Control | ✅ | RBAC, route guards, ownership checks |
 | A02 | Cryptographic Failures | ✅ | AES-256, TLS 1.3, Argon2id |
-| A03 | Injection | ✅ | Prisma ORM, parameterized queries |
+| A03 | Injection | ✅ | TypeORM parameterized queries |
 | A04 | Insecure Design | ✅ | Secure by design, threat modeling |
 | A05 | Security Misconfiguration | ✅ | Hardened configs, security headers |
 | A06 | Vulnerable Components | ✅ | Dependency scanning, auto-updates |
-| A07 | Auth Failures | ✅ | MFA, secure sessions, brute force protection |
+| A07 | Auth Failures | ⚠️ | Sessions + rate limits; MFA not fully productized |
 | A08 | Data Integrity Failures | ✅ | Digital signatures, integrity checks |
 | A09 | Logging Failures | ✅ | Comprehensive audit logging |
 | A10 | SSRF | ✅ | URL validation, whitelist approach |

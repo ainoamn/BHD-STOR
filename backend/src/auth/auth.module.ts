@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { RedisModule } from '@nestjs-modules/ioredis';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '@users/users.module';
@@ -11,11 +12,13 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { ThrottlerGuard } from './guards/throttler.guard';
 
 @Module({
   imports: [
     ConfigModule,
     UsersModule,
+    RedisModule,
     PassportModule.register({
       defaultStrategy: 'jwt',
       session: false,
@@ -40,6 +43,7 @@ import { RolesGuard } from './guards/roles.guard';
     RefreshTokenStrategy,
     JwtAuthGuard,
     RolesGuard,
+    ThrottlerGuard,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
@@ -50,6 +54,13 @@ import { RolesGuard } from './guards/roles.guard';
     },
   ],
   controllers: [AuthController],
-  exports: [AuthService, PassportModule, JwtModule, JwtAuthGuard, RolesGuard],
+  exports: [
+    AuthService,
+    PassportModule,
+    JwtModule,
+    JwtAuthGuard,
+    RolesGuard,
+    ThrottlerGuard,
+  ],
 })
 export class AuthModule {}

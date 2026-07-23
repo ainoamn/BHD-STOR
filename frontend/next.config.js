@@ -1,6 +1,16 @@
 const createNextIntlPlugin = require('next-intl/plugin');
 const withNextIntl = createNextIntlPlugin('./src/i18n.ts');
 
+// Fail closed: never ship a production build with demo data enabled.
+if (
+  process.env.NODE_ENV === 'production' &&
+  process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+) {
+  throw new Error(
+    'NEXT_PUBLIC_DEMO_MODE=true is forbidden for production builds. Set it to false.',
+  );
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // i18n configuration is handled by next-intl plugin

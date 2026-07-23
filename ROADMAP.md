@@ -4,7 +4,7 @@
 > الخطط التاريخية في `docs/plans/` محفوظة للأرشيف فقط — لا تُكرَّر هنا ولا تُحدَّث كخطط عمل نشطة.  
 > المستودع الرسمي: [github.com/ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR)
 
-آخر مراجعة: 2026-07-23 · HEAD `eddb135` · المسار المعتمد: `C:\dev\bhd-app`  
+آخر مراجعة: 2026-07-23 · Redis throttle + Demo fail-closed · المسار المعتمد: `C:\dev\bhd-app`  
 نقل لجهاز ثانٍ: [`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md)
 
 ---
@@ -63,17 +63,18 @@
 | الأولوية | المشكلة | الأثر |
 |----------|---------|--------|
 | P0 | ~~`ENCRYPTION_MASTER_KEY` إن غاب يولّد مفتاحاً عشوائياً~~ → **مُصلَح**: fail-closed في الإنتاج | كان يفقد فك التشفير بعد إعادة التشغيل |
-| P0 | Demo Mode على الفرونت يتخطى مسار الـ API الحقيقي | خطر إن بقي مفعّلاً في الإنتاج |
+| P0 ✓ | Demo Mode: `isDemoMode()` يعطّل في `NODE_ENV`/`APP_ENV=production` + رفض بناء Next إن `DEMO_MODE=true` في production | خطر إن بقي مفعّلاً في الإنتاج |
 | P0 ✓ | **JwtAuthGuard + RolesGuard عالميان** (`APP_GUARD`) + `@Public()` للمسارات العامة | كان كثير من الـ controllers مفتوحاً |
 | P0 ✓ | حماية HR / CRM / Accounting / Audit بـ `Roles(ADMIN…)` | بيانات داخلية حساسة |
 | P0 ✓ | صفحات `/cart` + `/checkout` + تفعيل `SmartCart` | مسار البيع كان مقطوعاً في الواجهة |
 | P1 | ازدواجية كيان المستخدم (`database/entities` vs `users/entities`) وصلاحيات مثل `MODERATOR` غير متسقة | ثغرات صلاحيات / أعطال تشغيل |
 | P1 | تكاملات الدفع/الشحن تحتاج sandbox keys واختبار webhooks | أموال وشحنات خاطئة |
-| P1 | SECURITY.md يدّعي SOC2 / MFA / Prisma بينما ORM الفعلي TypeORM وMFA غير مكتمل التشغيل | تضليل تشغيلي |
+| P1 ✓ | SECURITY.md: جدول الحالة صادق (TypeORM، لا SOC2، MFA جزئي) | تضليل تشغيلي |
+| P1 ✓ | Redis-backed rate limit (`ThrottlerGuard` + memory fallback) | حدود معدل عبر عدة عمليات |
 | ملاحظة | مراجعة ChatGPT عن «مستودع فارغ / main غير مربوط» | **قديمة/خاطئة جزئياً**: `main` موجود على `cf4c6f9` والملفات ظاهرة عبر API؛ `size=0` في GitHub API لا يعني أن المستودع فارغ |
 | P2 | Elasticsearch / CDN / K8s مذكورة كجاهزة وغالباً إعداد فقط | توقع خاطئ للأداء |
 
-**الخلاصة الأمنية:** مستوى الحماية **التصميمية** جيد ومتعدد الطبقات، لكن **مستوى العزل الإنتاجي** غير مكتمل حتى تُفعَّل المفاتيح، تُوحَّد الأدوار، ويُغلق Demo Mode، ويُختبر البناء ضد PostgreSQL/Redis.
+**الخلاصة الأمنية:** مستوى الحماية **التصميمية** جيد ومتعدد الطبقات؛ Demo Mode مُغلق في الإنتاج وحدود المعدل عبر Redis. يبقى العزل الإنتاجي غير مكتمل حتى تُفعَّل مفاتيح الدفع/الشحن، تُوحَّد الأدوار المتبقية، ويُختبر البناء ضد PostgreSQL/Redis (smoke).
 
 ---
 
@@ -128,6 +129,7 @@ Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification 
 - [x] CSRF عالمي (`CsrfGuard` APP_GUARD + استثناء webhooks + FE `X-XSRF-TOKEN`)  
 - [x] Telr webhook fail-closed (order_ref + API check قبل paid)  
 - [x] كوبون على صفحة `/cart` (تطبيق/إزالة)  
+- [x] Redis-backed throttle + إغلاق Demo Mode في الإنتاج + تصحيح SECURITY.md checklist  
 - [~] أسرار فقط عبر `.env` (لا تُرفع إلى Git؛ `setup-env.bat` ينشئ `.env` محلياً؛ `docker-compose.infra.yml` لـ Postgres/Redis)  
 
 ---
