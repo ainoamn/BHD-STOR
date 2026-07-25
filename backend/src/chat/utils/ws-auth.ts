@@ -1,3 +1,5 @@
+import { isStaffRole } from '../../auth/utils/roles';
+
 /**
  * Extract Bearer / handshake / cookie token for Socket.IO clients.
  */
@@ -57,4 +59,9 @@ export function resolveWsUserFromJwtPayload(payload: {
     email: payload.email || '',
     role: payload.role || '',
   };
+}
+
+/** Staff (admin/super_admin/moderator) may use admin WS rooms. */
+export function isWsStaffRole(role: unknown): boolean {
+  return isStaffRole(role);
 }

@@ -31,6 +31,8 @@ export function persistAuthSession(
   }
 
   const maxAge = 60 * 60 * 24 * 7;
+  // Optional non-HttpOnly UX flag only — Next middleware must NOT treat this as auth.
+  // Real session is accessToken / refreshToken (HttpOnly).
   document.cookie = `bhd_session=1; path=/; max-age=${maxAge}; SameSite=Lax`;
   document.cookie = "auth-token=; path=/; max-age=0; SameSite=Lax";
   document.cookie = "refresh-token=; path=/; max-age=0; SameSite=Lax";

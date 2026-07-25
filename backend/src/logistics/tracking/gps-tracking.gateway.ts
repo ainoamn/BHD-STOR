@@ -14,10 +14,17 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { GpsTrackingService } from './gps-tracking.service';
 import { RedisLocationStore } from './redis-location.store';
 import { LocationData } from '../routing/types';
+import {
+  extractWsHandshakeToken,
+  isWsStaffRole,
+  resolveWsUserFromJwtPayload,
+} from '../../chat/utils/ws-auth';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Interfaces
@@ -75,6 +82,8 @@ export class GpsTrackingGateway
   constructor(
     private readonly gpsService: GpsTrackingService,
     private readonly redisStore: RedisLocationStore,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -87,32 +96,52 @@ export class GpsTrackingGateway
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     this.logger.log(`Client connected: ${client.id}`);
 
-    // Initialize socket data
     client.data = {
       isAuthenticated: false,
       subscriptions: new Set<string>(),
     };
 
     try {
-      // Extract auth token from handshake
-      const token = client.handshake.auth?.token as string;
-      const driverId = client.handshake.auth?.driverId as string;
-      const vehicleId = client.handshake.auth?.vehicleId as string;
-      const isAdmin = client.handshake.auth?.role === 'admin';
-
+      const token = extractWsHandshakeToken(client.handshake);
       if (!token) {
         this.logger.warn(`Client ${client.id} connected without token`);
         client.emit('error', { message: 'Authentication token required' });
-        // Allow connection but mark as unauthenticated
+        client.disconnect(true);
         return;
       }
 
-      // TODO: Validate JWT token here
-      // const payload = await this.authService.verifyToken(token);
+      const payload = await this.jwtService.verifyAsync<{
+        sub?: string;
+        userId?: string;
+        email?: string;
+        role?: string;
+        type?: string;
+      }>(token, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        issuer: this.configService.get<string>(
+          'JWT_ISSUER',
+          'bhd-oman-marketplace',
+        ),
+        audience: this.configService.get<string>(
+          'JWT_AUDIENCE',
+          'bhd-oman-api',
+        ),
+      });
 
+      const user = resolveWsUserFromJwtPayload(payload);
+      if (!user) {
+        client.emit('error', { message: 'Invalid token' });
+        client.disconnect(true);
+        return;
+      }
+
+      const isAdmin = isWsStaffRole(user.role);
+      // Identity from JWT only — never trust handshake.auth.role / driverId
       client.data.isAuthenticated = true;
-      client.data.driverId = driverId;
-      client.data.vehicleId = vehicleId;
+      client.data.driverId = user.userId;
+      client.data.vehicleId = client.handshake.auth?.vehicleId as
+        | string
+        | undefined;
       client.data.isAdmin = isAdmin;
 
       if (isAdmin) {
@@ -120,13 +149,9 @@ export class GpsTrackingGateway
         this.logger.log(`Admin client connected: ${client.id}`);
       }
 
-      if (driverId) {
-        // Join driver-specific room
-        client.join(`driver:${driverId}`);
-
-        if (vehicleId) {
-          client.join(`vehicle:${vehicleId}`);
-        }
+      client.join(`driver:${user.userId}`);
+      if (client.data.vehicleId) {
+        client.join(`vehicle:${client.data.vehicleId}`);
       }
 
       client.emit('authenticated', {
@@ -136,7 +161,7 @@ export class GpsTrackingGateway
       });
 
       this.logger.log(
-        `Client ${client.id} authenticated - driver: ${driverId}, admin: ${isAdmin}`,
+        `Client ${client.id} authenticated - user: ${user.userId}, admin: ${isAdmin}`,
       );
     } catch (error) {
       this.logger.error(
@@ -190,11 +215,23 @@ export class GpsTrackingGateway
     }
 
     try {
-      const driverId = payload.driverId || client.data.driverId;
+      // Prefer JWT-bound identity; staff may update on behalf of a driver
+      const driverId = client.data.isAdmin
+        ? payload.driverId || client.data.driverId
+        : client.data.driverId;
       const vehicleId = payload.vehicleId || client.data.vehicleId;
 
       if (!driverId || !vehicleId) {
         client.emit('error', { message: 'driverId and vehicleId required' });
+        return;
+      }
+
+      if (
+        !client.data.isAdmin &&
+        payload.driverId &&
+        payload.driverId !== client.data.driverId
+      ) {
+        client.emit('error', { message: 'Cannot spoof driver identity' });
         return;
       }
 

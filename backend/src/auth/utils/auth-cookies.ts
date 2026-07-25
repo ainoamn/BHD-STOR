@@ -32,7 +32,7 @@ export function setAuthCookies(
     ...base,
     maxAge: refreshMaxAgeMs,
   });
-  // Non-HttpOnly flag so Next.js middleware can detect a session without reading JWTs
+  // Non-HttpOnly UX flag only — Next.js middleware requires accessToken/refreshToken.
   res.cookie(SESSION_FLAG_COOKIE, '1', {
     httpOnly: false,
     secure: isProd,

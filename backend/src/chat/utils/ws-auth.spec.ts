@@ -1,5 +1,6 @@
 import {
   extractWsHandshakeToken,
+  isWsStaffRole,
   resolveWsUserFromJwtPayload,
 } from './ws-auth';
 
@@ -40,5 +41,13 @@ describe('ws-auth helpers', () => {
         role: 'customer',
       }),
     ).toEqual({ userId: 'u1', email: 'a@b.c', role: 'customer' });
+  });
+
+  it('isWsStaffRole matches staff helpers', () => {
+    expect(isWsStaffRole('admin')).toBe(true);
+    expect(isWsStaffRole('super_admin')).toBe(true);
+    expect(isWsStaffRole('moderator')).toBe(true);
+    expect(isWsStaffRole('seller')).toBe(false);
+    expect(isWsStaffRole('customer')).toBe(false);
   });
 });

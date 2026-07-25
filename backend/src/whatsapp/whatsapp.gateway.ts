@@ -9,9 +9,16 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { WhatsAppService } from './whatsapp.service';
 import { BotEngine } from './bot/BotEngine';
+import {
+  extractWsHandshakeToken,
+  isWsStaffRole,
+  resolveWsUserFromJwtPayload,
+} from '../chat/utils/ws-auth';
 
 export interface WhatsAppSocketEvent {
   phone: string;
@@ -24,6 +31,14 @@ export interface WhatsAppSocketEvent {
 export interface TypingIndicatorEvent {
   phone: string;
   isTyping: boolean;
+}
+
+interface AuthenticatedWhatsAppSocket extends Socket {
+  data: {
+    userId?: string;
+    role?: string;
+    isStaff?: boolean;
+  };
 }
 
 /**
@@ -54,6 +69,8 @@ export class WhatsAppGateway
   constructor(
     private readonly whatsAppService: WhatsAppService,
     private readonly botEngine: BotEngine,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -64,25 +81,70 @@ export class WhatsAppGateway
     this.logger.log('WhatsApp WebSocket Gateway initialized');
   }
 
-  handleConnection(client: Socket): void {
+  async handleConnection(client: AuthenticatedWhatsAppSocket): Promise<void> {
     this.logger.log(`Client connected: ${client.id}`);
+    client.data = client.data || {};
 
-    // Check if admin authentication is provided
-    const isAdmin = client.handshake.auth?.role === 'admin' ||
-      client.handshake.auth?.role === 'support';
+    try {
+      const token = extractWsHandshakeToken(client.handshake);
+      if (!token) {
+        this.logger.warn(`WhatsApp WS ${client.id}: missing token`);
+        client.emit('error', { message: 'Authentication required' });
+        client.disconnect(true);
+        return;
+      }
 
-    if (isAdmin) {
+      const payload = await this.jwtService.verifyAsync<{
+        sub?: string;
+        userId?: string;
+        email?: string;
+        role?: string;
+        type?: string;
+      }>(token, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        issuer: this.configService.get<string>(
+          'JWT_ISSUER',
+          'bhd-oman-marketplace',
+        ),
+        audience: this.configService.get<string>(
+          'JWT_AUDIENCE',
+          'bhd-oman-api',
+        ),
+      });
+
+      const user = resolveWsUserFromJwtPayload(payload);
+      if (!user || !isWsStaffRole(user.role)) {
+        this.logger.warn(
+          `WhatsApp WS ${client.id}: rejected non-staff or invalid token`,
+        );
+        client.emit('error', { message: 'Staff access required' });
+        client.disconnect(true);
+        return;
+      }
+
+      client.data.userId = user.userId;
+      client.data.role = user.role;
+      client.data.isStaff = true;
       this.adminSockets.set(client.id, client);
-      this.logger.log(`Admin connected: ${client.id}`);
-
-      // Send active conversations to admin
+      this.logger.log(
+        `Staff connected to WhatsApp WS: ${client.id} (${user.userId})`,
+      );
       this.sendActiveConversations(client);
-    }
 
-    client.emit('connected', {
-      socketId: client.id,
-      timestamp: new Date().toISOString(),
-    });
+      client.emit('connected', {
+        socketId: client.id,
+        userId: user.userId,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      this.logger.warn(
+        `WhatsApp WS auth failed for ${client.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      client.emit('error', { message: 'Authentication failed' });
+      client.disconnect(true);
+    }
   }
 
   handleDisconnect(client: Socket): void {
@@ -98,6 +160,14 @@ export class WhatsAppGateway
     }
   }
 
+  private requireStaffSocket(client: AuthenticatedWhatsAppSocket): boolean {
+    if (client.data?.isStaff && this.adminSockets.has(client.id)) {
+      return true;
+    }
+    client.emit('error', { message: 'Staff access required' });
+    return false;
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // INCOMING MESSAGE HANDLERS
   // ═══════════════════════════════════════════════════════════════
@@ -107,33 +177,33 @@ export class WhatsAppGateway
    * Broadcasts to admins if chat is active
    */
   async handleIncomingMessage(event: WhatsAppSocketEvent): Promise<void> {
-    const { phone, message, type } = event;
+    const { phone } = event;
 
-    // Check if this chat is being handled by an admin
     const activeChat = this.activeChats.get(phone);
 
     if (activeChat?.agentId) {
-      // Route to assigned agent
       const agentSocket = this.adminSockets.get(activeChat.agentId);
       if (agentSocket) {
         agentSocket.emit('new_message', event);
       }
     } else {
-      // Broadcast to all admins for pickup
       this.broadcastToAdmins('new_customer_message', {
         ...event,
         isUnassigned: true,
       });
     }
 
-    // Emit to room for this phone number (for multi-device viewing)
     this.server.to(`phone_${phone}`).emit('message', event);
   }
 
   /**
    * Handle message status updates (sent/delivered/read)
    */
-  async handleStatusUpdate(phone: string, messageId: string, status: string): Promise<void> {
+  async handleStatusUpdate(
+    phone: string,
+    messageId: string,
+    status: string,
+  ): Promise<void> {
     this.server.to(`phone_${phone}`).emit('status_update', {
       phone,
       messageId,
@@ -151,7 +221,7 @@ export class WhatsAppGateway
    */
   @SubscribeMessage('send_message')
   async handleAdminSendMessage(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedWhatsAppSocket,
     @MessageBody()
     payload: {
       phone: string;
@@ -160,23 +230,22 @@ export class WhatsAppGateway
       mediaUrl?: string;
     },
   ): Promise<void> {
+    if (!this.requireStaffSocket(client)) return;
+
     try {
       const { phone, message, type, mediaUrl } = payload;
 
-      // Verify admin has claimed this chat or claim it now
       const chat = this.activeChats.get(phone);
       if (chat?.agentId && chat.agentId !== client.id) {
         client.emit('error', { message: 'Chat is assigned to another agent' });
         return;
       }
 
-      // Send via WhatsApp service
       const receipt = await this.whatsAppService.sendMessage(phone, message, {
         type: type || 'text',
         mediaUrl,
       });
 
-      // Confirm to admin
       client.emit('message_sent', {
         phone,
         messageId: receipt.messageId,
@@ -184,7 +253,6 @@ export class WhatsAppGateway
         timestamp: receipt.timestamp,
       });
 
-      // Broadcast to room
       this.server.to(`phone_${phone}`).emit('message', {
         phone,
         message,
@@ -195,7 +263,10 @@ export class WhatsAppGateway
       });
     } catch (error) {
       this.logger.error(`Admin send message failed: ${error.message}`);
-      client.emit('error', { message: 'Failed to send message', details: error.message });
+      client.emit('error', {
+        message: 'Failed to send message',
+        details: error.message,
+      });
     }
   }
 
@@ -204,9 +275,11 @@ export class WhatsAppGateway
    */
   @SubscribeMessage('claim_chat')
   async handleClaimChat(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedWhatsAppSocket,
     @MessageBody() payload: { phone: string },
   ): Promise<void> {
+    if (!this.requireStaffSocket(client)) return;
+
     const { phone } = payload;
     const chat = this.activeChats.get(phone);
 
@@ -220,19 +293,14 @@ export class WhatsAppGateway
       startTime: new Date(),
     });
 
-    // Join room for this phone
     client.join(`phone_${phone}`);
-
-    // Notify claiming admin
     client.emit('chat_claimed', { phone, timestamp: new Date().toISOString() });
 
-    // Notify other admins
     this.broadcastToAdminsExcept(client, 'chat_assigned', {
       phone,
       agentId: client.id,
     });
 
-    // Send conversation history
     const history = await this.whatsAppService.getConversationHistory(phone);
     client.emit('conversation_history', { phone, messages: history });
   }
@@ -242,18 +310,22 @@ export class WhatsAppGateway
    */
   @SubscribeMessage('release_chat')
   handleReleaseChat(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedWhatsAppSocket,
     @MessageBody() payload: { phone: string },
   ): void {
+    if (!this.requireStaffSocket(client)) return;
+
     const { phone } = payload;
     const chat = this.activeChats.get(phone);
 
     if (chat?.agentId === client.id) {
       this.activeChats.delete(phone);
       client.leave(`phone_${phone}`);
-
       client.emit('chat_released', { phone });
-      this.broadcastToAdmins('chat_unassigned', { phone, reason: 'agent_released' });
+      this.broadcastToAdmins('chat_unassigned', {
+        phone,
+        reason: 'agent_released',
+      });
     }
   }
 
@@ -262,10 +334,10 @@ export class WhatsAppGateway
    */
   @SubscribeMessage('typing')
   handleTyping(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedWhatsAppSocket,
     @MessageBody() payload: TypingIndicatorEvent,
   ): void {
-    // Broadcast typing status to other viewers of this chat
+    if (!this.requireStaffSocket(client)) return;
     this.server.to(`phone_${payload.phone}`).emit('typing_indicator', {
       ...payload,
       agentId: client.id,
@@ -277,9 +349,10 @@ export class WhatsAppGateway
    */
   @SubscribeMessage('subscribe_phone')
   handleSubscribePhone(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedWhatsAppSocket,
     @MessageBody() payload: { phone: string },
   ): void {
+    if (!this.requireStaffSocket(client)) return;
     client.join(`phone_${payload.phone}`);
     client.emit('subscribed', { phone: payload.phone });
   }
@@ -289,9 +362,10 @@ export class WhatsAppGateway
    */
   @SubscribeMessage('unsubscribe_phone')
   handleUnsubscribePhone(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedWhatsAppSocket,
     @MessageBody() payload: { phone: string },
   ): void {
+    if (!this.requireStaffSocket(client)) return;
     client.leave(`phone_${payload.phone}`);
     client.emit('unsubscribed', { phone: payload.phone });
   }
@@ -300,7 +374,10 @@ export class WhatsAppGateway
    * Get active conversations list
    */
   @SubscribeMessage('get_conversations')
-  async handleGetConversations(@ConnectedSocket() client: Socket): Promise<void> {
+  async handleGetConversations(
+    @ConnectedSocket() client: AuthenticatedWhatsAppSocket,
+  ): Promise<void> {
+    if (!this.requireStaffSocket(client)) return;
     await this.sendActiveConversations(client);
   }
 
@@ -309,7 +386,7 @@ export class WhatsAppGateway
    */
   @SubscribeMessage('send_quick_reply')
   async handleQuickReply(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedWhatsAppSocket,
     @MessageBody()
     payload: {
       phone: string;
@@ -317,22 +394,36 @@ export class WhatsAppGateway
       variables?: Record<string, string>;
     },
   ): Promise<void> {
+    if (!this.requireStaffSocket(client)) return;
+
     const templates: Record<string, string> = {
-      greeting: 'Hello! Thank you for contacting BHD Oman. How can I assist you today?',
-      order_status: 'Let me check your order status. Could you please provide your order ID?',
-      shipping_info: 'Your order is being processed. You will receive tracking information shortly.',
-      refund_policy: 'Our refund policy allows returns within 14 days of delivery. The item must be in original condition.',
-      support_escalate: 'I am escalating your issue to our specialist team. They will contact you within 24 hours.',
-      thank_you: 'Thank you for choosing BHD Oman! We appreciate your business. Have a wonderful day!',
-      goodbye: 'Thank you for chatting with us. If you need anything else, feel free to reach out. Goodbye!',
-      arabic_greeting: 'مرحباً! شكراً لتواصلك مع BHD عمان. كيف يمكنني مساعدتك؟',
-      arabic_thanks: 'شكراً لاختيارك BHD عمان! نقدر تعاملك معنا. يوماً سعيداً!',
+      greeting:
+        'Hello! Thank you for contacting BHD Oman. How can I assist you today?',
+      order_status:
+        'Let me check your order status. Could you please provide your order ID?',
+      shipping_info:
+        'Your order is being processed. You will receive tracking information shortly.',
+      refund_policy:
+        'Our refund policy allows returns within 14 days of delivery. The item must be in original condition.',
+      support_escalate:
+        'I am escalating your issue to our specialist team. They will contact you within 24 hours.',
+      thank_you:
+        'Thank you for choosing BHD Oman! We appreciate your business. Have a wonderful day!',
+      goodbye:
+        'Thank you for chatting with us. If you need anything else, feel free to reach out. Goodbye!',
+      arabic_greeting:
+        'مرحباً! شكراً لتواصلك مع BHD عمان. كيف يمكنني مساعدتك؟',
+      arabic_thanks:
+        'شكراً لاختيارك BHD عمان! نقدر تعاملك معنا. يوماً سعيداً!',
     };
 
     const message = templates[payload.templateId] || payload.templateId;
 
     try {
-      const receipt = await this.whatsAppService.sendMessage(payload.phone, message);
+      const receipt = await this.whatsAppService.sendMessage(
+        payload.phone,
+        message,
+      );
 
       client.emit('message_sent', {
         phone: payload.phone,
@@ -349,7 +440,10 @@ export class WhatsAppGateway
         messageId: receipt.messageId,
       });
     } catch (error) {
-      client.emit('error', { message: 'Failed to send quick reply', details: error.message });
+      client.emit('error', {
+        message: 'Failed to send quick reply',
+        details: error.message,
+      });
     }
   }
 
@@ -363,7 +457,11 @@ export class WhatsAppGateway
     }
   }
 
-  private broadcastToAdminsExcept(exceptSocket: Socket, event: string, data: any): void {
+  private broadcastToAdminsExcept(
+    exceptSocket: Socket,
+    event: string,
+    data: any,
+  ): void {
     for (const [, socket] of this.adminSockets) {
       if (socket.id !== exceptSocket.id) {
         socket.emit(event, data);

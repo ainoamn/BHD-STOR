@@ -10,7 +10,8 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 
 // ─── Entities ───────────────────────────────────────────────
 
@@ -106,6 +107,17 @@ import { OrdersModule } from '../orders/orders.module';
 
     // External dependencies
     ConfigModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('JWT_SECRET'),
+        signOptions: {
+          issuer: config.get<string>('JWT_ISSUER', 'bhd-oman-marketplace'),
+          audience: config.get<string>('JWT_AUDIENCE', 'bhd-oman-api'),
+        },
+      }),
+    }),
     forwardRef(() => NotificationsModule),
     forwardRef(() => OrdersModule),
   ],
