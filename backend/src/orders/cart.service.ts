@@ -6,6 +6,7 @@ import { CartItem } from './entities/cart-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { User } from '../users/entities/user.entity';
 import { CartItemDto, CartTotalsDto } from './dto/cart-item.dto';
+import { evaluateCoupon } from './utils/coupons';
 
 @Injectable()
 export class CartService {
@@ -156,23 +157,18 @@ export class CartService {
 
   async applyCoupon(userId: string, code: string): Promise<Cart> {
     const cart = await this.getCart(userId);
-    const activeCoupons = ['WELCOME10', 'WELCOME20', 'FLAT5'];
-    if (!activeCoupons.includes(code.toUpperCase())) {
+    const couponResult = evaluateCoupon(code, Number(cart.subtotal));
+    if (!couponResult.valid || !couponResult.code) {
       throw new BadRequestException('Invalid coupon code');
     }
 
-    cart.couponCode = code.toUpperCase();
-    let discountAmount = 0;
-    if (code.toUpperCase() === 'FLAT5') {
-      discountAmount = 5;
-    } else if (code.toUpperCase().startsWith('WELCOME')) {
-      const percent = parseInt(code.replace(/\D/g, ''), 10) || 10;
-      discountAmount = (Number(cart.subtotal) * percent) / 100;
-    }
-
-    cart.discountAmount = Math.min(discountAmount, Number(cart.subtotal));
+    cart.couponCode = couponResult.code;
+    cart.discountAmount = couponResult.discountAmount;
     cart.total =
-      Number(cart.subtotal) + Number(cart.taxAmount) + Number(cart.shipping) - Number(cart.discountAmount);
+      Number(cart.subtotal) +
+      Number(cart.taxAmount) +
+      Number(cart.shipping) -
+      Number(cart.discountAmount);
     await this.cartRepository.save(cart);
     return this.getCart(userId);
   }

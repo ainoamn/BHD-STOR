@@ -16,6 +16,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CartService } from './cart.service';
 import { isStaffRole } from '../auth/utils/roles';
+import { evaluateCoupon } from './utils/coupons';
 
 export interface OrderTotals {
   subtotal: number;
@@ -114,12 +115,14 @@ export class OrdersService {
     const totals = this.calculateTotals(orderItems, dto.currency || 'OMR', dto.shippingMethod);
     let discountAmount = 0;
     if (dto.couponCode) {
-      const couponResult = this.validateCoupon(dto.couponCode, totals.subtotal);
-      if (couponResult.valid) {
-        discountAmount = couponResult.discountAmount;
-        totals.discount = discountAmount;
-        totals.total = Math.max(0, totals.total - discountAmount);
+      const couponResult = evaluateCoupon(dto.couponCode, totals.subtotal);
+      if (!couponResult.valid) {
+        throw new BadRequestException('Invalid coupon code');
       }
+      discountAmount = couponResult.discountAmount;
+      totals.discount = discountAmount;
+      totals.total = Math.max(0, totals.total - discountAmount);
+      dto.couponCode = couponResult.code;
     }
 
     const orderNumber = await this.generateOrderNumber();
@@ -534,6 +537,17 @@ export class OrdersService {
     };
   }
 
+  /**
+   * Validate a coupon code (whitelist only — no open WELCOME* parsing).
+   */
+  async validateCoupon(
+    code: string,
+    _userId?: string,
+    subtotal = 100,
+  ): Promise<{ valid: boolean; discountAmount: number; code?: string }> {
+    return evaluateCoupon(code, subtotal);
+  }
+
   private estimateShippingAmount(shippingMethod: string | undefined, subtotal: number): number {
     const code = (shippingMethod || 'standard').toLowerCase().replace(/-/g, '_');
     if (code === 'standard' && subtotal >= 10) return 0;
@@ -548,22 +562,6 @@ export class OrdersService {
     // Legacy / unknown carrier codes
     if (code === 'standard') return 1.5;
     return 2;
-  }
-
-  private validateCoupon(code: string, subtotal: number): {
-    valid: boolean;
-    discountAmount: number;
-  } {
-    const normalized = code.toUpperCase();
-    if (normalized === 'FLAT5') return { valid: true, discountAmount: Math.min(5, subtotal) };
-    if (normalized.startsWith('WELCOME')) {
-      const percent = parseInt(normalized.replace(/\D/g, ''), 10) || 10;
-      return {
-        valid: true,
-        discountAmount: Math.round(((subtotal * percent) / 100) * 1000) / 1000,
-      };
-    }
-    return { valid: false, discountAmount: 0 };
   }
 
   private async generateOrderNumber(): Promise<string> {

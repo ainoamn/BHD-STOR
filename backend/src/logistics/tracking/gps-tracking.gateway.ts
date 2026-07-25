@@ -136,12 +136,10 @@ export class GpsTrackingGateway
       }
 
       const isAdmin = isWsStaffRole(user.role);
-      // Identity from JWT only — never trust handshake.auth.role / driverId
+      // Identity from JWT only — never trust handshake.auth.role / driverId / vehicleId
       client.data.isAuthenticated = true;
       client.data.driverId = user.userId;
-      client.data.vehicleId = client.handshake.auth?.vehicleId as
-        | string
-        | undefined;
+      client.data.vehicleId = undefined;
       client.data.isAdmin = isAdmin;
 
       if (isAdmin) {
@@ -150,9 +148,6 @@ export class GpsTrackingGateway
       }
 
       client.join(`driver:${user.userId}`);
-      if (client.data.vehicleId) {
-        client.join(`vehicle:${client.data.vehicleId}`);
-      }
 
       client.emit('authenticated', {
         success: true,
@@ -215,14 +210,20 @@ export class GpsTrackingGateway
     }
 
     try {
-      // Prefer JWT-bound identity; staff may update on behalf of a driver
       const driverId = client.data.isAdmin
         ? payload.driverId || client.data.driverId
         : client.data.driverId;
-      const vehicleId = payload.vehicleId || client.data.vehicleId;
+      // Non-staff may only publish for a server-bound vehicle (not client-supplied)
+      const vehicleId = client.data.isAdmin
+        ? payload.vehicleId || client.data.vehicleId
+        : client.data.vehicleId;
 
       if (!driverId || !vehicleId) {
-        client.emit('error', { message: 'driverId and vehicleId required' });
+        client.emit('error', {
+          message: client.data.isAdmin
+            ? 'driverId and vehicleId required'
+            : 'No assigned vehicle for location updates',
+        });
         return;
       }
 
@@ -232,6 +233,15 @@ export class GpsTrackingGateway
         payload.driverId !== client.data.driverId
       ) {
         client.emit('error', { message: 'Cannot spoof driver identity' });
+        return;
+      }
+
+      if (
+        !client.data.isAdmin &&
+        payload.vehicleId &&
+        payload.vehicleId !== client.data.vehicleId
+      ) {
+        client.emit('error', { message: 'Cannot spoof vehicle identity' });
         return;
       }
 
@@ -279,7 +289,16 @@ export class GpsTrackingGateway
       return;
     }
 
+    if (!client.data.isAdmin) {
+      client.emit('error', { message: 'Admin access required' });
+      return;
+    }
+
     const { vehicleId } = payload;
+    if (!vehicleId) {
+      client.emit('error', { message: 'vehicleId required' });
+      return;
+    }
 
     // Join the vehicle room
     client.join(`vehicle:${vehicleId}`);
@@ -371,6 +390,15 @@ export class GpsTrackingGateway
     @MessageBody() payload: { vehicleId: string },
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
+    if (!client.data.isAuthenticated) {
+      client.emit('error', { message: 'Not authenticated' });
+      return;
+    }
+    if (!client.data.isAdmin) {
+      client.emit('error', { message: 'Admin access required' });
+      return;
+    }
+
     try {
       const driverId = await this.redisStore.getDriverByVehicle(
         payload.vehicleId,

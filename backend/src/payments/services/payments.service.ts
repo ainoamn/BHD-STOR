@@ -25,6 +25,10 @@ import { CCAvenueService } from './ccavenue.service';
 import { OrdersService } from '../../orders/orders.service';
 import { isStaffRole } from '../../auth/utils/roles';
 import { PaymentStatus } from '../../orders/entities/order.entity';
+import {
+  resolveChargeAmount,
+  webhookAmountMatchesOrder,
+} from '../utils/payment-amount';
 
 export interface PaymentResult {
   success: boolean;
@@ -90,30 +94,31 @@ export class PaymentsService {
    * Process a payment through the selected gateway
    */
   async processPayment(userId: string, dto: ProcessPaymentDto): Promise<PaymentResult> {
-    const { orderId, gateway, paymentMethodId, currency, amount, customerEmail, customerName, metadata } = dto;
+    const { orderId, gateway, paymentMethodId, customerEmail, customerName, metadata } = dto;
     const returnUrl = this.sanitizePaymentReturnUrl(dto.returnUrl);
     const normalizedGateway = this.normalizeGatewayCode(gateway || '');
 
     this.logger.log(`Processing payment for order ${orderId} via ${normalizedGateway}`);
 
-    await this.assertGatewayEnabled(normalizedGateway);
-
-    // All gateways: payer must own the order (admins may pay on behalf later via separate flow)
-    if (orderId) {
-      await this.assertOrderOwnedByUser(orderId, userId);
+    if (!orderId) {
+      throw new BadRequestException('orderId is required');
     }
+
+    await this.assertGatewayEnabled(normalizedGateway);
+    await this.assertOrderOwnedByUser(orderId, userId);
+
+    const order = await this.ordersService.findOne(orderId);
+    const amount = resolveChargeAmount(Number(order.total), dto.amount);
+    const currency = String(order.currency || dto.currency || 'OMR').toUpperCase();
 
     // Cash on delivery — no external gateway; order already confirmed at create
     if (normalizedGateway === 'cod' || normalizedGateway === 'cash_on_delivery') {
-      if (!orderId) {
-        throw new BadRequestException('orderId is required for COD');
-      }
       return {
         success: true,
         paymentId: `cod_${orderId}`,
         status: 'pending',
-        amount: amount || 0,
-        currency: currency || 'OMR',
+        amount,
+        currency,
         gateway: 'cod',
         metadata: { method: 'cash_on_delivery', note: 'Pay on delivery' },
       };
@@ -154,7 +159,7 @@ export class PaymentsService {
 
           const result = await this.stripeService.createPaymentIntent(
             orderId,
-            amount || 0,
+            amount,
             currency,
             customerId,
             paymentMethodId,
@@ -177,7 +182,7 @@ export class PaymentsService {
         case 'paypal': {
           const result = await this.paypalService.createOrder(
             orderId,
-            amount || 0,
+            amount,
             currency,
             returnUrl,
             undefined,
@@ -199,7 +204,7 @@ export class PaymentsService {
         case 'oman_net': {
           const result = await this.omanNetService.initiatePayment(
             orderId,
-            amount || 0,
+            amount,
             currency,
             returnUrl,
             customerEmail,
@@ -219,15 +224,18 @@ export class PaymentsService {
         }
 
         case 'thawani': {
-          const products = metadata?.products || [{
-            name: `Order ${orderId}`,
-            unit_amount: amount || 0,
-            quantity: 1,
-          }];
+          // Never trust client-supplied product unit amounts
+          const products = [
+            {
+              name: `Order ${orderId}`,
+              unit_amount: amount,
+              quantity: 1,
+            },
+          ];
 
           const result = await this.thawaniService.createSession(
             orderId,
-            amount || 0,
+            amount,
             products,
             returnUrl,
             customerEmail,
@@ -250,7 +258,7 @@ export class PaymentsService {
         case 'telr': {
           const result = await this.telrService.createPayment(
             orderId,
-            amount || 0,
+            amount,
             currency,
             metadata?.description,
             customerEmail,
@@ -273,7 +281,7 @@ export class PaymentsService {
         case 'ccavenue': {
           const result = await this.ccavenueService.initiatePayment(
             orderId,
-            amount || 0,
+            amount,
             currency,
             returnUrl,
             undefined,
@@ -303,6 +311,13 @@ export class PaymentsService {
           throw new BadRequestException(`Gateway ${gateway} processing not implemented`);
       }
     } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
       this.logger.error(`Payment processing failed for order ${orderId}: ${error.message}`, error.stack);
       throw new InternalServerErrorException(`Payment processing failed: ${error.message}`);
     }
@@ -791,7 +806,12 @@ export class PaymentsService {
    */
   private async applyWebhookToOrder(
     gateway: string,
-    result: { success: boolean; orderId?: string; action: string },
+    result: {
+      success: boolean;
+      orderId?: string;
+      action: string;
+      amount?: number;
+    },
   ): Promise<void> {
     if (!result.orderId) {
       this.logger.warn(`Webhook ${gateway}/${result.action} has no orderId — order not updated`);
@@ -810,10 +830,20 @@ export class PaymentsService {
 
     try {
       if (paidActions.includes(result.action) && result.success) {
+        const existing = await this.ordersService.findOne(result.orderId);
+        if (
+          !webhookAmountMatchesOrder(Number(existing.total), result.amount)
+        ) {
+          this.logger.error(
+            `Webhook amount mismatch for order ${result.orderId}: paid=${result.amount} expected=${existing.total}`,
+          );
+          return;
+        }
+
         const order = await this.ordersService.applyPaymentWebhook(
           result.orderId,
           PaymentStatus.PAID,
-          { gateway, action: result.action },
+          { gateway, action: result.action, amount: result.amount },
         );
         this.eventEmitter.emit('order.paid', {
           orderId: order.id,
