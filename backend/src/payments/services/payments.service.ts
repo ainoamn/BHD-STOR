@@ -309,7 +309,32 @@ export class PaymentsService {
   }
 
   /**
-   * Verify a payment status
+   * Verify payment (JWT user): must own/view the DB payment, or be staff for orphan gateway ids.
+   */
+  async verifyPaymentForUser(
+    paymentId: string,
+    gateway: PaymentGatewayType,
+    userId: string,
+    role?: string,
+    gatewayData?: any,
+  ): Promise<PaymentResult> {
+    const paymentRecord = await this.findPaymentByIdOrGatewayRef(paymentId);
+    if (paymentRecord) {
+      await this.assertPaymentViewAccess(paymentRecord, userId, role);
+      const gw = (paymentRecord.gateway || gateway) as PaymentGatewayType;
+      const externalId = paymentRecord.transactionId || paymentId;
+      return this.verifyPayment(externalId, gw, gatewayData);
+    }
+
+    if (!isStaffRole(role)) {
+      throw new ForbiddenException('Payment not found or access denied');
+    }
+
+    return this.verifyPayment(paymentId, gateway, gatewayData);
+  }
+
+  /**
+   * Verify a payment status (gateway call; prefer verifyPaymentForUser from HTTP)
    */
   async verifyPayment(paymentId: string, gateway: PaymentGatewayType, gatewayData?: any): Promise<PaymentResult> {
     this.logger.log(`Verifying payment ${paymentId} on ${gateway}`);
@@ -994,55 +1019,83 @@ export class PaymentsService {
   }
 
   /**
-   * Capture an authorized payment
+   * Capture an authorized payment (store owner or staff only).
    */
-  async capturePayment(paymentId: string, gateway: PaymentGatewayType, amount?: number): Promise<PaymentResult> {
+  async capturePayment(
+    paymentId: string,
+    gateway: PaymentGatewayType,
+    amount?: number,
+    userId?: string,
+    role?: string,
+  ): Promise<PaymentResult> {
     this.logger.log(`Capturing payment ${paymentId} on ${gateway}`);
 
+    if (!userId) {
+      throw new ForbiddenException('Authentication required to capture payment');
+    }
+
+    const paymentRecord = await this.findPaymentByIdOrGatewayRef(paymentId);
+    if (!paymentRecord) {
+      throw new NotFoundException(`Payment ${paymentId} not found`);
+    }
+    await this.assertPaymentManageAccess(paymentRecord, userId, role);
+
+    const resolvedGateway = (paymentRecord.gateway || gateway) as PaymentGatewayType;
+    const externalId = paymentRecord.transactionId || paymentId;
+
     try {
-      switch (gateway) {
+      switch (resolvedGateway) {
         case 'stripe': {
-          const result = await this.stripeService.confirmPayment(paymentId);
+          const result = await this.stripeService.confirmPayment(externalId);
           return {
             success: result.success,
             paymentId: result.paymentIntentId,
             status: result.status || 'unknown',
             amount: result.amount || 0,
             currency: result.currency || 'OMR',
-            gateway,
+            gateway: resolvedGateway,
             error: result.error,
           };
         }
 
         case 'paypal': {
-          const result = await this.paypalService.captureOrder(paymentId);
+          const result = await this.paypalService.captureOrder(externalId);
           return {
             success: result.success,
             transactionId: result.captureId,
             status: result.status || 'unknown',
             amount: result.amount || 0,
             currency: 'OMR',
-            gateway,
+            gateway: resolvedGateway,
             error: result.error,
           };
         }
 
         case 'telr': {
-          const result = await this.telrService.capturePayment(paymentId, amount);
+          const result = await this.telrService.capturePayment(externalId, amount);
           return {
             success: result.success,
             transactionId: result.transactionId,
             status: result.status || 'unknown',
             amount: amount || 0,
             currency: 'OMR',
-            gateway,
+            gateway: resolvedGateway,
           };
         }
 
         default:
-          throw new BadRequestException(`Capture not supported for gateway: ${gateway}`);
+          throw new BadRequestException(
+            `Capture not supported for gateway: ${resolvedGateway}`,
+          );
       }
     } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
       this.logger.error(`Payment capture failed: ${error.message}`, error.stack);
       throw new InternalServerErrorException(`Capture failed: ${error.message}`);
     }
@@ -1101,10 +1154,23 @@ export class PaymentsService {
   // ---- Private helper methods ----
 
   /**
-   * Retrieve a payment record from the database by ID
+   * Retrieve a payment record from the database by UUID or gateway transaction id
    */
   private async getPaymentRecord(paymentId: string): Promise<PaymentRecord | null> {
-    const payment = await this.paymentRepository.findOne({ where: { id: paymentId } });
+    return this.findPaymentByIdOrGatewayRef(paymentId);
+  }
+
+  private async findPaymentByIdOrGatewayRef(
+    paymentId: string,
+  ): Promise<PaymentRecord | null> {
+    let payment = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+    });
+    if (!payment) {
+      payment = await this.paymentRepository.findOne({
+        where: { gatewayTransactionId: paymentId },
+      });
+    }
 
     if (!payment) {
       return null;

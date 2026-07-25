@@ -46,6 +46,7 @@ import { isStaffRole } from '../auth/utils/roles';
 import { UserRole } from '../users/entities/user.entity';
 import {
   requireOrderIdForSellerShipment,
+  assertShipmentTiedToOrder,
 } from './utils/shipment-access';
 
 @ApiTags('Shipping')
@@ -287,7 +288,12 @@ export class ShippingController {
     @Res() res: Response,
   ) {
     const userId = requireRequestUserId(req.user);
-    await this.assertSellerShipmentAccess(userId, req.user?.role, orderId);
+    await this.assertSellerShipmentAccess(
+      userId,
+      req.user?.role,
+      orderId,
+      shipmentId,
+    );
 
     this.logger.log(`Label download request: ${carrier} shipment ${shipmentId} by ${userId}`);
 
@@ -351,7 +357,12 @@ export class ShippingController {
     @Req() req: any,
   ) {
     const userId = requireRequestUserId(req.user);
-    await this.assertSellerShipmentAccess(userId, req.user?.role, orderId);
+    await this.assertSellerShipmentAccess(
+      userId,
+      req.user?.role,
+      orderId,
+      shipmentId,
+    );
 
     this.logger.log(
       `Shipment cancellation request: ${carrier} #${shipmentId} by ${userId}`,
@@ -611,18 +622,39 @@ export class ShippingController {
   }
 
   /**
-   * Staff may act on any shipment. Sellers must pass orderId they manage.
+   * Staff may act without orderId. Sellers must pass orderId they manage,
+   * and the path shipment id must match that order's tracking/refs.
    */
   private async assertSellerShipmentAccess(
     userId: string,
-    role?: string,
-    orderId?: string,
+    role: string | undefined,
+    orderId: string | undefined,
+    carrierShipmentId: string,
   ): Promise<void> {
     requireOrderIdForSellerShipment(role, orderId);
-    if (isStaffRole(role)) {
+
+    if (isStaffRole(role) && !orderId) {
       return;
     }
+
     const order = await this.ordersService.findOne(orderId!);
     this.ordersService.assertOrderManageAccess(order, userId, role);
+
+    const metaRefs: Array<string | null | undefined> = [];
+    const meta = (order as any).metadata || (order as any).shippingMeta;
+    if (meta && typeof meta === 'object') {
+      metaRefs.push(
+        meta.carrierShipmentId,
+        meta.awb,
+        meta.trackingNumber,
+        meta.shipmentId,
+      );
+    }
+
+    assertShipmentTiedToOrder(
+      carrierShipmentId,
+      order.trackingNumber,
+      metaRefs,
+    );
   }
 }

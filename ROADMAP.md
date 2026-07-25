@@ -4,7 +4,7 @@
 > الخطط التاريخية في `docs/plans/` محفوظة للأرشيف فقط — لا تُكرَّر هنا ولا تُحدَّث كخطط عمل نشطة.  
 > المستودع الرسمي: [github.com/ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR)
 
-آخر مراجعة: 2026-07-25 · واتساب/GPS WS + middleware · المسار المعتمد: `C:\dev\bhd-app`  
+آخر مراجعة: 2026-07-25 · شحن↔طلب + capture + logistics WS · المسار المعتمد: `C:\dev\bhd-app`  
 نقل لجهاز ثانٍ: [`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md)
 
 ---
@@ -78,6 +78,7 @@
 | P0 ✓ | حذف رفع بملكية publicId + path-safe · Blockchain `@Roles` · واتساب webhook موقّع | حذف ملفات الآخرين / سجلات وهمية / رسائل مزوّرة |
 | P0 ✓ | ملكية منتجات (CRUD/حالة/مخزون/صور) + تقييد نطاقات API keys · advanced analytics ADMIN · gamification self-or-staff | تعديل كتالوج الغير / مفاتيح بصلاحيات أدمن |
 | P0 ✓ | واتساب WS بـ JWT+staff · GPS/logistics WS بـ JWT · middleware بدون `bhd_session` وحده | إرسال واتساب مزوّر / تجاوز واجهة محمية |
+| P0 ✓ | label/cancel مربوط بتتبع الطلب · capture/verify بملكية دفع · logistics track بلا PII لغير staff | إلغاء شحنات الغير / capture مدفوعات / تسريب عناوين |
 | P1 | تكاملات الدفع/الشحن تحتاج sandbox keys واختبار webhooks | أموال وشحنات خاطئة |
 | P1 ✓ | SECURITY.md: جدول الحالة صادق (TypeORM، لا SOC2، MFA جزئي) | تضليل تشغيلي |
 | P1 ✓ | Redis-backed rate limit (`ThrottlerGuard` + memory fallback) | حدود معدل عبر عدة عمليات |

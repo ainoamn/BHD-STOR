@@ -1,7 +1,9 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
+  assertShipmentTiedToOrder,
   rejectCustomerShipmentRole,
   requireOrderIdForSellerShipment,
+  shipmentIdMatchesOrder,
 } from './shipment-access';
 
 describe('shipment-access helpers', () => {
@@ -23,5 +25,20 @@ describe('shipment-access helpers', () => {
     expect(() => rejectCustomerShipmentRole('customer')).toThrow(
       ForbiddenException,
     );
+  });
+
+  it('shipmentIdMatchesOrder ties AWB to order tracking', () => {
+    expect(shipmentIdMatchesOrder('AWB-1', 'awb-1')).toBe(true);
+    expect(shipmentIdMatchesOrder('AWB-1', 'other', ['awb-1'])).toBe(true);
+    expect(shipmentIdMatchesOrder('AWB-9', 'awb-1')).toBe(false);
+  });
+
+  it('assertShipmentTiedToOrder rejects unbound ids', () => {
+    expect(() =>
+      assertShipmentTiedToOrder('AWB-9', 'awb-1'),
+    ).toThrow(ForbiddenException);
+    expect(() =>
+      assertShipmentTiedToOrder('AWB-1', 'awb-1'),
+    ).not.toThrow();
   });
 });

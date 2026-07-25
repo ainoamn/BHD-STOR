@@ -7,17 +7,22 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { WebSocketGateway, WebSocketServer, SubscribeMessage } from '@nestjs/websockets';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { WebSocketGateway, WebSocketServer, SubscribeMessage, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 
 import { Shipment } from '../entities/shipment.entity';
 import { Driver } from '../entities/driver.entity';
 import { ShipmentStatus, DriverStatus } from '../enums/logistics.enum';
-
+import {
+  extractWsHandshakeToken,
+  isWsStaffRole,
+  resolveWsUserFromJwtPayload,
+} from '../../chat/utils/ws-auth';
 // ─── Event Types ────────────────────────────────────────────
 
 export interface ShipmentCreatedEvent {
@@ -327,7 +332,9 @@ export class ShipmentEventEmitterService {
   transports: ['websocket', 'polling'],
 })
 @Injectable()
-export class TrackingWebSocketGateway {
+export class TrackingWebSocketGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(TrackingWebSocketGateway.name);
 
   @WebSocketServer()
@@ -337,12 +344,63 @@ export class TrackingWebSocketGateway {
     private readonly eventEmitter: EventEmitter2,
     @InjectRepository(Shipment)
     private readonly shipmentRepo: Repository<Shipment>,
+    @InjectRepository(Driver)
+    private readonly driverRepo: Repository<Driver>,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   // ── Socket.IO Lifecycle ────────────────────────────
 
-  handleConnection(client: Socket): void {
-    this.logger.log(`Client connected: ${client.id}`);
+  async handleConnection(client: Socket): Promise<void> {
+    try {
+      const token = extractWsHandshakeToken(client.handshake);
+      if (!token) {
+        client.emit('track:error', { message: 'Authentication required' });
+        client.disconnect(true);
+        return;
+      }
+
+      const payload = await this.jwtService.verifyAsync<{
+        sub?: string;
+        userId?: string;
+        email?: string;
+        role?: string;
+        type?: string;
+      }>(token, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        issuer: this.configService.get<string>(
+          'JWT_ISSUER',
+          'bhd-oman-marketplace',
+        ),
+        audience: this.configService.get<string>(
+          'JWT_AUDIENCE',
+          'bhd-oman-api',
+        ),
+      });
+
+      const user = resolveWsUserFromJwtPayload(payload);
+      if (!user) {
+        client.emit('track:error', { message: 'Invalid token' });
+        client.disconnect(true);
+        return;
+      }
+
+      client.data.userId = user.userId;
+      client.data.role = user.role;
+      client.data.isStaff = isWsStaffRole(user.role);
+      this.logger.log(
+        `Logistics WS connected: ${client.id} as ${user.userId}`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Logistics WS auth failed for ${client.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      client.emit('track:error', { message: 'Authentication failed' });
+      client.disconnect(true);
+    }
   }
 
   handleDisconnect(client: Socket): void {
@@ -352,13 +410,21 @@ export class TrackingWebSocketGateway {
   // ── Client Subscriptions ───────────────────────────
 
   /**
-   * Client subscribes to tracking updates for a specific shipment
+   * Client subscribes to tracking updates for a specific shipment.
+   * Non-staff receive redacted public tracking (no sender/recipient PII).
    */
   @SubscribeMessage('track:shipment')
-  async handleTrackShipment(client: Socket, payload: { trackingNumber: string }): Promise<void> {
+  async handleTrackShipment(
+    client: Socket,
+    payload: { trackingNumber: string },
+  ): Promise<void> {
+    if (!client.data?.userId) {
+      client.emit('track:error', { message: 'Authentication required' });
+      return;
+    }
+
     const { trackingNumber } = payload;
 
-    // Validate tracking number
     const shipment = await this.shipmentRepo.findOne({
       where: { trackingNumber },
     });
@@ -368,27 +434,48 @@ export class TrackingWebSocketGateway {
       return;
     }
 
-    // Join room for this shipment
     const room = `shipment:${shipment.id}`;
     await client.join(room);
 
     this.logger.log(`Client ${client.id} joined room ${room}`);
 
-    // Send initial tracking data
-    client.emit('track:init', {
+    const base = {
       trackingNumber: shipment.trackingNumber,
       status: shipment.status,
-      estimatedDelivery: shipment.estimatedDelivery,
-      sender: { name: shipment.senderName, address: shipment.senderAddress },
-      recipient: { name: shipment.recipientName, address: shipment.recipientAddress },
-    });
+      estimatedDelivery:
+        (shipment as any).estimatedDelivery ||
+        shipment.promisedDeliveryDate ||
+        null,
+    };
+
+    if (client.data.isStaff) {
+      client.emit('track:init', {
+        ...base,
+        sender: {
+          name: shipment.senderName,
+          address: shipment.senderAddress,
+        },
+        recipient: {
+          name: shipment.receiverName,
+          address: shipment.receiverAddress,
+        },
+      });
+      return;
+    }
+
+    client.emit('track:init', base);
   }
 
   /**
    * Client unsubscribes from a shipment
    */
   @SubscribeMessage('untrack:shipment')
-  async handleUntrackShipment(client: Socket, payload: { trackingNumber: string }): Promise<void> {
+  async handleUntrackShipment(
+    client: Socket,
+    payload: { trackingNumber: string },
+  ): Promise<void> {
+    if (!client.data?.userId) return;
+
     const shipment = await this.shipmentRepo.findOne({
       where: { trackingNumber: payload.trackingNumber },
     });
@@ -398,11 +485,35 @@ export class TrackingWebSocketGateway {
   }
 
   /**
-   * Client subscribes to driver location updates
+   * Client subscribes to driver location updates (self or staff only).
    */
   @SubscribeMessage('track:driver')
-  async handleTrackDriver(client: Socket, payload: { driverId: string }): Promise<void> {
-    const room = `driver:${payload.driverId}`;
+  async handleTrackDriver(
+    client: Socket,
+    payload: { driverId: string },
+  ): Promise<void> {
+    if (!client.data?.userId) {
+      client.emit('track:error', { message: 'Authentication required' });
+      return;
+    }
+
+    const driverId = String(payload?.driverId || '').trim();
+    if (!driverId) {
+      client.emit('track:error', { message: 'driverId required' });
+      return;
+    }
+
+    if (!client.data.isStaff) {
+      const driver = await this.driverRepo.findOne({
+        where: { id: driverId },
+      });
+      if (!driver || driver.userId !== client.data.userId) {
+        client.emit('track:error', { message: 'Driver access denied' });
+        return;
+      }
+    }
+
+    const room = `driver:${driverId}`;
     await client.join(room);
     this.logger.log(`Client ${client.id} joined room ${room}`);
   }

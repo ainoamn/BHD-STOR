@@ -101,14 +101,22 @@ export class PaymentsController {
   async verifyPayment(
     @Body('paymentId') paymentId: string,
     @Body('gateway') gateway: PaymentGatewayType,
-    @Body('gatewayData') gatewayData?: any,
+    @Body('gatewayData') gatewayData: any,
+    @Req() req: any,
   ) {
     if (!paymentId || !gateway) {
       throw new BadRequestException('paymentId and gateway are required');
     }
 
+    const userId = requireRequestUserId(req.user);
     this.logger.log(`Payment verification request for ${paymentId} on ${gateway}`);
-    return this.paymentsService.verifyPayment(paymentId, gateway, gatewayData);
+    return this.paymentsService.verifyPaymentForUser(
+      paymentId,
+      gateway,
+      userId,
+      req.user?.role,
+      gatewayData,
+    );
   }
 
   /**
@@ -437,12 +445,20 @@ export class PaymentsController {
   async capturePayment(
     @Body('paymentId') paymentId: string,
     @Body('gateway') gateway: PaymentGatewayType,
-    @Body('amount') amount?: number,
+    @Body('amount') amount: number | undefined,
+    @Req() req: any,
   ) {
     if (!paymentId || !gateway) {
       throw new BadRequestException('paymentId and gateway are required');
     }
 
-    return this.paymentsService.capturePayment(paymentId, gateway, amount);
+    const userId = requireRequestUserId(req.user);
+    return this.paymentsService.capturePayment(
+      paymentId,
+      gateway,
+      amount,
+      userId,
+      req.user?.role,
+    );
   }
 }
