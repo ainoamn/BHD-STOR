@@ -1,7 +1,7 @@
 # دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-07-25  
-**HEAD على `main`:** *(بعد الدفع)* — شحن مربوط بالطلب + capture + logistics WS  
+**HEAD على `main`:** 2af0611 — شحن مربوط بالطلب + capture + logistics WS  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 
 > اقرأ هذا الملف أولاً على الجهاز الجديد، ثم `ROADMAP.md` و`docs/SESSION-2026-07-21.md` و`docs/SECURITY-AUDIT-2026-07-25.md`.
