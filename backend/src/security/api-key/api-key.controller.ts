@@ -24,6 +24,10 @@ import { Request } from 'express';
 import { ApiKeyService, RawApiKey } from './api-key.service';
 import { ApiKey, ApiKeyScope } from './entities/api-key.entity';
 import { requireRequestUserId } from '../../auth/utils/request-user';
+import {
+  assertApiKeyScopesAllowed,
+  scopesAllowedForRole,
+} from './utils/api-key-scopes';
 
 /** DTO for creating an API key */
 class CreateApiKeyDto {
@@ -59,6 +63,10 @@ export class ApiKeyController {
   ): Promise<RawApiKey> {
     // @ts-expect-error user from auth
     const userId = requireRequestUserId(req.user);
+    // @ts-expect-error user from auth
+    const role = req.user?.role as string | undefined;
+
+    assertApiKeyScopesAllowed(dto.scopes, role);
 
     const clientIp = req.ip || 'unknown';
     const userAgent = req.headers['user-agent'] || 'unknown';
@@ -149,12 +157,16 @@ export class ApiKeyController {
 
   /**
    * GET /api-keys/scopes
-   * List all available API key scopes.
+   * List API key scopes allowed for the caller's role.
    */
   @Get('scopes')
   @HttpCode(HttpStatus.OK)
-  getAvailableScopes(): { scope: ApiKeyScope; description: string }[] {
-    return Object.values(ApiKeyScope).map((scope) => ({
+  getAvailableScopes(
+    @Req() req: Request,
+  ): { scope: ApiKeyScope; description: string }[] {
+    // @ts-expect-error user from auth
+    const role = req.user?.role as string | undefined;
+    return scopesAllowedForRole(role).map((scope) => ({
       scope,
       description: this.getScopeDescription(scope),
     }));

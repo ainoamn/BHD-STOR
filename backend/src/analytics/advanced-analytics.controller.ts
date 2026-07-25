@@ -7,7 +7,10 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { AdvancedAnalyticsService } from './services/advanced-analytics.service';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
+@Roles(UserRole.ADMIN)
 @Controller('analytics')
 export class AdvancedAnalyticsController {
   constructor(private readonly analyticsService: AdvancedAnalyticsService) {}

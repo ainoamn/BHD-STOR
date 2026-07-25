@@ -48,7 +48,15 @@ export class GamificationController {
   @Get('users/:userId/achievements')
   async getUserAchievements(
     @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() req: any,
   ): Promise<UserAchievement[]> {
+    const requesterId = requireRequestUserId(req.user);
+    assertSelfOrStaff(
+      requesterId,
+      userId,
+      req.user?.role,
+      'You can only view your own achievements',
+    );
     return this.gamificationService.getUserAchievements(userId);
   }
 
@@ -90,7 +98,15 @@ export class GamificationController {
   @Get('users/:userId/badges')
   async getUserBadges(
     @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() req: any,
   ): Promise<UserBadge[]> {
+    const requesterId = requireRequestUserId(req.user);
+    assertSelfOrStaff(
+      requesterId,
+      userId,
+      req.user?.role,
+      'You can only view your own badges',
+    );
     return this.gamificationService.getUserBadges(userId);
   }
 
@@ -153,7 +169,15 @@ export class GamificationController {
   @Get('users/:userId/stats')
   async getUserStats(
     @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() req: any,
   ): Promise<UserGamificationStats> {
+    const requesterId = requireRequestUserId(req.user);
+    assertSelfOrStaff(
+      requesterId,
+      userId,
+      req.user?.role,
+      'You can only view your own gamification stats',
+    );
     return this.gamificationService.getUserStats(userId);
   }
 }

@@ -32,7 +32,6 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductFilterDto } from './dto/product-filter.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { requireRequestUserId } from '../auth/utils/request-user';
-import { isStaffRole } from '../auth/utils/roles';
 import { UploadService } from '../upload/upload.service';
 import { Public } from '../common/decorators/public.decorator';
 
@@ -51,9 +50,14 @@ export class ProductsController {
   @ApiResponse({ status: 201, description: 'Product created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Not store owner' })
   @ApiResponse({ status: 404, description: 'Store or category not found' })
   async create(@Body() dto: CreateProductDto, @Request() req) {
-    const product = await this.productsService.create(requireRequestUserId(req.user), dto);
+    const product = await this.productsService.create(
+      requireRequestUserId(req.user),
+      dto,
+      req.user?.role,
+    );
     return {
       success: true,
       message: 'Product created successfully',
@@ -186,21 +190,15 @@ export class ProductsController {
   @ApiParam({ name: 'id', description: 'Product UUID', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Product updated successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Not store owner' })
   @ApiResponse({ status: 404, description: 'Product not found' })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProductDto,
     @Request() req,
   ) {
-    const product = await this.productsService.findOne(id);
-    const isOwner = await this.productsService.checkOwnership(id, product.store?.id);
-    if (!isOwner && !isStaffRole(req.user.role)) {
-      return {
-        success: false,
-        message: 'You do not have permission to update this product',
-      };
-    }
-
+    const userId = requireRequestUserId(req.user);
+    await this.productsService.assertManageAccess(id, userId, req.user?.role);
     const updatedProduct = await this.productsService.update(id, dto);
     return {
       success: true,
@@ -217,17 +215,11 @@ export class ProductsController {
   @ApiParam({ name: 'id', description: 'Product UUID', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Product deleted successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Not store owner' })
   @ApiResponse({ status: 404, description: 'Product not found' })
   async remove(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    const product = await this.productsService.findOne(id);
-    const isOwner = await this.productsService.checkOwnership(id, product.store?.id);
-    if (!isOwner && !isStaffRole(req.user.role)) {
-      return {
-        success: false,
-        message: 'You do not have permission to delete this product',
-      };
-    }
-
+    const userId = requireRequestUserId(req.user);
+    await this.productsService.assertManageAccess(id, userId, req.user?.role);
     await this.productsService.remove(id);
     return {
       success: true,
@@ -241,10 +233,14 @@ export class ProductsController {
   @ApiOperation({ summary: 'Update product status' })
   @ApiParam({ name: 'id', description: 'Product UUID', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Status updated successfully' })
+  @ApiResponse({ status: 403, description: 'Not store owner' })
   async updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('status') status: ProductStatus,
+    @Request() req,
   ) {
+    const userId = requireRequestUserId(req.user);
+    await this.productsService.assertManageAccess(id, userId, req.user?.role);
     const product = await this.productsService.updateStatus(id, status);
     return {
       success: true,
@@ -260,10 +256,14 @@ export class ProductsController {
   @ApiParam({ name: 'id', description: 'Product UUID', format: 'uuid' })
   @ApiBody({ schema: { properties: { quantity: { type: 'number', example: 50 } } } })
   @ApiResponse({ status: 200, description: 'Inventory updated successfully' })
+  @ApiResponse({ status: 403, description: 'Not store owner' })
   async updateInventory(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('quantity') quantity: number,
+    @Request() req,
   ) {
+    const userId = requireRequestUserId(req.user);
+    await this.productsService.assertManageAccess(id, userId, req.user?.role);
     const product = await this.productsService.updateInventory(id, quantity);
     return {
       success: true,
@@ -287,18 +287,20 @@ export class ProductsController {
       },
     },
   })
+  @ApiResponse({ status: 403, description: 'Not store owner' })
   async uploadImages(
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFiles() files: Express.Multer.File[],
     @Request() req,
   ) {
-    const product = await this.productsService.findOne(id);
-    const isOwner = await this.productsService.checkOwnership(id, product.store?.id);
-    if (!isOwner) {
-      return { success: false, message: 'Permission denied' };
-    }
+    const userId = requireRequestUserId(req.user);
+    const product = await this.productsService.assertManageAccess(
+      id,
+      userId,
+      req.user?.role,
+    );
 
-    const uploadResults = await this.uploadService.uploadMultiple(files);
+    const uploadResults = await this.uploadService.uploadMultiple(files, userId);
     const imageUrls = uploadResults.map((r) => r.url);
 
     const currentImages = product.images || [];

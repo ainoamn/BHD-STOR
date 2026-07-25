@@ -13,6 +13,10 @@ import { CreateProductDto, ProductStatus } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductFilterDto, ProductSortField } from './dto/product-filter.dto';
 import slugify from 'slugify';
+import {
+  assertProductManageAccess,
+  assertStoreProductAccess,
+} from './utils/product-access';
 
 @Injectable()
 export class ProductsService {
@@ -42,17 +46,28 @@ export class ProductsService {
   }
 
   /**
-   * Create a new product
+   * Create a new product (caller must own dto.storeId unless staff).
    */
-  async create(storeId: string, dto: CreateProductDto): Promise<Product> {
-    const store = await this.storeRepository.findOne({ where: { id: dto.storeId } });
+  async create(
+    userId: string,
+    dto: CreateProductDto,
+    role?: string,
+  ): Promise<Product> {
+    const store = await this.storeRepository.findOne({
+      where: { id: dto.storeId },
+    });
     if (!store) {
       throw new NotFoundException(`Store with ID "${dto.storeId}" not found`);
     }
+    assertStoreProductAccess(store, userId, role);
 
-    const category = await this.categoryRepository.findOne({ where: { id: dto.categoryId } });
+    const category = await this.categoryRepository.findOne({
+      where: { id: dto.categoryId },
+    });
     if (!category) {
-      throw new NotFoundException(`Category with ID "${dto.categoryId}" not found`);
+      throw new NotFoundException(
+        `Category with ID "${dto.categoryId}" not found`,
+      );
     }
 
     const slug = await this.generateSlug(dto.name);
@@ -69,6 +84,22 @@ export class ProductsService {
     });
 
     return this.productRepository.save(product);
+  }
+
+  /**
+   * Load product and assert requester may manage it (store owner or staff).
+   */
+  async assertManageAccess(
+    productId: string,
+    userId: string,
+    role?: string,
+  ): Promise<Product> {
+    const product = await this.productRepository.findOne({
+      where: { id: productId },
+      relations: ['store', 'category'],
+    });
+    assertProductManageAccess(product, userId, role);
+    return product!;
   }
 
   /**
@@ -354,12 +385,25 @@ export class ProductsService {
   }
 
   /**
-   * Check if product belongs to store
+   * Whether the user owns the store that owns the product (or is staff).
+   * Prefer assertManageAccess for mutations (throws ForbiddenException).
    */
-  async checkOwnership(productId: string, storeId: string): Promise<boolean> {
-    const product = await this.productRepository.findOne({
-      where: { id: productId, store: { id: storeId } },
-    });
-    return !!product;
+  async checkOwnership(
+    productId: string,
+    userId: string,
+    role?: string,
+  ): Promise<boolean> {
+    try {
+      await this.assertManageAccess(productId, userId, role);
+      return true;
+    } catch (err) {
+      if (
+        err instanceof ForbiddenException ||
+        err instanceof NotFoundException
+      ) {
+        return false;
+      }
+      throw err;
+    }
   }
 }
