@@ -1,7 +1,7 @@
 # دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-07-25  
-**HEAD على `main`:** *(بعد الدفع)* — واتساب/GPS WS + middleware session  
+**HEAD على `main`:** 634b0f3 — واتساب/GPS WS + middleware session  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 
 > اقرأ هذا الملف أولاً على الجهاز الجديد، ثم `ROADMAP.md` و`docs/SESSION-2026-07-21.md` و`docs/SECURITY-AUDIT-2026-07-25.md`.
