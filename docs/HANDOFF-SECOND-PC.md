@@ -1,7 +1,7 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-07-25  
-**HEAD على `main`:** (يُحدَّث بعد الدفع) — سقف capture + واتساب /order + حد منتجات الباقة  
+**HEAD على `main`:** ff25a60 — سقف capture + واتساب /order + حد منتجات الباقة  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 
 > اقرأ هذا الملف أولاً على الجهاز الجديد، ثم `ROADMAP.md` و`docs/SESSION-2026-07-21.md` و`docs/SECURITY-AUDIT-2026-07-25.md`.
