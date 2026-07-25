@@ -69,6 +69,7 @@ export class SubscriptionsController {
     const data = await this.subscriptionsService.chooseMonetization(
       requireRequestUserId(req.user),
       dto,
+      req.user?.role,
     );
     return { success: true, message: 'Monetization updated', data };
   }
@@ -85,6 +86,7 @@ export class SubscriptionsController {
         plan: dto.plan as string,
         billingCycle: dto.billingCycle as string,
       },
+      req.user?.role,
     );
     return { success: true, message: 'Subscribed', data };
   }
@@ -105,6 +107,7 @@ export class SubscriptionsController {
     const data = await this.subscriptionsService.cancel(
       requireRequestUserId(req.user),
       dto.reason,
+      req.user?.role,
     );
     return { success: true, message: 'Switched to commission mode', data };
   }
@@ -118,6 +121,7 @@ export class SubscriptionsController {
       {
         newPlan: dto.newPlan as string,
       },
+      req.user?.role,
     );
     return { success: true, data };
   }

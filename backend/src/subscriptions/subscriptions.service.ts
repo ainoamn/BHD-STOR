@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +16,11 @@ import {
   ChooseMonetizationDto,
   MonetizationMode,
 } from './dto/choose-monetization.dto';
+import {
+  assertSelfServicePlanActivation,
+  clampCommissionPercent,
+} from './utils/plan-access';
+import { isStaffRole } from '../auth/utils/roles';
 
 const DEFAULT_PLANS: Array<Partial<SubscriptionPlanEntity>> = [
   {
@@ -137,12 +143,16 @@ export class SubscriptionsService {
     };
   }
 
-  async chooseMonetization(userId: string, dto: ChooseMonetizationDto) {
+  async chooseMonetization(
+    userId: string,
+    dto: ChooseMonetizationDto,
+    role?: string,
+  ) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
     if (dto.mode === MonetizationMode.PERCENTAGE) {
-      const percent = dto.commissionPercent ?? 10;
+      const percent = clampCommissionPercent(dto.commissionPercent ?? 10);
       user.commissionType = CommissionType.PERCENTAGE;
       user.commissionRate = percent;
       user.subscriptionPlan = UserPlan.FREE;
@@ -155,6 +165,11 @@ export class SubscriptionsService {
     }
 
     const plan = await this.getPlanByTier(dto.planTier);
+    // Sellers cannot self-attest paymentConfirmed — staff only
+    const paymentConfirmed =
+      isStaffRole(role) && dto.paymentConfirmed === true;
+    assertSelfServicePlanActivation(plan, role, { paymentConfirmed });
+
     user.commissionType = CommissionType.SUBSCRIPTION;
     user.subscriptionPlan = plan.tier as unknown as UserPlan;
     // Subscription sellers: per-order fee from plan (often 0–5%), stored as percent
@@ -173,33 +188,53 @@ export class SubscriptionsService {
     return this.getPlanByTier(tier);
   }
 
-  async subscribe(userId: string, dto: { plan: string; billingCycle?: string }) {
-    return this.chooseMonetization(userId, {
-      mode: MonetizationMode.SUBSCRIPTION,
-      planTier: dto.plan as PlanTier,
-    });
+  async subscribe(
+    userId: string,
+    dto: { plan: string; billingCycle?: string },
+    role?: string,
+  ) {
+    return this.chooseMonetization(
+      userId,
+      {
+        mode: MonetizationMode.SUBSCRIPTION,
+        planTier: dto.plan as PlanTier,
+      },
+      role,
+    );
   }
 
   async getMySubscription(userId: string) {
     return this.getMyMonetization(userId);
   }
 
-  async cancel(userId: string, _reason?: string) {
-    return this.chooseMonetization(userId, {
-      mode: MonetizationMode.PERCENTAGE,
-      commissionPercent: 10,
-    });
+  async cancel(userId: string, _reason?: string, role?: string) {
+    return this.chooseMonetization(
+      userId,
+      {
+        mode: MonetizationMode.PERCENTAGE,
+        commissionPercent: 10,
+      },
+      role,
+    );
   }
 
   async renew(userId: string) {
     return this.getMyMonetization(userId);
   }
 
-  async upgrade(userId: string, dto: { newPlan: string }) {
-    return this.chooseMonetization(userId, {
-      mode: MonetizationMode.SUBSCRIPTION,
-      planTier: dto.newPlan as PlanTier,
-    });
+  async upgrade(
+    userId: string,
+    dto: { newPlan: string },
+    role?: string,
+  ) {
+    return this.chooseMonetization(
+      userId,
+      {
+        mode: MonetizationMode.SUBSCRIPTION,
+        planTier: dto.newPlan as PlanTier,
+      },
+      role,
+    );
   }
 
   async checkFeatureAccess(userId: string, _feature: string) {

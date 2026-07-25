@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNumber, IsOptional, Max, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsOptional, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PlanTier } from '../entities/subscription-plan.entity';
 
@@ -33,7 +33,17 @@ export class ChooseMonetizationDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  @Min(0)
+  @Min(5)
   @Max(50)
   commissionPercent?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Set only after a successful subscription payment (or by staff). Ignored for free plans.',
+    example: false,
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  paymentConfirmed?: boolean;
 }

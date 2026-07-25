@@ -48,6 +48,7 @@ import {
   requireOrderIdForSellerShipment,
   assertShipmentTiedToOrder,
 } from './utils/shipment-access';
+import { resolveShipmentCodAmount } from './utils/shipment-cod';
 
 @ApiTags('Shipping')
 @Controller('shipping')
@@ -145,7 +146,12 @@ export class ShippingController {
       `Shipment creation request: order ${dto.orderId} via ${dto.carrierId} by ${userId}`,
     );
 
-    const { orderId, carrierId, senderAddress, recipientAddress, weight, dimensions, shippingMethod, insuranceAmount, signatureRequired, description, codAmount } = dto;
+    const { orderId, carrierId, senderAddress, recipientAddress, weight, dimensions, shippingMethod, insuranceAmount, signatureRequired, description } = dto;
+    const codAmount = resolveShipmentCodAmount(
+      order,
+      dto.codAmount,
+      req.user?.role,
+    );
 
     switch (carrierId) {
       case 'oman_post': {

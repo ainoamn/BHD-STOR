@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Payment } from '../entities/payment.entity';
+import { Payment, PaymentStatus as DbPaymentStatus } from '../entities/payment.entity';
 import { PaymentGateway } from '../entities/payment-gateway.entity';
 import { PaymentGatewayFactory, PaymentGatewayType } from './payment-gateway.factory';
 import { ProcessPaymentDto } from '../dto/process-payment.dto';
@@ -29,6 +29,10 @@ import {
   resolveChargeAmount,
   webhookAmountMatchesOrder,
 } from '../utils/payment-amount';
+import {
+  isPaymentRefundableStatus,
+  resolveRefundAmount,
+} from '../utils/refund-amount';
 
 export interface PaymentResult {
   success: boolean;
@@ -449,13 +453,38 @@ export class PaymentsService {
 
     this.logger.log(`Processing refund for payment ${paymentId}, amount: ${amount || 'full'}`);
 
-    // Lookup payment from database to get gateway info
-    const paymentRecord = await this.getPaymentRecord(paymentId);
+    const paymentEntity = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+    });
+    if (!paymentEntity) {
+      // Also allow lookup by gateway transaction id
+      const byGateway = await this.paymentRepository.findOne({
+        where: { gatewayTransactionId: paymentId },
+      });
+      if (!byGateway) {
+        throw new NotFoundException(`Payment ${paymentId} not found`);
+      }
+      return this.createRefund(userId, { ...dto, paymentId: byGateway.id }, role);
+    }
+
+    const paymentRecord = await this.getPaymentRecord(paymentEntity.id);
     if (!paymentRecord) {
       throw new NotFoundException(`Payment ${paymentId} not found`);
     }
 
     await this.assertPaymentManageAccess(paymentRecord, userId, role);
+
+    if (!isPaymentRefundableStatus(String(paymentEntity.status))) {
+      throw new BadRequestException(
+        `Payment status "${paymentEntity.status}" is not refundable`,
+      );
+    }
+
+    const refundAmount = resolveRefundAmount(
+      Number(paymentEntity.amount),
+      Number(paymentEntity.refundAmount || 0),
+      amount,
+    );
 
     try {
       const gateway = paymentRecord.gateway as PaymentGatewayType;
@@ -464,18 +493,17 @@ export class PaymentsService {
       switch (gateway) {
         case 'stripe': {
           result = await this.stripeService.createRefund(
-            paymentRecord.transactionId || paymentId,
-            amount,
+            paymentRecord.transactionId || paymentEntity.id,
+            refundAmount,
             reason,
           );
           break;
         }
 
         case 'paypal': {
-          // For PayPal, paymentId is the captureId
           result = await this.paypalService.createRefund(
-            paymentRecord.transactionId || paymentId,
-            amount,
+            paymentRecord.transactionId || paymentEntity.id,
+            refundAmount,
             reason,
           );
           break;
@@ -483,8 +511,8 @@ export class PaymentsService {
 
         case 'oman_net': {
           result = await this.omanNetService.createRefund(
-            paymentRecord.transactionId || paymentId,
-            amount,
+            paymentRecord.transactionId || paymentEntity.id,
+            refundAmount,
             reason,
           );
           break;
@@ -492,8 +520,8 @@ export class PaymentsService {
 
         case 'thawani': {
           result = await this.thawaniService.createRefund(
-            paymentRecord.transactionId || paymentId,
-            amount,
+            paymentRecord.transactionId || paymentEntity.id,
+            refundAmount,
             reason,
           );
           break;
@@ -501,8 +529,8 @@ export class PaymentsService {
 
         case 'telr': {
           result = await this.telrService.createRefund(
-            paymentRecord.transactionId || paymentId,
-            amount,
+            paymentRecord.transactionId || paymentEntity.id,
+            refundAmount,
             reason,
           );
           break;
@@ -511,8 +539,8 @@ export class PaymentsService {
         case 'ccavenue': {
           result = await this.ccavenueService.createRefund({
             orderId: paymentRecord.orderId,
-            referenceNo: paymentRecord.transactionId || paymentId,
-            refundAmount: amount || paymentRecord.amount,
+            referenceNo: paymentRecord.transactionId || paymentEntity.id,
+            refundAmount,
             refundCurrency: paymentRecord.currency,
             refundReason: `${reason}: ${notes || ''}`,
           });
@@ -524,12 +552,23 @@ export class PaymentsService {
       }
 
       if (result.success) {
-        this.logger.log(`Refund processed successfully for payment ${paymentId}`);
-        // Update payment record status to refunded
-        await this.updatePaymentStatus(paymentId, amount ? 'partially_refunded' : 'refunded');
+        this.logger.log(`Refund processed successfully for payment ${paymentEntity.id}`);
+        const prior = Number(paymentEntity.refundAmount || 0);
+        const cumulative =
+          Math.round((prior + refundAmount) * 1000) / 1000;
+        const fullyRefunded =
+          cumulative >= Number(paymentEntity.amount) - 0.001;
+        await this.paymentRepository.update(paymentEntity.id, {
+          refundAmount: cumulative,
+          refundReason: reason || paymentEntity.refundReason,
+          refundedAt: new Date(),
+          status: fullyRefunded
+            ? DbPaymentStatus.REFUNDED
+            : paymentEntity.status,
+        });
       }
 
-      return result;
+      return { ...result, refundAmount };
     } catch (error) {
       if (
         error instanceof ForbiddenException ||
