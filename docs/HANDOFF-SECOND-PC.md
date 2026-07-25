@@ -1,7 +1,7 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-07-25  
-**HEAD على `main`:** f49b06c — تقرير حالة + آخر ميزة `ff25a60`  
+**HEAD على `main`:** 8c9f2a1 — تقرير حالة مفصّل؛ آخر ميزة `ff25a60`  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 
 > اقرأ أولاً: [`STATUS-REPORT-2026-07-25.md`](./STATUS-REPORT-2026-07-25.md) ثم هذا الملف + `ROADMAP.md` و`SESSION-2026-07-21.md`.
