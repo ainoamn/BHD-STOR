@@ -1,9 +1,14 @@
 import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createWriteStream, existsSync, mkdirSync, promises as fsPromises } from 'fs';
-import { join, extname, basename } from 'path';
+import { existsSync, mkdirSync, promises as fsPromises } from 'fs';
+import { join, basename } from 'path';
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
+import {
+  assertSafePublicId,
+  buildOwnedCloudinaryFolder,
+  buildOwnedUploadBasename,
+} from './utils/upload-access';
 
 export interface UploadResult {
   url: string;
@@ -47,11 +52,17 @@ export class UploadService {
   }
 
   /**
-   * Upload a single image
+   * Upload a single image (publicId is owner-scoped for delete authorization).
    */
-  async uploadImage(file: Express.Multer.File): Promise<UploadResult> {
+  async uploadImage(
+    file: Express.Multer.File,
+    ownerUserId: string,
+  ): Promise<UploadResult> {
     if (!file) {
       throw new BadRequestException('No file provided');
+    }
+    if (!ownerUserId) {
+      throw new BadRequestException('Uploader identity is required');
     }
 
     // Validate file type
@@ -71,16 +82,19 @@ export class UploadService {
     }
 
     if (this.useCloudinary) {
-      return this.uploadToCloudinary(file);
+      return this.uploadToCloudinary(file, ownerUserId);
     }
 
-    return this.uploadToLocal(file);
+    return this.uploadToLocal(file, false, undefined, ownerUserId);
   }
 
   /**
    * Upload multiple images
    */
-  async uploadMultiple(files: Express.Multer.File[]): Promise<UploadResult[]> {
+  async uploadMultiple(
+    files: Express.Multer.File[],
+    ownerUserId: string,
+  ): Promise<UploadResult[]> {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');
     }
@@ -89,7 +103,7 @@ export class UploadService {
 
     for (const file of files) {
       try {
-        const result = await this.uploadImage(file);
+        const result = await this.uploadImage(file, ownerUserId);
         results.push(result);
       } catch (error) {
         // Continue with other files, but log the error
@@ -108,9 +122,7 @@ export class UploadService {
    * Delete an image from storage
    */
   async deleteImage(publicId: string): Promise<{ success: boolean; message: string }> {
-    if (!publicId) {
-      throw new BadRequestException('Public ID is required');
-    }
+    assertSafePublicId(publicId);
 
     if (this.useCloudinary) {
       try {
@@ -123,14 +135,16 @@ export class UploadService {
       }
     }
 
-    // Local file deletion
+    // Local file deletion (basename only — no path segments)
     try {
-      const filePath = join(this.uploadDir, publicId);
+      const safeName = basename(publicId);
+      assertSafePublicId(safeName);
+      const filePath = join(this.uploadDir, safeName);
       if (existsSync(filePath)) {
         await fsPromises.unlink(filePath);
 
         // Also delete thumbnail if exists
-        const thumbnailPath = join(this.uploadDir, 'thumbnails', publicId);
+        const thumbnailPath = join(this.uploadDir, 'thumbnails', safeName);
         if (existsSync(thumbnailPath)) {
           await fsPromises.unlink(thumbnailPath);
         }
@@ -148,11 +162,12 @@ export class UploadService {
    */
   async generateThumbnail(
     file: Express.Multer.File,
+    ownerUserId: string,
     options: ThumbnailOptions = { width: 300, height: 300, crop: 'fill', quality: 80 },
   ): Promise<UploadResult> {
     if (this.useCloudinary) {
       // Cloudinary generates thumbnails on-the-fly via URL transformations
-      const uploadResult = await this.uploadToCloudinary(file);
+      const uploadResult = await this.uploadToCloudinary(file, ownerUserId);
       const thumbnailUrl = cloudinary.url(uploadResult.publicId, {
         width: options.width,
         height: options.height,
@@ -167,7 +182,7 @@ export class UploadService {
     }
 
     // For local storage, save the original and generate thumbnail
-    return this.uploadToLocal(file, true, options);
+    return this.uploadToLocal(file, true, options, ownerUserId);
   }
 
   /**
@@ -191,12 +206,20 @@ export class UploadService {
   /**
    * Upload file to Cloudinary
    */
-  private async uploadToCloudinary(file: Express.Multer.File): Promise<UploadResult> {
+  private async uploadToCloudinary(
+    file: Express.Multer.File,
+    ownerUserId: string,
+  ): Promise<UploadResult> {
     try {
+      const baseFolder = this.configService.get<string>(
+        'CLOUDINARY_FOLDER',
+        'bhd-marketplace',
+      );
+      const folder = buildOwnedCloudinaryFolder(baseFolder, ownerUserId);
       const result = await new Promise<any>((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
-            folder: this.configService.get<string>('CLOUDINARY_FOLDER', 'bhd-marketplace'),
+            folder,
             resource_type: 'auto',
           },
           (error, result) => {
@@ -240,9 +263,13 @@ export class UploadService {
     file: Express.Multer.File,
     generateThumb: boolean = false,
     thumbOptions?: ThumbnailOptions,
+    ownerUserId?: string,
   ): Promise<UploadResult> {
     try {
-      const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}${extname(file.originalname)}`;
+      if (!ownerUserId) {
+        throw new BadRequestException('Uploader identity is required');
+      }
+      const filename = buildOwnedUploadBasename(ownerUserId, file.originalname);
       const filepath = join(this.uploadDir, filename);
 
       // Write file
@@ -260,14 +287,18 @@ export class UploadService {
         await fsPromises.copyFile(filepath, join(thumbDir, filename));
       }
 
+      const dot = filename.lastIndexOf('.');
+      const format = dot >= 0 ? filename.slice(dot + 1) : '';
+
       return {
         url: this.getFileUrl(filename),
         publicId: filename,
-        format: extname(file.originalname).replace('.', ''),
+        format,
         size: file.size,
         thumbnailUrl,
       };
     } catch (error) {
+      if (error instanceof BadRequestException) throw error;
       throw new InternalServerErrorException(
         `Local upload failed: ${error.message}`,
       );

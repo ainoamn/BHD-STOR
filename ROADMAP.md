@@ -4,7 +4,7 @@
 > الخطط التاريخية في `docs/plans/` محفوظة للأرشيف فقط — لا تُكرَّر هنا ولا تُحدَّث كخطط عمل نشطة.  
 > المستودع الرسمي: [github.com/ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR)
 
-آخر مراجعة: 2026-07-25 · فاتورة/شحن بملكية · المسار المعتمد: `C:\dev\bhd-app`  
+آخر مراجعة: 2026-07-25 · رفع/Blockchain/واتساب · المسار المعتمد: `C:\dev\bhd-app`  
 نقل لجهاز ثانٍ: [`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md)
 
 ---
@@ -75,6 +75,7 @@
 | P0 ✓ | ولاء/عمولات/Gamification: أدوار ADMIN + self-or-staff للقراءات | سكّ نقاط / عمولات وهمية |
 | P0 ✓ | Analytics متجر: ملكية قبل تقارير/عملاء · AI coupon/cart من JWT | تسريب إيرادات/كوبونات |
 | P0 ✓ | فاتورة دفع + إنشاء/ملصق شحن مربوطان بملكية الطلب/الدفع | IDOR فواتير / شحنات وهمية |
+| P0 ✓ | حذف رفع بملكية publicId + path-safe · Blockchain `@Roles` · واتساب webhook موقّع | حذف ملفات الآخرين / سجلات وهمية / رسائل مزوّرة |
 | P1 | تكاملات الدفع/الشحن تحتاج sandbox keys واختبار webhooks | أموال وشحنات خاطئة |
 | P1 ✓ | SECURITY.md: جدول الحالة صادق (TypeORM، لا SOC2، MFA جزئي) | تضليل تشغيلي |
 | P1 ✓ | Redis-backed rate limit (`ThrottlerGuard` + memory fallback) | حدود معدل عبر عدة عمليات |

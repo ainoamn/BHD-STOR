@@ -14,6 +14,9 @@ import {
   UpdateShipmentStatusDto,
 } from './dto/blockchain-record.dto';
 import { ShipmentStatusLabels } from './services/smart-contract.interface';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
+import { Public } from '../common/decorators/public.decorator';
 
 @Controller('blockchain')
 export class BlockchainController {
@@ -21,9 +24,26 @@ export class BlockchainController {
 
   constructor(private readonly blockchainService: BlockchainService) {}
 
+  // ─── Health Check (static path before :shipmentId) ────────────────
+
+  @Public()
+  @Get('health')
+  async healthCheck() {
+    const health = await this.blockchainService.healthCheck();
+
+    return {
+      success: true,
+      data: health,
+      message: health.connected
+        ? 'Blockchain connection is healthy'
+        : 'Running in local fallback mode',
+    };
+  }
+
   // ─── Create Record ────────────────────────────────────────────────
 
   @Post('record')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   async createRecord(@Body() dto: CreateBlockchainRecordDto) {
     this.logger.log(`Creating blockchain record for shipment: ${dto.shipmentId}`);
@@ -43,6 +63,7 @@ export class BlockchainController {
   // ─── Update Status ────────────────────────────────────────────────
 
   @Post('status')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   async updateStatus(@Body() dto: UpdateShipmentStatusDto) {
     this.logger.log(
@@ -69,6 +90,7 @@ export class BlockchainController {
   // ─── Get History ──────────────────────────────────────────────────
 
   @Get(':shipmentId/history')
+  @Roles(UserRole.ADMIN, UserRole.SELLER)
   async getHistory(@Param('shipmentId') shipmentId: string) {
     this.logger.log(`Fetching history for shipment: ${shipmentId}`);
 
@@ -99,6 +121,7 @@ export class BlockchainController {
   // ─── Verify ───────────────────────────────────────────────────────
 
   @Get(':shipmentId/verify')
+  @Roles(UserRole.ADMIN, UserRole.SELLER)
   async verify(@Param('shipmentId') shipmentId: string) {
     this.logger.log(`Verifying shipment: ${shipmentId}`);
 
@@ -120,6 +143,7 @@ export class BlockchainController {
   // ─── Certificate ──────────────────────────────────────────────────
 
   @Get(':shipmentId/certificate')
+  @Roles(UserRole.ADMIN, UserRole.SELLER)
   async getCertificate(@Param('shipmentId') shipmentId: string) {
     this.logger.log(`Generating certificate for shipment: ${shipmentId}`);
 
@@ -135,6 +159,7 @@ export class BlockchainController {
   // ─── Get Shipment ─────────────────────────────────────────────────
 
   @Get(':shipmentId')
+  @Roles(UserRole.ADMIN, UserRole.SELLER)
   async getShipment(@Param('shipmentId') shipmentId: string) {
     this.logger.log(`Fetching shipment: ${shipmentId}`);
 
@@ -156,21 +181,6 @@ export class BlockchainController {
         createdAt: new Date(shipment.createdAt * 1000).toISOString(),
       },
       message: 'Shipment found',
-    };
-  }
-
-  // ─── Health Check ─────────────────────────────────────────────────
-
-  @Get('health')
-  async healthCheck() {
-    const health = await this.blockchainService.healthCheck();
-
-    return {
-      success: true,
-      data: health,
-      message: health.connected
-        ? 'Blockchain connection is healthy'
-        : 'Running in local fallback mode',
     };
   }
 }

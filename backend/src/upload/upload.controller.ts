@@ -3,6 +3,7 @@ import {
   Post,
   Delete,
   Param,
+  Req,
   UseInterceptors,
   UploadedFile,
   UploadedFiles,
@@ -25,6 +26,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { requireRequestUserId } from '../auth/utils/request-user';
+import { assertUploadDeleteAccess } from './utils/upload-access';
 
 @ApiTags('Upload')
 @Controller('upload')
@@ -58,8 +61,10 @@ export class UploadController {
   @ApiResponse({ status: 500, description: 'Upload failed' })
   async uploadImage(
     @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
   ): Promise<{ success: boolean; message: string; data: UploadResult }> {
-    const result = await this.uploadService.uploadImage(file);
+    const userId = requireRequestUserId(req.user);
+    const result = await this.uploadService.uploadImage(file, userId);
     return {
       success: true,
       message: 'Image uploaded successfully',
@@ -97,8 +102,10 @@ export class UploadController {
   @ApiResponse({ status: 500, description: 'Upload failed' })
   async uploadMultipleImages(
     @UploadedFiles() files: Express.Multer.File[],
+    @Req() req: any,
   ): Promise<{ success: boolean; message: string; data: UploadResult[] }> {
-    const results = await this.uploadService.uploadMultiple(files);
+    const userId = requireRequestUserId(req.user);
+    const results = await this.uploadService.uploadMultiple(files, userId);
     return {
       success: true,
       message: `${results.length} images uploaded successfully`,
@@ -132,37 +139,14 @@ export class UploadController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async generateThumbnail(
     @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
   ): Promise<{ success: boolean; message: string; data: UploadResult }> {
-    const result = await this.uploadService.generateThumbnail(file);
+    const userId = requireRequestUserId(req.user);
+    const result = await this.uploadService.generateThumbnail(file, userId);
     return {
       success: true,
       message: 'Image uploaded and thumbnail generated',
       data: result,
-    };
-  }
-
-  @Delete(':publicId')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Delete image',
-    description: 'Delete an image from storage by its public ID',
-  })
-  @ApiParam({
-    name: 'publicId',
-    description: 'Public ID or filename of the image',
-    example: 'abc123.jpg',
-  })
-  @ApiResponse({ status: 200, description: 'Image deleted successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid public ID' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Image not found' })
-  async deleteImage(@Param('publicId') publicId: string) {
-    const result = await this.uploadService.deleteImage(publicId);
-    return {
-      success: true,
-      ...result,
     };
   }
 
@@ -199,6 +183,35 @@ export class UploadController {
       success: true,
       message: `${results.filter((r) => r.success).length} of ${results.length} images deleted`,
       data: results,
+    };
+  }
+
+  @Delete(':publicId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Delete image',
+    description:
+      'Delete an image by public ID. Owners may delete their scoped uploads; staff may delete any.',
+  })
+  @ApiParam({
+    name: 'publicId',
+    description: 'Public ID or filename of the image',
+    example: 'u_550e8400-e29b-41d4-a716-446655440000_1710000000_abc.jpg',
+  })
+  @ApiResponse({ status: 200, description: 'Image deleted successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid public ID' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Not your upload' })
+  @ApiResponse({ status: 404, description: 'Image not found' })
+  async deleteImage(@Param('publicId') publicId: string, @Req() req: any) {
+    const userId = requireRequestUserId(req.user);
+    assertUploadDeleteAccess(publicId, userId, req.user?.role);
+    const result = await this.uploadService.deleteImage(publicId);
+    return {
+      success: true,
+      ...result,
     };
   }
 }

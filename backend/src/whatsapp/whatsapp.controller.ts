@@ -5,7 +5,7 @@ import {
   Body,
   Query,
   Headers,
-  RawBody,
+  Req,
   Logger,
   BadRequestException,
   UnauthorizedException,
@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { Request } from 'express';
 import { WhatsAppService } from './whatsapp.service';
 import { SendMessageDto, BulkMessageDto } from './dto/send-message.dto';
 import { WebhookMessageDto } from './dto/webhook-message.dto';
@@ -22,6 +23,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import {
+  assertWhatsAppWebhookSignature,
+  detectWhatsAppProvider,
+} from './utils/webhook-signature';
 
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
@@ -57,7 +62,7 @@ export class WhatsAppController {
 
   /**
    * POST /whatsapp/webhook - Receive webhooks from Twilio/Meta
-   * Public endpoint - no auth required (validated by signature)
+   * Public endpoint — signature verified (fail-closed in production)
    */
   @Public()
   @Post('webhook')
@@ -65,23 +70,60 @@ export class WhatsAppController {
   @ApiOperation({ summary: 'Receive WhatsApp webhooks (Twilio/Meta)' })
   @ApiResponse({ status: 200, description: 'Webhook processed' })
   async receiveWebhook(
+    @Req() req: Request & { rawBody?: Buffer },
     @Body() payload: WebhookMessageDto | Record<string, any>,
     @Headers('x-twilio-signature') twilioSignature?: string,
     @Headers('x-hub-signature-256') metaSignature?: string,
   ): Promise<{ status: string; messageId?: string }> {
+    const provider = detectWhatsAppProvider(payload as Record<string, any>);
+    const isProduction =
+      (this.configService.get<string>('NODE_ENV') || 'development') ===
+      'production';
+    const metaAppSecret =
+      this.configService.get<string>('WHATSAPP_APP_SECRET') ||
+      this.configService.get<string>('META_APP_SECRET') ||
+      '';
+    const twilioAuthToken =
+      this.configService.get<string>('TWILIO_AUTH_TOKEN') ||
+      this.configService.get<string>('SMS_AUTH_TOKEN') ||
+      '';
+
+    const protocol =
+      (req.headers['x-forwarded-proto'] as string)?.split(',')[0]?.trim() ||
+      req.protocol;
+    const host = req.get('host') || 'localhost';
+    const twilioUrl = `${protocol}://${host}${req.originalUrl}`;
+
+    assertWhatsAppWebhookSignature({
+      isProduction,
+      provider,
+      rawBody: req.rawBody ?? JSON.stringify(payload),
+      metaSignature,
+      twilioSignature,
+      twilioUrl,
+      twilioParams: (payload || {}) as Record<string, any>,
+      metaAppSecret,
+      twilioAuthToken,
+      allowUnsignedInDev: true,
+    });
+
     try {
-      this.logger.debug(`Webhook received: ${JSON.stringify(payload).substring(0, 200)}`);
+      this.logger.debug(
+        `Webhook received (${provider}): ${JSON.stringify(payload).substring(0, 200)}`,
+      );
 
-      // Determine provider from payload structure
-      const isMetaPayload = payload?.object === 'whatsapp_business_account';
-
-      if (isMetaPayload) {
+      if (provider === 'meta') {
         return this.handleMetaWebhook(payload);
       }
 
-      // Handle Twilio format
-      return this.handleTwilioWebhook(payload as WebhookMessageDto);
+      if (provider === 'twilio') {
+        return this.handleTwilioWebhook(payload as WebhookMessageDto);
+      }
+
+      this.logger.warn('Unrecognized WhatsApp webhook payload shape');
+      return { status: 'ignored' };
     } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
       this.logger.error(`Webhook processing error: ${error.message}`, error.stack);
       return { status: 'error' };
     }
