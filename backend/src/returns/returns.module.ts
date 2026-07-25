@@ -5,9 +5,12 @@ import { ReturnsService } from './services/returns.service';
 import { ReturnRequest } from './entities/return-request.entity';
 import { ReturnPolicy } from './entities/return-policy.entity';
 import { Store } from '../stores/entities/store.entity';
+import { Order } from '../orders/entities/order.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ReturnRequest, ReturnPolicy, Store])],
+  imports: [
+    TypeOrmModule.forFeature([ReturnRequest, ReturnPolicy, Store, Order]),
+  ],
   controllers: [ReturnsController],
   providers: [ReturnsService],
   exports: [ReturnsService],

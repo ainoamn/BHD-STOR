@@ -5,7 +5,7 @@ import * as xml2js from 'xml2js';
 import { ShippingAddress } from '../dto/create-shipment.dto';
 import { LocationDto, ShippingRate } from '../dto/rate-request.dto';
 import { TrackingResult, TrackingEvent } from '../dto/tracking-request.dto';
-import { shippingMockAllowed } from './shipping-provider.util';
+import { shippingMockAllowed, trackingMockOrThrow } from './shipping-provider.util';
 
 export interface UPSShipmentResult {
   success: boolean;
@@ -405,7 +405,9 @@ export class UPSService {
   async getTracking(trackingNumber: string): Promise<TrackingResult> {
     try {
       if (!this.isConfigured()) {
-        return this.getMockTracking(trackingNumber);
+        return trackingMockOrThrow(this.configService, 'UPS', () =>
+          this.getMockTracking(trackingNumber),
+        );
       }
 
       const response = await this.httpClient.get(`/api/track/v1/details/${trackingNumber}`, {
@@ -450,10 +452,17 @@ export class UPSService {
         };
       }
 
-      return this.getMockTracking(trackingNumber);
+      return trackingMockOrThrow(this.configService, 'UPS', () =>
+        this.getMockTracking(trackingNumber),
+      );
     } catch (error) {
+      if (error instanceof ServiceUnavailableException) {
+        throw error;
+      }
       this.logger.error(`UPS tracking failed for ${trackingNumber}: ${error.message}`);
-      return this.getMockTracking(trackingNumber);
+      return trackingMockOrThrow(this.configService, 'UPS', () =>
+        this.getMockTracking(trackingNumber),
+      );
     }
   }
 

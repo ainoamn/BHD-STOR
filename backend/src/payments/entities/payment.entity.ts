@@ -105,7 +105,7 @@ export class Payment {
   metadata: Record<string, unknown> | null;
 
   // Relations
-  @OneToOne(() => Order, (order) => order.payment, { onDelete: 'CASCADE' })
+  @OneToOne(() => Order, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'order_id' })
   order: Relation<Order>;
 

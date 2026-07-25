@@ -16,8 +16,13 @@ import { ReturnPolicy } from '../entities/return-policy.entity';
 import { CreateReturnDto } from '../dto/create-return.dto';
 import { UpdateReturnDto } from '../dto/update-return.dto';
 import { Store } from '../../stores/entities/store.entity';
+import { Order } from '../../orders/entities/order.entity';
 import { isStaffRole } from '../../auth/utils/roles';
 import { assertReturnAccess as assertReturnAccessFn } from '../utils/return-access';
+import {
+  evaluateReturnEligibility,
+  OPEN_RETURN_STATUSES,
+} from '../utils/return-eligibility';
 
 export interface ReturnsQuery {
   status?: ReturnStatus;
@@ -46,6 +51,8 @@ export class ReturnsService {
     private readonly policyRepo: Repository<ReturnPolicy>,
     @InjectRepository(Store)
     private readonly storeRepo: Repository<Store>,
+    @InjectRepository(Order)
+    private readonly orderRepo: Repository<Order>,
   ) {}
 
   /** Owner or platform staff may view. */
@@ -92,6 +99,7 @@ export class ReturnsService {
       userId,
       status: ReturnStatus.PENDING,
       timeline,
+      refundAmount: eligible.maxRefundAmount ?? dto.refundAmount,
     });
 
     const saved = await this.returnRepo.save(returnRequest);
@@ -323,36 +331,57 @@ export class ReturnsService {
     policy?: ReturnPolicy;
     maxRefundAmount?: number;
   }> {
-    // TODO: Fetch order and check:
-    // 1. Order exists and belongs to user
-    // 2. Order is delivered
-    // 3. Within return window
-    // 4. Product category is returnable
-    // 5. Product not already returned
+    if (!userId) {
+      return { eligible: false, reason: 'Authentication required' };
+    }
 
-    // For now, return mock eligible response
-    // In real implementation, this would fetch the order and verify
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: ['items'],
+    });
 
-    const policy = await this.getReturnPolicy('store-id-from-order');
+    const existingOpenReturn = !!(await this.returnRepo
+      .createQueryBuilder('r')
+      .where('r.orderId = :orderId', { orderId })
+      .andWhere('r.productId = :productId', { productId })
+      .andWhere('r.status IN (:...statuses)', {
+        statuses: OPEN_RETURN_STATUSES,
+      })
+      .getOne());
 
-    // Mock: Check if within return window (e.g., 14 days from delivery)
-    const orderDeliveredDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
-    const returnDeadline = new Date(
-      orderDeliveredDate.getTime() + (policy?.returnWindow || 14) * 24 * 60 * 60 * 1000,
-    );
+    // Load policy using store from order when present; placeholder id avoided
+    const tentativeStoreId =
+      order?.storeId ||
+      (order?.items || []).find((i) => i.productId === productId)?.storeId ||
+      null;
+    const policy = tentativeStoreId
+      ? await this.getReturnPolicy(tentativeStoreId)
+      : null;
 
-    if (new Date() > returnDeadline) {
+    const result = evaluateReturnEligibility({
+      order,
+      productId,
+      userId,
+      existingOpenReturn,
+      policy,
+    });
+
+    if (!result.eligible) {
       return {
         eligible: false,
-        reason: `Return window expired. Returns must be initiated within ${policy?.returnWindow || 14} days of delivery.`,
-        policy,
+        reason: result.reason,
+        policy: policy || undefined,
       };
     }
 
+    const resolvedPolicy =
+      policy ||
+      (result.storeId ? await this.getReturnPolicy(result.storeId) : null);
+
     return {
       eligible: true,
-      policy,
-      maxRefundAmount: 100.000, // Would come from order line item
+      policy: resolvedPolicy || undefined,
+      maxRefundAmount: result.maxRefundAmount,
     };
   }
 

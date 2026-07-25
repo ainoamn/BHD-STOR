@@ -4,7 +4,7 @@ import axios, { AxiosInstance } from 'axios';
 import { ShippingAddress } from '../dto/create-shipment.dto';
 import { LocationDto, ShippingRate } from '../dto/rate-request.dto';
 import { TrackingResult, TrackingEvent } from '../dto/tracking-request.dto';
-import { shippingMockAllowed } from './shipping-provider.util';
+import { shippingMockAllowed, trackingMockOrThrow } from './shipping-provider.util';
 
 export interface OmanPostShipmentResult {
   success: boolean;
@@ -307,7 +307,9 @@ export class OmanPostService {
   async getTracking(trackingNumber: string): Promise<TrackingResult> {
     try {
       if (!this.isConfigured()) {
-        return this.getMockTracking(trackingNumber);
+        return trackingMockOrThrow(this.configService, 'Oman Post', () =>
+          this.getMockTracking(trackingNumber),
+        );
       }
 
       const response = await this.httpClient.get(`/tracking/${trackingNumber}`);
@@ -350,10 +352,17 @@ export class OmanPostService {
         };
       }
 
-      return this.getMockTracking(trackingNumber);
+      return trackingMockOrThrow(this.configService, 'Oman Post', () =>
+        this.getMockTracking(trackingNumber),
+      );
     } catch (error) {
+      if (error instanceof ServiceUnavailableException) {
+        throw error;
+      }
       this.logger.error(`Oman Post tracking failed for ${trackingNumber}: ${error.message}`);
-      return this.getMockTracking(trackingNumber);
+      return trackingMockOrThrow(this.configService, 'Oman Post', () =>
+        this.getMockTracking(trackingNumber),
+      );
     }
   }
 

@@ -4,7 +4,7 @@ import axios, { AxiosInstance } from 'axios';
 import { ShippingAddress } from '../dto/create-shipment.dto';
 import { LocationDto, ShippingRate } from '../dto/rate-request.dto';
 import { TrackingResult, TrackingEvent } from '../dto/tracking-request.dto';
-import { shippingMockAllowed } from './shipping-provider.util';
+import { shippingMockAllowed, trackingMockOrThrow } from './shipping-provider.util';
 
 export interface DHLShipmentResult {
   success: boolean;
@@ -376,7 +376,9 @@ export class DHLService {
   async getTracking(trackingNumber: string): Promise<TrackingResult> {
     try {
       if (!this.isConfigured()) {
-        return this.getMockTracking(trackingNumber);
+        return trackingMockOrThrow(this.configService, 'DHL', () =>
+          this.getMockTracking(trackingNumber),
+        );
       }
 
       const response = await this.httpClient.get('/shipments', {
@@ -423,10 +425,17 @@ export class DHLService {
         };
       }
 
-      return this.getMockTracking(trackingNumber);
+      return trackingMockOrThrow(this.configService, 'DHL', () =>
+        this.getMockTracking(trackingNumber),
+      );
     } catch (error) {
+      if (error instanceof ServiceUnavailableException) {
+        throw error;
+      }
       this.logger.error(`DHL tracking failed for ${trackingNumber}: ${error.message}`);
-      return this.getMockTracking(trackingNumber);
+      return trackingMockOrThrow(this.configService, 'DHL', () =>
+        this.getMockTracking(trackingNumber),
+      );
     }
   }
 

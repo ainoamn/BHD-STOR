@@ -4,7 +4,7 @@
 > الخطط التاريخية في `docs/plans/` محفوظة للأرشيف فقط — لا تُكرَّر هنا ولا تُحدَّث كخطط عمل نشطة.  
 > المستودع الرسمي: [github.com/ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR)
 
-آخر مراجعة: 2026-07-23 · IDOR مرتجعات + Oman Net hash · المسار المعتمد: `C:\dev\bhd-app`  
+آخر مراجعة: 2026-07-25 · أهلية مرتجعات + tracking fail-closed · المسار المعتمد: `C:\dev\bhd-app`  
 نقل لجهاز ثانٍ: [`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md)
 
 ---
@@ -69,6 +69,7 @@
 | P0 ✓ | صفحات `/cart` + `/checkout` + تفعيل `SmartCart` | مسار البيع كان مقطوعاً في الواجهة |
 | P1 ✓ | توحيد أدوار staff: `isStaffRole`/`roleSatisfies` + إصلاح فحوصات ADMIN اليدوية + حماية مسارات المرتجعات | ثغرات صلاحيات / أعطال تشغيل |
 | P1 ✓ | ملكية مرتجعات (IDOR على GET/PUT/DELETE) + سياسة متجر للمالك/staff + Oman Net hash إلزامي | تسريب/تعديل مرتجعات أو callbacks مزوّرة |
+| P1 ✓ | أهلية إرجاع حقيقية + تتبع شحن بدون mock في الإنتاج | مرتجعات وهمية / حالات شحن ملفّقة |
 | P1 | تكاملات الدفع/الشحن تحتاج sandbox keys واختبار webhooks | أموال وشحنات خاطئة |
 | P1 ✓ | SECURITY.md: جدول الحالة صادق (TypeORM، لا SOC2، MFA جزئي) | تضليل تشغيلي |
 | P1 ✓ | Redis-backed rate limit (`ThrottlerGuard` + memory fallback) | حدود معدل عبر عدة عمليات |
@@ -133,6 +134,7 @@ Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification 
 - [x] Redis-backed throttle + إغلاق Demo Mode في الإنتاج + تصحيح SECURITY.md checklist  
 - [x] توحيد أدوار staff (`auth/utils/roles`) + حماية عمليات المرتجعات الإدارية  
 - [x] ملكية مرتجعات (IDOR) + سياسة متجر للمالك/staff + Oman Net webhook يتطلب hash  
+- [x] أهلية إرجاع حقيقية (ملكية الطلب + delivered) + تتبع شحن fail-closed في الإنتاج  
 - [~] أسرار فقط عبر `.env` (لا تُرفع إلى Git؛ `setup-env.bat` ينشئ `.env` محلياً؛ `docker-compose.infra.yml` لـ Postgres/Redis)  
 
 ---

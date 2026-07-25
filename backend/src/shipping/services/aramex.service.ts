@@ -4,7 +4,7 @@ import axios, { AxiosInstance } from 'axios';
 import { ShippingAddress } from '../dto/create-shipment.dto';
 import { LocationDto, ShippingRate } from '../dto/rate-request.dto';
 import { TrackingResult, TrackingEvent } from '../dto/tracking-request.dto';
-import { shippingMockAllowed } from './shipping-provider.util';
+import { shippingMockAllowed, trackingMockOrThrow } from './shipping-provider.util';
 
 export interface AramexShipmentResult {
   success: boolean;
@@ -335,7 +335,9 @@ export class AramexService {
       };
 
       if (!this.isConfigured()) {
-        return this.getMockTracking(trackingNumber);
+        return trackingMockOrThrow(this.configService, 'Aramex', () =>
+          this.getMockTracking(trackingNumber),
+        );
       }
 
       const response = await this.httpClient.post('/ShippingAPI.V2/TrackingService_1_0.svc/json/TrackShipments', payload);
@@ -378,10 +380,17 @@ export class AramexService {
         };
       }
 
-      return this.getMockTracking(trackingNumber);
+      return trackingMockOrThrow(this.configService, 'Aramex', () =>
+        this.getMockTracking(trackingNumber),
+      );
     } catch (error) {
+      if (error instanceof ServiceUnavailableException) {
+        throw error;
+      }
       this.logger.error(`Aramex tracking failed for ${trackingNumber}: ${error.message}`);
-      return this.getMockTracking(trackingNumber);
+      return trackingMockOrThrow(this.configService, 'Aramex', () =>
+        this.getMockTracking(trackingNumber),
+      );
     }
   }
 

@@ -4,7 +4,7 @@ import axios, { AxiosInstance } from 'axios';
 import { ShippingAddress } from '../dto/create-shipment.dto';
 import { LocationDto, ShippingRate } from '../dto/rate-request.dto';
 import { TrackingResult, TrackingEvent } from '../dto/tracking-request.dto';
-import { shippingMockAllowed } from './shipping-provider.util';
+import { shippingMockAllowed, trackingMockOrThrow } from './shipping-provider.util';
 
 export interface FedExShipmentResult {
   success: boolean;
@@ -409,7 +409,9 @@ export class FedExService {
   async getTracking(trackingNumber: string): Promise<TrackingResult> {
     try {
       if (!this.isConfigured()) {
-        return this.getMockTracking(trackingNumber);
+        return trackingMockOrThrow(this.configService, 'FedEx', () =>
+          this.getMockTracking(trackingNumber),
+        );
       }
 
       const payload = {
@@ -460,10 +462,17 @@ export class FedExService {
         };
       }
 
-      return this.getMockTracking(trackingNumber);
+      return trackingMockOrThrow(this.configService, 'FedEx', () =>
+        this.getMockTracking(trackingNumber),
+      );
     } catch (error) {
+      if (error instanceof ServiceUnavailableException) {
+        throw error;
+      }
       this.logger.error(`FedEx tracking failed for ${trackingNumber}: ${error.message}`);
-      return this.getMockTracking(trackingNumber);
+      return trackingMockOrThrow(this.configService, 'FedEx', () =>
+        this.getMockTracking(trackingNumber),
+      );
     }
   }
 
