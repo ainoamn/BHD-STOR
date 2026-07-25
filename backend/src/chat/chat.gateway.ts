@@ -10,9 +10,15 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger, UseGuards } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { ChatService } from './chat.service';
-import { TypingIndicatorDto, MarkAsReadDto } from './dto/send-message.dto';
+import { TypingIndicatorDto } from './dto/send-message.dto';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
+import {
+  extractWsHandshakeToken,
+  resolveWsUserFromJwtPayload,
+} from './utils/ws-auth';
 
 interface AuthenticatedSocket extends Socket {
   user?: {
@@ -31,6 +37,7 @@ interface AuthenticatedSocket extends Socket {
   },
   transports: ['websocket', 'polling'],
 })
+@UseGuards(WsJwtGuard)
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
@@ -38,39 +45,66 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(ChatGateway.name);
   private readonly connectedUsers = new Map<string, string>(); // userId -> socketId
 
-  constructor(private readonly chatService: ChatService) {}
+  constructor(
+    private readonly chatService: ChatService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
 
   /**
-   * Handle new WebSocket connection
-   * Validates the JWT token from handshake auth and extracts user identity
+   * Verify JWT from handshake and bind identity to the socket.
+   * Client-supplied userId is never trusted.
    */
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
-      // Extract token from handshake auth or query parameter
-      const token =
-        client.handshake.auth?.token ||
-        client.handshake.query?.token as string;
-
+      const token = extractWsHandshakeToken(client.handshake);
       if (!token) {
         this.logger.warn(`Client ${client.id} connected without token`);
         client.disconnect(true);
         return;
       }
 
-      // Validate JWT token and extract user identity
-      // The WsJwtGuard handles token verification; user data is attached to the socket
-      this.logger.log(`Client connected: ${client.id}`);
+      const payload = await this.jwtService.verifyAsync<{
+        sub?: string;
+        userId?: string;
+        email?: string;
+        role?: string;
+        type?: string;
+      }>(token, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        issuer: this.configService.get<string>(
+          'JWT_ISSUER',
+          'bhd-oman-marketplace',
+        ),
+        audience: this.configService.get<string>(
+          'JWT_AUDIENCE',
+          'bhd-oman-api',
+        ),
+      });
+
+      const user = resolveWsUserFromJwtPayload(payload);
+      if (!user) {
+        this.logger.warn(`Client ${client.id} presented invalid token claims`);
+        client.disconnect(true);
+        return;
+      }
+
+      client.user = user;
+      this.connectedUsers.set(user.userId, client.id);
+      client.join(`user_${user.userId}`);
+
+      this.logger.log(`Client connected: ${client.id} as user ${user.userId}`);
     } catch (error) {
-      this.logger.error(`Connection error: ${error.message}`);
+      this.logger.warn(
+        `Connection rejected for ${client.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
       client.disconnect(true);
     }
   }
 
-  /**
-   * Handle WebSocket disconnection
-   */
   handleDisconnect(client: AuthenticatedSocket): void {
-    // Remove from connected users
     for (const [userId, socketId] of this.connectedUsers.entries()) {
       if (socketId === client.id) {
         this.connectedUsers.delete(userId);
@@ -81,49 +115,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
-  /**
-   * Register user with their socket
-   */
+  /** Re-join rooms / push unread for the JWT-bound user only. */
   @SubscribeMessage('register')
   async handleRegister(
-    @MessageBody() data: { userId: string },
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
-    if (!data.userId) {
-      throw new WsException('User ID is required');
-    }
+    const userId = this.requireUserId(client);
+    this.connectedUsers.set(userId, client.id);
+    client.join(`user_${userId}`);
 
-    client.user = {
-      userId: data.userId,
-      email: '',
-      role: '',
-    };
-
-    this.connectedUsers.set(data.userId, client.id);
-    client.join(`user_${data.userId}`);
-
-    this.logger.log(`User ${data.userId} registered with socket ${client.id}`);
-
-    // Send unread count
-    const unreadCount = await this.chatService.getUnreadCount(data.userId);
+    const unreadCount = await this.chatService.getUnreadCount(userId);
     client.emit('unread_count', { count: unreadCount });
+    client.emit('registered', { success: true, userId });
   }
 
-  /**
-   * Handle send message event
-   */
   @SubscribeMessage('send_message')
   async handleSendMessage(
     @MessageBody() data: any,
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
-    const senderId = client.user?.userId || data.senderId;
+    const senderId = this.requireUserId(client);
 
-    if (!senderId) {
-      throw new WsException('Authentication required');
-    }
-
-    if (!data.receiverId || !data.content) {
+    if (!data?.receiverId || !data?.content) {
       throw new WsException('Receiver ID and content are required');
     }
 
@@ -138,13 +151,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         orderId: data.orderId,
       });
 
-      // Emit to sender
       client.emit('message_sent', {
         success: true,
         message,
       });
 
-      // Emit to receiver if online
       const receiverSocketId = this.connectedUsers.get(data.receiverId);
       if (receiverSocketId) {
         this.server.to(receiverSocketId).emit('new_message', {
@@ -152,44 +163,41 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           conversationId: message.conversation?.id,
         });
 
-        // Emit unread count update
-        const unreadCount = await this.chatService.getUnreadCount(data.receiverId);
-        this.server.to(receiverSocketId).emit('unread_count', { count: unreadCount });
+        const unreadCount = await this.chatService.getUnreadCount(
+          data.receiverId,
+        );
+        this.server
+          .to(receiverSocketId)
+          .emit('unread_count', { count: unreadCount });
       }
 
-      // Emit to conversation room
       if (message.conversation?.id) {
-        this.server.to(`conversation_${message.conversation.id}`).emit('new_message', {
-          message,
-        });
+        this.server
+          .to(`conversation_${message.conversation.id}`)
+          .emit('new_message', {
+            message,
+          });
       }
     } catch (error) {
       client.emit('message_error', {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
-  /**
-   * Handle join conversation event
-   */
   @SubscribeMessage('join_conversation')
   async handleJoinConversation(
     @MessageBody() data: { conversationId: string },
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
-    if (!data.conversationId) {
+    if (!data?.conversationId) {
       throw new WsException('Conversation ID is required');
     }
 
-    const userId = client.user?.userId;
-    if (!userId) {
-      throw new WsException('Authentication required');
-    }
+    const userId = this.requireUserId(client);
 
     try {
-      // Verify user is a participant
       await this.chatService.getConversation(userId, data.conversationId);
 
       client.join(`conversation_${data.conversationId}`);
@@ -197,24 +205,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         conversationId: data.conversationId,
         success: true,
       });
-
-      this.logger.log(`User ${userId} joined conversation ${data.conversationId}`);
     } catch (error) {
       client.emit('join_error', {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
-  /**
-   * Handle leave conversation event
-   */
   @SubscribeMessage('leave_conversation')
   async handleLeaveConversation(
     @MessageBody() data: { conversationId: string },
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
+    this.requireUserId(client);
     client.leave(`conversation_${data.conversationId}`);
     client.emit('left_conversation', {
       conversationId: data.conversationId,
@@ -222,18 +226,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
-  /**
-   * Handle typing indicator
-   */
   @SubscribeMessage('typing')
   async handleTyping(
     @MessageBody() data: TypingIndicatorDto,
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
-    const userId = client.user?.userId;
-    if (!userId) return;
+    const userId = this.requireUserId(client);
 
-    // Get conversation to find the other participant
     const conversation = await this.chatService.getConversation(
       userId,
       data.conversationId,
@@ -254,23 +253,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  /**
-   * Handle mark as read
-   */
   @SubscribeMessage('mark_as_read')
   async handleMarkAsRead(
     @MessageBody() data: { messageId: string },
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
-    const userId = client.user?.userId;
-    if (!userId) {
-      throw new WsException('Authentication required');
-    }
+    const userId = this.requireUserId(client);
 
     try {
       const message = await this.chatService.markAsRead(userId, data.messageId);
 
-      // Notify sender that message was read
       const senderSocketId = this.connectedUsers.get(message.sender.id);
       if (senderSocketId) {
         this.server.to(senderSocketId).emit('message_read', {
@@ -280,7 +272,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         });
       }
 
-      // Emit to conversation room
       if (message.conversation?.id) {
         this.server
           .to(`conversation_${message.conversation.id}`)
@@ -292,29 +283,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } catch (error) {
       client.emit('read_error', {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
-  /**
-   * Handle get conversations request
-   */
   @SubscribeMessage('get_conversations')
   async handleGetConversations(
     @MessageBody() data: { page?: number; limit?: number },
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
-    const userId = client.user?.userId;
-    if (!userId) {
-      throw new WsException('Authentication required');
-    }
+    const userId = this.requireUserId(client);
 
     try {
       const result = await this.chatService.getConversations(
         userId,
-        data.page || 1,
-        data.limit || 20,
+        data?.page || 1,
+        data?.limit || 20,
       );
 
       client.emit('conversations', {
@@ -329,23 +314,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } catch (error) {
       client.emit('conversations_error', {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
-  /**
-   * Handle get messages request
-   */
   @SubscribeMessage('get_messages')
   async handleGetMessages(
-    @MessageBody() data: { conversationId: string; page?: number; limit?: number },
+    @MessageBody()
+    data: { conversationId: string; page?: number; limit?: number },
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
-    const userId = client.user?.userId;
-    if (!userId) {
-      throw new WsException('Authentication required');
-    }
+    const userId = this.requireUserId(client);
 
     try {
       const result = await this.chatService.getMessages(
@@ -369,8 +349,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } catch (error) {
       client.emit('messages_error', {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
+  }
+
+  private requireUserId(client: AuthenticatedSocket): string {
+    const userId = client.user?.userId;
+    if (!userId) {
+      throw new WsException('Authentication required');
+    }
+    return userId;
   }
 }

@@ -2,14 +2,16 @@ import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
 
 /**
- * Minimal WebSocket JWT guard stub.
- * Attach `client.user` upstream (or extend to verify tokens).
+ * Ensures the WebSocket client was authenticated at connection time
+ * (ChatGateway.handleConnection verifies JWT and sets client.user).
  */
 @Injectable()
 export class WsJwtGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const client = context.switchToWs().getClient<{ user?: unknown }>();
-    if (!client?.user) {
+    const client = context.switchToWs().getClient<{
+      user?: { userId?: string };
+    }>();
+    if (!client?.user?.userId) {
       throw new WsException('Unauthorized');
     }
     return true;
