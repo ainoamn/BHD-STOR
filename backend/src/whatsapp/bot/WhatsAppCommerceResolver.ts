@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OrdersService } from '../../orders/orders.service';
 import { MarketplaceIntegrationService } from '../../logistics/integration/marketplace-integration.service';
 import { CommandResponse } from './Commands';
+import { canRevealWhatsAppOrder } from '../utils/order-access';
 
 type SessionLike = {
   language: 'en' | 'ar';
@@ -35,7 +36,7 @@ export class WhatsAppCommerceResolver {
     for (const action of actions) {
       try {
         if (action.type === 'get_order_status') {
-          return await this.resolveOrderStatus(action.payload, ar);
+          return await this.resolveOrderStatus(action.payload, session, ar);
         }
         if (action.type === 'get_orders' || action.type === 'orders_recent') {
           return await this.resolveRecentOrders(action.payload, session, ar);
@@ -62,6 +63,7 @@ export class WhatsAppCommerceResolver {
 
   private async resolveOrderStatus(
     payload: { orderId?: string; userId?: string },
+    session: SessionLike,
     ar: boolean,
   ): Promise<CommandResponse> {
     const ref = (payload.orderId || '').trim();
@@ -73,6 +75,13 @@ export class WhatsAppCommerceResolver {
         type: 'text',
       };
     }
+
+    const notFound = (): CommandResponse => ({
+      message: ar
+        ? `لم يتم العثور على الطلب *${ref}*، أو لا تملك صلاحية عرضه من هذا الرقم.`
+        : `Order *${ref}* was not found, or this number is not allowed to view it.`,
+      type: 'text',
+    });
 
     let order;
     const looksUuid = /^[0-9a-f-]{36}$/i.test(ref);
@@ -86,16 +95,31 @@ export class WhatsAppCommerceResolver {
           ? await this.ordersService.findByOrderNumber(ref)
           : await this.ordersService.findOne(ref);
       } catch {
-        return {
-          message: ar
-            ? `لم يتم العثور على الطلب *${ref}*. تحقق من الرقم وحاول مجدداً.`
-            : `Order *${ref}* was not found. Please check the number and try again.`,
-          type: 'text',
-        };
+        return notFound();
       }
     }
 
-    const total = Number((order as any).total ?? (order as any).totalAmount ?? 0).toFixed(3);
+    const sessionUserId = payload.userId || session.userId;
+    const shippingPhone =
+      (order as any).shippingAddress?.phone ??
+      (order as any).shipping_address?.phone;
+    const customerPhone = (order as any).user?.phone;
+
+    if (
+      !canRevealWhatsAppOrder({
+        orderUserId: order.userId,
+        shippingPhone,
+        customerPhone,
+        sessionUserId,
+        sessionPhone: session.phone,
+      })
+    ) {
+      return notFound();
+    }
+
+    const total = Number(
+      (order as any).total ?? (order as any).totalAmount ?? 0,
+    ).toFixed(3);
     const tracking = order.trackingNumber
       ? `\n${ar ? 'التتبع' : 'Tracking'}: \`${order.trackingNumber}\`\n${ar ? 'تتبع عبر' : 'Track with'}: \`/track ${order.trackingNumber}\``
       : '';

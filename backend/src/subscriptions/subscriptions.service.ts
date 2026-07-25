@@ -20,6 +20,7 @@ import {
   assertSelfServicePlanActivation,
   clampCommissionPercent,
 } from './utils/plan-access';
+import { resolveProductLimit } from './utils/plan-limits';
 import { isStaffRole } from '../auth/utils/roles';
 
 const DEFAULT_PLANS: Array<Partial<SubscriptionPlanEntity>> = [
@@ -237,13 +238,42 @@ export class SubscriptionsService {
     );
   }
 
-  async checkFeatureAccess(userId: string, _feature: string) {
+  async checkFeatureAccess(userId: string, feature: string) {
     const m = await this.getMyMonetization(userId);
+    const plan = m.currentPlan;
+    const features = (plan?.features || []) as Array<{
+      feature?: string;
+      limit?: number;
+    }>;
+    const key = String(feature || '').toLowerCase();
+    const hasUnlimited = features.some(
+      (f) => String(f.feature || '').toLowerCase() === 'unlimited',
+    );
+    const matched = features.find(
+      (f) => String(f.feature || '').toLowerCase() === key,
+    );
+    const hasAccess =
+      hasUnlimited ||
+      !!matched ||
+      key === 'products' ||
+      key === 'basic';
+
     return {
-      hasAccess: true,
-      feature: _feature,
+      hasAccess,
+      feature,
       currentPlan: m.subscriptionPlan,
-      message: 'Access granted for MVP',
+      productLimit: resolveProductLimit(plan?.productLimit),
+      message: hasAccess
+        ? 'Access granted for current plan'
+        : 'Feature not included in current plan',
     };
+  }
+
+  /**
+   * Product cap for seller create. null = unlimited. Staff bypass elsewhere.
+   */
+  async getProductLimitForUser(userId: string): Promise<number | null> {
+    const m = await this.getMyMonetization(userId);
+    return resolveProductLimit(m.currentPlan?.productLimit);
   }
 }

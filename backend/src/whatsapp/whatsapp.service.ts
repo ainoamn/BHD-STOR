@@ -570,8 +570,12 @@ export class WhatsAppService {
   async processCommand(
     phone: string,
     command: string,
+    metadata?: { userId?: string; profileName?: string },
   ): Promise<{ message: string; type: string }> {
-    const result = await this.botEngine.processIncomingMessage(phone, command);
+    const result = await this.botEngine.processIncomingMessage(phone, command, {
+      userId: metadata?.userId,
+      profileName: metadata?.profileName,
+    });
     const message =
       result.session.language === 'ar' && result.response.messageAr
         ? result.response.messageAr

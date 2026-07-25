@@ -81,6 +81,7 @@
 | P0 ✓ | label/cancel مربوط بتتبع الطلب · capture/verify بملكية دفع · logistics track بلا PII لغير staff | إلغاء شحنات الغير / capture مدفوعات / تسريب عناوين |
 | P0 ✓ | مبلغ الدفع من `order.total` فقط · كوبونات whitelist (لا WELCOME*) · GPS subscribe/get للـ staff | تحت دفع / خصم مجاني / تتبع أسطول |
 | P0 ✓ | خطط اشتراك مدفوعة مغلقة للبائع · COD الشحنة من الطلب · سقف مبلغ الاسترداد | Enterprise مجاني / COD مزوّر / استرداد فوق الرصيد |
+| P0 ✓ | سقف مبلغ capture (Telr) · واتساب `/order` بملكية · حد منتجات الباقة عند الإنشاء | over-capture / IDOR طلبات / تجاوز حد FREE |
 | P1 | تكاملات الدفع/الشحن تحتاج sandbox keys واختبار webhooks | أموال وشحنات خاطئة |
 | P1 | فوترة اشتراك حقيقية (Stripe/Thawani) بعد اختيار الخطة المدفوعة | اليوم: تفعيل مدفوع عبر staff فقط |
 | P1 ✓ | SECURITY.md: جدول الحالة صادق (TypeORM، لا SOC2، MFA جزئي) | تضليل تشغيلي |

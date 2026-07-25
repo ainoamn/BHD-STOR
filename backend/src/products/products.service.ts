@@ -17,6 +17,9 @@ import {
   assertProductManageAccess,
   assertStoreProductAccess,
 } from './utils/product-access';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { assertWithinProductLimit } from '../subscriptions/utils/plan-limits';
+import { isStaffRole } from '../auth/utils/roles';
 
 @Injectable()
 export class ProductsService {
@@ -27,6 +30,7 @@ export class ProductsService {
     private readonly categoryRepository: Repository<Category>,
     @InjectRepository(Store)
     private readonly storeRepository: Repository<Store>,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   /**
@@ -60,6 +64,16 @@ export class ProductsService {
       throw new NotFoundException(`Store with ID "${dto.storeId}" not found`);
     }
     assertStoreProductAccess(store, userId, role);
+
+    if (!isStaffRole(role)) {
+      const limit = await this.subscriptionsService.getProductLimitForUser(
+        store.ownerId || userId,
+      );
+      const currentCount = await this.productRepository.count({
+        where: { storeId: store.id },
+      });
+      assertWithinProductLimit(currentCount, limit);
+    }
 
     const category = await this.categoryRepository.findOne({
       where: { id: dto.categoryId },

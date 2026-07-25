@@ -352,12 +352,13 @@ export class WhatsAppController {
 
   /**
    * POST /whatsapp/simulate - Dry-run bot commands without Twilio/Meta send
-   * Useful for local smoke of /order and /track.
+   * Staff only — phone/userId in body would otherwise forge /order IDOR.
    * Disabled in production unless WHATSAPP_ALLOW_SIMULATE=true.
    */
-  @Public()
+  @Roles('admin', 'support', 'super_admin')
   @Post('simulate')
   @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Simulate WhatsApp bot command (no outbound provider send)',
   })
@@ -380,7 +381,11 @@ export class WhatsAppController {
       throw new BadRequestException('message is required');
     }
     const phone = (body.phone || '+96890000000').replace(/^whatsapp:/, '');
-    const result = await this.whatsAppService.processCommand(phone, body.message.trim());
+    const result = await this.whatsAppService.processCommand(
+      phone,
+      body.message.trim(),
+      { userId: body.userId },
+    );
     return {
       success: true,
       phone,

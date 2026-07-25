@@ -33,6 +33,7 @@ import {
   isPaymentRefundableStatus,
   resolveRefundAmount,
 } from '../utils/refund-amount';
+import { resolveCaptureAmount } from '../utils/capture-amount';
 
 export interface PaymentResult {
   success: boolean;
@@ -1141,14 +1142,22 @@ export class PaymentsService {
         }
 
         case 'telr': {
-          const result = await this.telrService.capturePayment(externalId, amount);
+          const captureAmount = resolveCaptureAmount(
+            Number(paymentRecord.amount),
+            amount,
+          );
+          const result = await this.telrService.capturePayment(
+            externalId,
+            captureAmount,
+          );
           return {
             success: result.success,
             transactionId: result.transactionId,
             status: result.status || 'unknown',
-            amount: amount || 0,
+            amount: captureAmount,
             currency: 'OMR',
             gateway: resolvedGateway,
+            error: result.error,
           };
         }
 
