@@ -2,10 +2,11 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Delete,
   Body,
   Query,
   Param,
-  UseGuards,
   Req,
   HttpStatus,
 } from '@nestjs/common';
@@ -15,7 +16,6 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiQuery,
-  ApiParam,
 } from '@nestjs/swagger';
 import { LoyaltyService } from './services/loyalty.service';
 import { LoyaltyAccount } from './entities/loyalty-account.entity';
@@ -23,6 +23,8 @@ import { PointsTransaction } from './entities/points-transaction.entity';
 import { Reward } from './entities/reward.entity';
 import { RewardRedemption } from './entities/reward-redemption.entity';
 import { requireRequestUserId } from '../auth/utils/request-user';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
 @ApiTags('Loyalty & Rewards')
 @Controller('loyalty')
@@ -134,6 +136,7 @@ export class LoyaltyController {
   // ============ Admin Endpoints ============
 
   @Post('admin/earn')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Manually award points to a user (admin)' })
   async adminEarnPoints(
@@ -145,6 +148,7 @@ export class LoyaltyController {
   }
 
   @Post('admin/adjust')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Manually adjust points (admin)' })
   async adminAdjustPoints(
@@ -156,6 +160,7 @@ export class LoyaltyController {
   }
 
   @Post('admin/rewards')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new reward (admin)' })
   async createReward(@Body() data: Partial<Reward>): Promise<Reward> {
@@ -163,6 +168,7 @@ export class LoyaltyController {
   }
 
   @Get('admin/rewards')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all rewards (admin)' })
   async getAllRewards(): Promise<Reward[]> {
@@ -170,6 +176,7 @@ export class LoyaltyController {
   }
 
   @Put('admin/rewards/:id')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a reward (admin)' })
   async updateReward(
@@ -180,6 +187,7 @@ export class LoyaltyController {
   }
 
   @Delete('admin/rewards/:id')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a reward (admin)' })
   async deleteReward(@Param('id') id: string): Promise<void> {
