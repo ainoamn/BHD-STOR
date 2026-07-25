@@ -1,10 +1,10 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-07-25  
-**HEAD على `main`:** ff25a60 — سقف capture + واتساب /order + حد منتجات الباقة  
+**HEAD على `main`:** f49b06c — تقرير حالة + آخر ميزة `ff25a60`  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 
-> اقرأ هذا الملف أولاً على الجهاز الجديد، ثم `ROADMAP.md` و`docs/SESSION-2026-07-21.md` و`docs/SECURITY-AUDIT-2026-07-25.md`.
+> اقرأ أولاً: [`STATUS-REPORT-2026-07-25.md`](./STATUS-REPORT-2026-07-25.md) ثم هذا الملف + `ROADMAP.md` و`SESSION-2026-07-21.md`.
 
 ---
 
@@ -25,7 +25,7 @@ git pull origin main
 git log -5 --oneline
 ```
 
-يجب أن ترى أحدث commit تقريباً: `ff25a60` (أو أحدث إن وُجدت دفعات لاحقة).
+يجب أن ترى أحدث commit تقريباً: `f49b06c` أو أحدث (تقرير الحالة / `ff25a60`).
 
 ### متطلبات
 
@@ -94,18 +94,15 @@ npm run smoke
 
 | Commit | ماذا |
 |--------|------|
-| `eddb135` | كوبون تطبيق/إزالة على `/cart` |
-| `5534f14` | Telr webhook fail-closed (API check) |
-| `0680faa` / `a76e0ea` | CSRF عالمي + توثيق |
-| `72b565a` | تدقيق أمني + إغلاق IDOR حالة الطلب |
-| `32de43c` | منتجات تاجر new/edit |
-| `42bd379` | استرداد + `/payments/return` |
-| `ada4ce8` | مفضلة حية + طلبات التاجر |
-| `0102b68` | طلبات عميل `/orders` + `/orders/[id]` |
-| `67f5336`… | توحيد userId · health/ready · webhooks · feature flags |
+| `ff25a60` | سقف capture · واتساب `/order` بملكية · حد منتجات الباقة |
+| `db99bcf` | خطط مدفوعة مغلقة · COD من الطلب · سقف استرداد |
+| `d4aa41f` | مبلغ الدفع من الطلب · كوبونات whitelist |
+| `2af0611` / `634b0f3` / … | ملكية شحن/دفع · JWT لـ WS · سلسلة P0 أمان |
+| أقدم | CSRF · Telr · طلبات/مفضلة · باركود متجر · مسار بيع API |
 
-تفاصيل كاملة: [`SESSION-2026-07-21.md`](./SESSION-2026-07-21.md)  
-حماية/تشفير: [`SECURITY-AUDIT-2026-07-23.md`](./SECURITY-AUDIT-2026-07-23.md)  
+تقرير مجمّع: [`STATUS-REPORT-2026-07-25.md`](./STATUS-REPORT-2026-07-25.md)  
+تفاصيل الجلسة: [`SESSION-2026-07-21.md`](./SESSION-2026-07-21.md)  
+حماية: [`SECURITY-AUDIT-2026-07-23.md`](./SECURITY-AUDIT-2026-07-23.md)  
 خطة حية: [`../ROADMAP.md`](../ROADMAP.md)
 
 ---
@@ -113,9 +110,12 @@ npm run smoke
 ## 5) التالي على أي جهاز (أولوية)
 
 1. Docker → infra → `.env` → migrations **حتى 012** → seed → `health/ready` → `npm run smoke`
-2. Redis-backed throttle (بدل in-memory في `ThrottlerGuard`)
-3. مفاتيح sandbox Stripe/Thawani حقيقية + اختبار webhook
-4. تنظيف `tsc` backend (البناء الحالي SWC ناجح)
+2. مسار شراء يدوي كامل على DB حقيقي
+3. مفاتيح sandbox Stripe/Thawani + اختبار webhook
+4. فوترة اشتراك حقيقية بعد اختيار الخطة المدفوعة
+5. تنظيف `tsc` backend (البناء الحالي SWC ناجح)
+
+التفاصيل: [`STATUS-REPORT-2026-07-25.md`](./STATUS-REPORT-2026-07-25.md)
 
 **لا تبدأ** HR/CRM/Blockchain/Drone قبل إثبات مسار البيع على DB حقيقي.
 

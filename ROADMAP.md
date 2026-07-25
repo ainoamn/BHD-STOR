@@ -4,8 +4,9 @@
 > الخطط التاريخية في `docs/plans/` محفوظة للأرشيف فقط — لا تُكرَّر هنا ولا تُحدَّث كخطط عمل نشطة.  
 > المستودع الرسمي: [github.com/ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR)
 
-آخر مراجعة: 2026-07-25 · مبلغ الدفع + كوبونات · المسار المعتمد: `C:\dev\bhd-app`  
-نقل لجهاز ثانٍ: [`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md)
+آخر مراجعة: 2026-07-25 · تقرير حالة مفصّل · المسار المعتمد: `C:\dev\bhd-app`  
+نقل لجهاز ثانٍ: [`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md)  
+**تقرير ماذا تم / ماذا تبقّى / كيف نطوّر:** [`docs/STATUS-REPORT-2026-07-25.md`](./docs/STATUS-REPORT-2026-07-25.md)
 
 ---
 
@@ -247,6 +248,8 @@ npm run dev
 سجل جلسة التطوير (ما نوقش / نُفّذ / التالي — لأجهزة متعددة):
 
 → **[`docs/SESSION-2026-07-21.md`](./docs/SESSION-2026-07-21.md)**
+
+→ **[`docs/STATUS-REPORT-2026-07-25.md`](./docs/STATUS-REPORT-2026-07-25.md)** — ماذا تم · ماذا تبقّى · خطة التطوير
 
 دليل الجهاز الثاني (ابدأ هنا على PC جديد):
 
