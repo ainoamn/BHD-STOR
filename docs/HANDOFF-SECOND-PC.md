@@ -1,7 +1,7 @@
 # دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-07-25  
-**HEAD على `main`:** e2d0eba — قفل loyalty/commissions/gamification الإدارية  
+**HEAD على `main`:** *(بعد الدفع)* — Analytics IDOR + AI userId من JWT  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 
 > اقرأ هذا الملف أولاً على الجهاز الجديد، ثم `ROADMAP.md` و`docs/SESSION-2026-07-21.md` و`docs/SECURITY-AUDIT-2026-07-25.md`.
