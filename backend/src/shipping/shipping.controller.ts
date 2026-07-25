@@ -6,6 +6,7 @@ import {
   Param,
   Query,
   Res,
+  Req,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -39,6 +40,13 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { ShippingCarriersService } from './services/shipping-carriers.service';
+import { OrdersService } from '../orders/orders.service';
+import { requireRequestUserId } from '../auth/utils/request-user';
+import { isStaffRole } from '../auth/utils/roles';
+import { UserRole } from '../users/entities/user.entity';
+import {
+  requireOrderIdForSellerShipment,
+} from './utils/shipment-access';
 
 @ApiTags('Shipping')
 @Controller('shipping')
@@ -54,6 +62,7 @@ export class ShippingController {
     private readonly fedExService: FedExService,
     private readonly upsService: UPSService,
     private readonly carriersService: ShippingCarriersService,
+    private readonly ordersService: OrdersService,
   ) {}
 
   /**
@@ -112,16 +121,28 @@ export class ShippingController {
    */
   @Post('shipments')
   @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.SELLER, UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Create shipment',
-    description: 'Create a shipment with the selected carrier. Returns tracking number and label.',
+    description:
+      'Create a shipment with the selected carrier. Store owner or staff only; must manage the order.',
   })
   @ApiResponse({ status: 201, description: 'Shipment created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid shipment data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async createShipment(@Body() dto: CreateShipmentDto) {
-    this.logger.log(`Shipment creation request: order ${dto.orderId} via ${dto.carrierId}`);
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async createShipment(@Body() dto: CreateShipmentDto, @Req() req: any) {
+    const userId = requireRequestUserId(req.user);
+    if (!dto.orderId) {
+      throw new BadRequestException('orderId is required');
+    }
+    const order = await this.ordersService.findOne(dto.orderId);
+    this.ordersService.assertOrderManageAccess(order, userId, req.user?.role);
+
+    this.logger.log(
+      `Shipment creation request: order ${dto.orderId} via ${dto.carrierId} by ${userId}`,
+    );
 
     const { orderId, carrierId, senderAddress, recipientAddress, weight, dimensions, shippingMethod, insuranceAmount, signatureRequired, description, codAmount } = dto;
 
@@ -241,22 +262,34 @@ export class ShippingController {
    */
   @Get('shipments/:id/label')
   @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.SELLER, UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Download shipping label',
-    description: 'Download the shipping label for a shipment as PDF.',
+    description: 'Download the shipping label for a shipment as PDF (seller or staff).',
   })
   @ApiParam({ name: 'id', description: 'Shipment ID' })
   @ApiQuery({ name: 'carrier', required: true })
   @ApiQuery({ name: 'format', required: false, enum: ['pdf', 'zpl', 'png'], example: 'pdf' })
+  @ApiQuery({
+    name: 'orderId',
+    required: false,
+    description: 'Order UUID — required for sellers to prove ownership',
+  })
   @ApiResponse({ status: 200, description: 'Label PDF' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   async downloadLabel(
     @Param('id') shipmentId: string,
     @Query('carrier') carrier: string,
     @Query('format') format: string = 'pdf',
+    @Query('orderId') orderId: string | undefined,
+    @Req() req: any,
     @Res() res: Response,
   ) {
-    this.logger.log(`Label download request: ${carrier} shipment ${shipmentId}`);
+    const userId = requireRequestUserId(req.user);
+    await this.assertSellerShipmentAccess(userId, req.user?.role, orderId);
+
+    this.logger.log(`Label download request: ${carrier} shipment ${shipmentId} by ${userId}`);
 
     let result: { labelData: string; contentType: string };
 
@@ -295,20 +328,34 @@ export class ShippingController {
    */
   @Post('shipments/:id/cancel')
   @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.SELLER, UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Cancel shipment',
-    description: 'Cancel a previously created shipment.',
+    description: 'Cancel a previously created shipment (seller or staff).',
   })
   @ApiParam({ name: 'id', description: 'Shipment ID' })
   @ApiQuery({ name: 'carrier', required: true })
+  @ApiQuery({
+    name: 'orderId',
+    required: false,
+    description: 'Order UUID — required for sellers to prove ownership',
+  })
   @ApiResponse({ status: 200, description: 'Shipment cancelled' })
   @ApiResponse({ status: 400, description: 'Cancellation failed' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   async cancelShipment(
     @Param('id') shipmentId: string,
     @Query('carrier') carrier: string,
+    @Query('orderId') orderId: string | undefined,
+    @Req() req: any,
   ) {
-    this.logger.log(`Shipment cancellation request: ${carrier} #${shipmentId}`);
+    const userId = requireRequestUserId(req.user);
+    await this.assertSellerShipmentAccess(userId, req.user?.role, orderId);
+
+    this.logger.log(
+      `Shipment cancellation request: ${carrier} #${shipmentId} by ${userId}`,
+    );
 
     switch (carrier.toLowerCase()) {
       case 'oman_post':
@@ -561,5 +608,21 @@ export class ShippingController {
   @ApiResponse({ status: 200, description: 'Tracking history' })
   async getTrackingHistory(@Param('number') trackingNumber: string) {
     return this.trackingService.getTrackingHistory(trackingNumber);
+  }
+
+  /**
+   * Staff may act on any shipment. Sellers must pass orderId they manage.
+   */
+  private async assertSellerShipmentAccess(
+    userId: string,
+    role?: string,
+    orderId?: string,
+  ): Promise<void> {
+    requireOrderIdForSellerShipment(role, orderId);
+    if (isStaffRole(role)) {
+      return;
+    }
+    const order = await this.ordersService.findOne(orderId!);
+    this.ordersService.assertOrderManageAccess(order, userId, role);
   }
 }

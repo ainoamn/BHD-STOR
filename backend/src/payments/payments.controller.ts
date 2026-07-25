@@ -312,11 +312,17 @@ export class PaymentsController {
   @ApiResponse({ status: 404, description: 'Payment not found' })
   async downloadInvoice(
     @Param('id', ParseUUIDPipe) paymentId: string,
+    @Req() req: any,
     @Res() res: Response,
   ) {
-    this.logger.log(`Invoice download request for payment ${paymentId}`);
+    const userId = requireRequestUserId(req.user);
+    this.logger.log(`Invoice download request for payment ${paymentId} by ${userId}`);
 
-    const { pdfBuffer, filename } = await this.paymentsService.generateInvoice(paymentId);
+    const { pdfBuffer, filename } = await this.paymentsService.generateInvoice(
+      paymentId,
+      userId,
+      req.user?.role,
+    );
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

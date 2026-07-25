@@ -4,7 +4,7 @@
 > الخطط التاريخية في `docs/plans/` محفوظة للأرشيف فقط — لا تُكرَّر هنا ولا تُحدَّث كخطط عمل نشطة.  
 > المستودع الرسمي: [github.com/ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR)
 
-آخر مراجعة: 2026-07-25 · Analytics IDOR + AI JWT · المسار المعتمد: `C:\dev\bhd-app`  
+آخر مراجعة: 2026-07-25 · فاتورة/شحن بملكية · المسار المعتمد: `C:\dev\bhd-app`  
 نقل لجهاز ثانٍ: [`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md)
 
 ---
@@ -74,6 +74,7 @@
 | P1 ✓ | تتبع لوجستي عام بدون أسماء/تكلفة (+ phoneLast4 اختياري) | تسريب PII عبر رقم التتبع |
 | P0 ✓ | ولاء/عمولات/Gamification: أدوار ADMIN + self-or-staff للقراءات | سكّ نقاط / عمولات وهمية |
 | P0 ✓ | Analytics متجر: ملكية قبل تقارير/عملاء · AI coupon/cart من JWT | تسريب إيرادات/كوبونات |
+| P0 ✓ | فاتورة دفع + إنشاء/ملصق شحن مربوطان بملكية الطلب/الدفع | IDOR فواتير / شحنات وهمية |
 | P1 | تكاملات الدفع/الشحن تحتاج sandbox keys واختبار webhooks | أموال وشحنات خاطئة |
 | P1 ✓ | SECURITY.md: جدول الحالة صادق (TypeORM، لا SOC2، MFA جزئي) | تضليل تشغيلي |
 | P1 ✓ | Redis-backed rate limit (`ThrottlerGuard` + memory fallback) | حدود معدل عبر عدة عمليات |
@@ -142,6 +143,7 @@ Accounting · HR · CRM · Commission/MLM · Loyalty · Returns · Gamification 
 - [x] Chat WS مربوط بـ JWT + تتبع لوجستي عام بلا PII/تكلفة  
 - [x] قفل loyalty admin + commission calculate/pay + gamification award  
 - [x] Analytics ملكية متجر + AI smart-cart/coupon مربوط بـ JWT  
+- [x] فاتورة دفع بملكية + شحن create/label/cancel بملكية الطلب  
 - [~] أسرار فقط عبر `.env` (لا تُرفع إلى Git؛ `setup-env.bat` ينشئ `.env` محلياً؛ `docker-compose.infra.yml` لـ Postgres/Redis)  
 
 ---

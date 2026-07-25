@@ -922,15 +922,21 @@ export class PaymentsService {
   }
 
   /**
-   * Generate an invoice PDF for a payment
+   * Generate an invoice PDF for a payment (payer, store owner, or staff).
    */
-  async generateInvoice(paymentId: string): Promise<{ pdfBuffer: Buffer; filename: string }> {
+  async generateInvoice(
+    paymentId: string,
+    userId: string,
+    role?: string,
+  ): Promise<{ pdfBuffer: Buffer; filename: string }> {
     this.logger.log(`Generating invoice for payment ${paymentId}`);
 
     const payment = await this.getPaymentRecord(paymentId);
     if (!payment) {
       throw new NotFoundException(`Payment ${paymentId} not found`);
     }
+
+    await this.assertPaymentViewAccess(payment, userId, role);
 
     // Generate invoice HTML for PDF conversion
     const invoiceHtml = `
