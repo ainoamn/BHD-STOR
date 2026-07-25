@@ -5,6 +5,7 @@ import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { Product } from '../products/entities/product.entity';
 import { Store } from '../stores/entities/store.entity';
 import { User } from '../users/entities/user.entity';
+import { assertStoreAnalyticsAccess } from './utils/store-analytics-access';
 
 export interface StoreAnalytics {
   period: string;
@@ -80,6 +81,33 @@ export class AnalyticsService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
+
+  /** Owner or staff may view store-scoped analytics. */
+  async assertStoreAccess(
+    storeId: string,
+    userId: string,
+    role?: string,
+  ): Promise<Store> {
+    const store = await this.storeRepository.findOne({ where: { id: storeId } });
+    assertStoreAnalyticsAccess(store, userId, role);
+    return store!;
+  }
+
+  /** Product analytics require ownership of the product's store. */
+  async assertProductAccess(
+    productId: string,
+    userId: string,
+    role?: string,
+  ): Promise<Product> {
+    const product = await this.productRepository.findOne({
+      where: { id: productId },
+    });
+    if (!product) {
+      throw new NotFoundException(`Product with ID "${productId}" not found`);
+    }
+    await this.assertStoreAccess(product.storeId, userId, role);
+    return product;
+  }
 
   /**
    * Get store analytics for a period

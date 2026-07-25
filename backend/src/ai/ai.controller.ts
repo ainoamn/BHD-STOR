@@ -7,6 +7,7 @@ import {
   UseGuards,
   UseInterceptors,
   Logger,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -26,6 +27,10 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TransformInterceptor } from '../common/interceptors/transform.interceptor';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
+import { requireRequestUserId } from '../auth/utils/request-user';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('AI Services')
 @Controller('ai')
@@ -76,6 +81,7 @@ export class AiController {
   @Post('recommendations')
   @HttpCode(HttpStatus.OK)
   @Throttle(30, 60)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get AI-powered product recommendations' })
   @ApiResponse({
     status: 200,
@@ -84,12 +90,15 @@ export class AiController {
   })
   async getRecommendations(
     @Body() dto: RecommendationRequestDto,
+    @Req() req: any,
   ): Promise<RecommendationResponseDto> {
+    const userId = requireRequestUserId(req.user);
+    dto.userId = userId;
     const startTime = Date.now();
     const recommendations = await this.aiService.getRecommendations(dto);
 
     return {
-      userId: dto.userId,
+      userId,
       products: recommendations,
       algorithm: 'hybrid',
       processingTime: Date.now() - startTime,
@@ -127,9 +136,14 @@ export class AiController {
   @Post('smart-cart')
   @HttpCode(HttpStatus.OK)
   @Throttle(20, 60)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get smart cart suggestions' })
-  async getSmartCart(@Body() body: { userId: string; items: any[] }) {
-    return this.aiService.getSmartCartSuggestions(body.userId, body.items);
+  async getSmartCart(
+    @Body() body: { items: any[] },
+    @Req() req: any,
+  ) {
+    const userId = requireRequestUserId(req.user);
+    return this.aiService.getSmartCartSuggestions(userId, body.items || []);
   }
 
   /**
@@ -138,8 +152,10 @@ export class AiController {
   @Post('smart-cart/abandonment-prediction')
   @HttpCode(HttpStatus.OK)
   @Throttle(10, 60)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Predict cart abandonment risk' })
-  async predictAbandonment(@Body('userId') userId: string) {
+  async predictAbandonment(@Req() req: any) {
+    const userId = requireRequestUserId(req.user);
     return this.aiService.predictCartAbandonment(userId);
   }
 
@@ -149,9 +165,14 @@ export class AiController {
   @Post('smart-cart/coupon')
   @HttpCode(HttpStatus.OK)
   @Throttle(15, 60)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get best coupon for cart' })
-  async suggestCoupon(@Body() body: { userId: string; items: any[] }) {
-    return this.aiService.suggestCoupon(body.userId, body.items);
+  async suggestCoupon(
+    @Body() body: { items: any[] },
+    @Req() req: any,
+  ) {
+    const userId = requireRequestUserId(req.user);
+    return this.aiService.suggestCoupon(userId, body.items || []);
   }
 
   /**
@@ -293,7 +314,7 @@ export class AiController {
   @Post('analytics/search')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Get search analytics (Admin only)' })
   async getSearchAnalytics(
     @Body('period') period?: 'day' | 'week' | 'month',
@@ -322,6 +343,7 @@ export class AiController {
   /**
    * Health Check
    */
+  @Public()
   @Post('health')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'AI service health check' })

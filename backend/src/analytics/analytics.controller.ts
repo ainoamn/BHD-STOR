@@ -2,7 +2,8 @@ import {
   Controller,
   Get,
   Query,
-  UseGuards,
+  Param,
+  Req,
   ParseUUIDPipe,
 } from '@nestjs/common';
 import {
@@ -14,10 +15,9 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { requireRequestUserId } from '../auth/utils/request-user';
 
 @ApiTags('Analytics')
 @Controller('analytics')
@@ -25,11 +25,10 @@ export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   @Get('store/:storeId')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get store analytics',
-    description: 'Get analytics overview for a specific store',
+    description: 'Get analytics overview for a specific store (owner or staff)',
   })
   @ApiParam({ name: 'storeId', description: 'Store UUID', format: 'uuid' })
   @ApiQuery({
@@ -40,11 +39,15 @@ export class AnalyticsController {
   })
   @ApiResponse({ status: 200, description: 'Analytics retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Store not found' })
   async getStoreAnalytics(
     @Param('storeId', ParseUUIDPipe) storeId: string,
     @Query('period') period: string = '30d',
+    @Req() req: any,
   ) {
+    const userId = requireRequestUserId(req.user);
+    await this.analyticsService.assertStoreAccess(storeId, userId, req.user?.role);
     const analytics = await this.analyticsService.getStoreAnalytics(storeId, period);
     return {
       success: true,
@@ -53,11 +56,10 @@ export class AnalyticsController {
   }
 
   @Get('product/:productId')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get product analytics',
-    description: 'Get analytics for a specific product',
+    description: 'Get analytics for a product (store owner or staff)',
   })
   @ApiParam({ name: 'productId', description: 'Product UUID', format: 'uuid' })
   @ApiQuery({
@@ -68,12 +70,23 @@ export class AnalyticsController {
   })
   @ApiResponse({ status: 200, description: 'Product analytics retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Product not found' })
   async getProductAnalytics(
     @Param('productId', ParseUUIDPipe) productId: string,
     @Query('period') period: string = '30d',
+    @Req() req: any,
   ) {
-    const analytics = await this.analyticsService.getProductAnalytics(productId, period);
+    const userId = requireRequestUserId(req.user);
+    await this.analyticsService.assertProductAccess(
+      productId,
+      userId,
+      req.user?.role,
+    );
+    const analytics = await this.analyticsService.getProductAnalytics(
+      productId,
+      period,
+    );
     return {
       success: true,
       data: analytics,
@@ -81,7 +94,6 @@ export class AnalyticsController {
   }
 
   @Get('store/:storeId/sales-report')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get sales report',
@@ -92,12 +104,16 @@ export class AnalyticsController {
   @ApiQuery({ name: 'endDate', required: true, description: 'End date (ISO)', example: '2024-12-31' })
   @ApiResponse({ status: 200, description: 'Sales report retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Store not found' })
   async getSalesReport(
     @Param('storeId', ParseUUIDPipe) storeId: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Req() req: any,
   ) {
+    const userId = requireRequestUserId(req.user);
+    await this.analyticsService.assertStoreAccess(storeId, userId, req.user?.role);
     const report = await this.analyticsService.getSalesReport(
       storeId,
       new Date(startDate),
@@ -110,7 +126,6 @@ export class AnalyticsController {
   }
 
   @Get('store/:storeId/top-products')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get top products',
@@ -120,11 +135,15 @@ export class AnalyticsController {
   @ApiQuery({ name: 'limit', required: false, description: 'Number of products', example: 10 })
   @ApiResponse({ status: 200, description: 'Top products retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Store not found' })
   async getTopProducts(
     @Param('storeId', ParseUUIDPipe) storeId: string,
     @Query('limit') limit: number = 10,
+    @Req() req: any,
   ) {
+    const userId = requireRequestUserId(req.user);
+    await this.analyticsService.assertStoreAccess(storeId, userId, req.user?.role);
     const products = await this.analyticsService.getTopProducts(storeId, +limit);
     return {
       success: true,
@@ -133,21 +152,24 @@ export class AnalyticsController {
   }
 
   @Get('store/:storeId/top-customers')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get top customers',
-    description: 'Get top customers for a store',
+    description: 'Get top customers for a store (owner or staff)',
   })
   @ApiParam({ name: 'storeId', description: 'Store UUID', format: 'uuid' })
   @ApiQuery({ name: 'limit', required: false, description: 'Number of customers', example: 10 })
   @ApiResponse({ status: 200, description: 'Top customers retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Store not found' })
   async getTopCustomers(
     @Param('storeId', ParseUUIDPipe) storeId: string,
     @Query('limit') limit: number = 10,
+    @Req() req: any,
   ) {
+    const userId = requireRequestUserId(req.user);
+    await this.analyticsService.assertStoreAccess(storeId, userId, req.user?.role);
     const customers = await this.analyticsService.getTopCustomers(storeId, +limit);
     return {
       success: true,
@@ -156,7 +178,6 @@ export class AnalyticsController {
   }
 
   @Get('store/:storeId/revenue-chart')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get revenue chart',
@@ -171,10 +192,14 @@ export class AnalyticsController {
   })
   @ApiResponse({ status: 200, description: 'Revenue chart retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   async getRevenueChart(
     @Param('storeId', ParseUUIDPipe) storeId: string,
     @Query('period') period: string = '30d',
+    @Req() req: any,
   ) {
+    const userId = requireRequestUserId(req.user);
+    await this.analyticsService.assertStoreAccess(storeId, userId, req.user?.role);
     const chartData = await this.analyticsService.getRevenueChart(storeId, period);
     return {
       success: true,
@@ -183,7 +208,6 @@ export class AnalyticsController {
   }
 
   @Get('store/:storeId/order-chart')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get order chart',
@@ -198,10 +222,14 @@ export class AnalyticsController {
   })
   @ApiResponse({ status: 200, description: 'Order chart retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   async getOrderChart(
     @Param('storeId', ParseUUIDPipe) storeId: string,
     @Query('period') period: string = '30d',
+    @Req() req: any,
   ) {
+    const userId = requireRequestUserId(req.user);
+    await this.analyticsService.assertStoreAccess(storeId, userId, req.user?.role);
     const chartData = await this.analyticsService.getOrderChart(storeId, period);
     return {
       success: true,
@@ -210,7 +238,6 @@ export class AnalyticsController {
   }
 
   @Get('platform')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({
