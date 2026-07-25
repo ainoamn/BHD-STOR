@@ -72,6 +72,7 @@
 | ما هو هذا؟ | منصة سوق عمانية متعددة البائعين (B2B/B2C/…) — **هيكل احترافي واسع** وليس منتج إنتاج مكتمل |
 | التشغيل المعتمد على Windows | `C:\dev\bhd-app` فقط (مسارات عربية تكسر Webpack لـ Next.js) |
 | الخطة والنواقص | **[`ROADMAP.md`](./ROADMAP.md)** — المصدر الوحيد؛ لا تكرر الخطط في ملفات أخرى |
+| **تقرير الحالة (تم / تبقّى / خطة التطوير)** | **[`docs/STATUS-REPORT-2026-07-25.md`](./docs/STATUS-REPORT-2026-07-25.md)** |
 | مراجعة أمنية/هندسية كاملة | **[`docs/FULL_AUDIT.md`](./docs/FULL_AUDIT.md)** |
 | أرشيف تقارير خارجية (ChatGPT/DeepSeek/جيميني/كيمي) | **[`docs/external-reviews/`](./docs/external-reviews/)** |
 | لقطة حالة GitHub (2026-07-21) | **[`docs/external-reviews/STATUS-2026-07-21.md`](./docs/external-reviews/STATUS-2026-07-21.md)** |
