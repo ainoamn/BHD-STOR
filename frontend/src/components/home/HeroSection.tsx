@@ -2,14 +2,11 @@
 
 import { useRef, useEffect } from "react";
 import { useInView } from "framer-motion";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { TrendingUp, Store, ShoppingBag, Users } from "lucide-react";
-import {
-  OmanSkyline,
-  OmaniLatticePattern,
-} from "@/components/brand/OmaniIllustrations";
 
 interface HeroStats {
   totalUsers: number;
@@ -49,10 +46,21 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
     }
   }, [isInView, value, suffix]);
 
-  return <span ref={ref}>{value.toLocaleString()}{suffix}</span>;
+  return (
+    <span ref={ref}>
+      {value.toLocaleString()}
+      {suffix}
+    </span>
+  );
 }
 
-export function HeroSection({ title, subtitle, stats, primaryCta, secondaryCta }: HeroSectionProps) {
+export function HeroSection({
+  title,
+  subtitle,
+  stats,
+  primaryCta,
+  secondaryCta,
+}: HeroSectionProps) {
   const router = useRouter();
   const t = useTranslations("home.hero");
 
@@ -72,42 +80,47 @@ export function HeroSection({ title, subtitle, stats, primaryCta, secondaryCta }
   ];
 
   return (
-    <section className="relative min-h-[600px] lg:min-h-[700px] flex items-center overflow-hidden bg-[linear-gradient(160deg,#F8F5F0_0%,#E8F0E4_42%,#F3E9CF_100%)]">
-      {/* Lightweight vector atmosphere — no remote photos */}
-      <div className="absolute inset-0 z-0 text-primary/30">
-        <OmaniLatticePattern className="absolute inset-0 opacity-40" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(212,175,55,0.18),transparent_50%),radial-gradient(ellipse_at_bottom_left,rgba(0,100,0,0.12),transparent_55%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-[42%] sm:h-[48%] lg:h-[52%] pointer-events-none select-none">
-          <OmanSkyline className="absolute inset-x-0 bottom-0 h-full object-cover opacity-90" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
-        </div>
+    <section className="relative min-h-[min(92vh,720px)] flex items-end sm:items-center overflow-hidden">
+      {/* Full-bleed photorealistic Oman coast — optimized WebP via next/image */}
+      <div className="absolute inset-0 z-0">
+        <Image
+          src="/brand/oman/hero-coast.webp"
+          alt="ساحل مسقط، سلطنة عُمان"
+          fill
+          priority
+          sizes="100vw"
+          quality={80}
+          className="object-cover object-[center_35%]"
+        />
+        {/* Readable overlay without hiding the place */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/50 to-black/25" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
       </div>
 
-      <div className="absolute top-16 end-0 w-64 h-64 sm:w-80 sm:h-80 rounded-full bg-secondary/15 blur-3xl" aria-hidden />
-      <div className="absolute bottom-24 start-0 w-72 h-72 rounded-full bg-primary/10 blur-3xl" aria-hidden />
-
-      <div className="container mx-auto px-4 relative z-10 py-12 lg:py-16">
-        <div className="max-w-2xl lg:max-w-3xl">
-          <div>
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6 border border-primary/10">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
-              </span>
-              {safe("badge", "BHD Marketplace")}
+      <div className="container relative z-10 mx-auto px-4 pb-12 pt-28 sm:py-20">
+        <div className="max-w-2xl lg:max-w-3xl text-white">
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md text-white/95 text-sm font-medium mb-6 border border-white/15">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D4AF37] opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D4AF37]" />
             </span>
-          </div>
+            {safe("badge", "BHD Marketplace")}
+          </span>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-foreground">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-5 drop-shadow-sm">
             {title}
           </h1>
 
-          <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl">
+          <p className="text-lg sm:text-xl text-white/85 mb-8 max-w-2xl leading-relaxed">
             {subtitle}
           </p>
 
-          <div className="flex flex-wrap gap-4 mb-10">
-            <Button size="lg" onClick={() => router.push(primaryCta.href)} className="text-base">
+          <div className="flex flex-wrap gap-3 sm:gap-4 mb-10">
+            <Button
+              size="lg"
+              onClick={() => router.push(primaryCta.href)}
+              className="text-base bg-[#006400] hover:bg-[#004d00] text-white"
+            >
               <ShoppingBag className="me-2 h-5 w-5" />
               {primaryCta.label}
             </Button>
@@ -115,24 +128,24 @@ export function HeroSection({ title, subtitle, stats, primaryCta, secondaryCta }
               size="lg"
               variant="outline"
               onClick={() => router.push(secondaryCta.href)}
-              className="text-base border-primary/20 bg-background/60 backdrop-blur-sm"
+              className="text-base border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white backdrop-blur-sm"
             >
               <Store className="me-2 h-5 w-5" />
               {secondaryCta.label}
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {statItems.map((stat) => (
               <div
                 key={stat.label}
-                className="rounded-xl border border-border/50 bg-background/70 backdrop-blur-sm p-3 sm:p-4"
+                className="rounded-xl border border-white/15 bg-black/25 backdrop-blur-md p-3 sm:p-4"
               >
-                <stat.icon className="h-5 w-5 text-primary mb-2" />
-                <p className="text-2xl sm:text-3xl font-bold">
+                <stat.icon className="h-5 w-5 text-[#D4AF37] mb-2" />
+                <p className="text-2xl sm:text-3xl font-bold text-white">
                   <AnimatedCounter value={stat.value} />
                 </p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
+                <p className="text-sm text-white/70">{stat.label}</p>
               </div>
             ))}
           </div>

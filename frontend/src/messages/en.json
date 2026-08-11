@@ -208,24 +208,24 @@
     },
     "landmarks": {
       "eyebrow": "Authentic Omani identity",
-      "title": "From forts to souqs — shop with a sense of place",
-      "subtitle": "Lightweight illustrated landmarks inspired by Oman — no heavy photos to slow the site.",
+      "title": "Landmarks of Oman — forts to souqs",
+      "subtitle": "Photorealistic views of Muscat, forts, Al Alam Palace and Mutrah Souq — web-optimized so the site stays fast.",
       "items": {
         "fort": {
-          "name": "Nizwa & Bahla forts",
-          "blurb": "Historic citadels of defense and trade."
+          "name": "Nizwa Fort",
+          "blurb": "A historic citadel at the heart of Oman’s trade and defense story."
         },
         "alAlam": {
           "name": "Al Alam Palace",
-          "blurb": "A symbol of elegance in the heart of Muscat."
+          "blurb": "One of Muscat’s most iconic ceremonial landmarks."
         },
         "mutrah": {
           "name": "Mutrah Souq",
-          "blurb": "Scented lanes and centuries of merchant spirit."
+          "blurb": "Aromatic lanes of spices, textiles and merchant tradition."
         },
         "coast": {
           "name": "Coastal forts",
-          "blurb": "A maritime silhouette of harbour Oman."
+          "blurb": "A maritime façade of harbour Oman and its past."
         }
       }
     },

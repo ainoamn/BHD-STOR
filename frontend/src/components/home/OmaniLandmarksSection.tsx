@@ -1,61 +1,84 @@
 "use client";
 
+import Image from "next/image";
 import { useTranslations } from "next-intl";
-import {
-  AlAlamPalaceIllustration,
-  CoastalFortIllustration,
-  FortIllustration,
-  MutrahSouqIllustration,
-} from "@/components/brand/OmaniIllustrations";
 
 const landmarks = [
-  { id: "fort", Illustration: FortIllustration, key: "fort" },
-  { id: "alam", Illustration: AlAlamPalaceIllustration, key: "alAlam" },
-  { id: "mutrah", Illustration: MutrahSouqIllustration, key: "mutrah" },
-  { id: "coast", Illustration: CoastalFortIllustration, key: "coast" },
-] as const;
+  {
+    id: "fort",
+    key: "fort" as const,
+    src: "/brand/oman/fort-nizwa.webp",
+    alt: "قلعة نزوى، عُمان",
+  },
+  {
+    id: "alam",
+    key: "alAlam" as const,
+    src: "/brand/oman/palace-alam.webp",
+    alt: "قصر العلم، مسقط",
+  },
+  {
+    id: "mutrah",
+    key: "mutrah" as const,
+    src: "/brand/oman/souq-mutrah.webp",
+    alt: "سوق مطرح، مسقط",
+  },
+  {
+    id: "coast",
+    key: "coast" as const,
+    src: "/brand/oman/fort-coast.webp",
+    alt: "حصن ساحلي عُماني",
+  },
+];
 
 /**
- * Omani landmarks strip — colored SVG drawings only (no image network cost).
+ * Realistic Omani landmarks gallery.
+ * Photos are local WebP (~quality 78) + next/image lazy load (LCP-safe: no priority).
  */
 export function OmaniLandmarksSection() {
   const t = useTranslations("home.landmarks");
 
   return (
-    <section className="relative py-14 overflow-hidden">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 20% 20%, #D4AF37 0, transparent 40%), radial-gradient(circle at 80% 60%, #006400 0, transparent 45%)",
-        }}
-        aria-hidden
-      />
-
+    <section className="relative py-16 sm:py-20 overflow-hidden bg-[#0c1410]">
       <div className="container relative mx-auto px-4">
-        <div className="mb-8 max-w-2xl">
-          <p className="mb-2 text-sm font-medium text-secondary">{t("eyebrow")}</p>
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+        <div className="mb-10 max-w-2xl">
+          <p className="mb-2 text-sm font-medium tracking-wide text-[#D4AF37]">
+            {t("eyebrow")}
+          </p>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white">
             {t("title")}
           </h2>
-          <p className="mt-2 text-muted-foreground">{t("subtitle")}</p>
+          <p className="mt-3 text-white/70 leading-relaxed">{t("subtitle")}</p>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {landmarks.map(({ id, Illustration, key }) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5">
+          {landmarks.map((item, index) => (
             <article
-              key={id}
-              className="group relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-background/80 p-3 sm:p-4 transition-transform duration-300 hover:-translate-y-0.5"
+              key={item.id}
+              className={`group relative overflow-hidden rounded-2xl ${
+                index === 0 ? "sm:col-span-2 lg:col-span-2 min-h-[280px] sm:min-h-[340px]" : "min-h-[240px] sm:min-h-[280px]"
+              }`}
             >
-              <div className="mb-3 flex aspect-[4/3] items-end justify-center rounded-xl bg-gradient-to-b from-[#F8F5F0] to-[#EDE4D4] px-2 pt-2">
-                <Illustration className="max-h-28 sm:max-h-32 w-full drop-shadow-sm transition-transform duration-300 group-hover:scale-[1.03]" />
+              <Image
+                src={item.src}
+                alt={item.alt}
+                fill
+                sizes={
+                  index === 0
+                    ? "(max-width: 640px) 100vw, 100vw"
+                    : "(max-width: 640px) 100vw, 50vw"
+                }
+                quality={75}
+                className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
+              <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
+                <h3 className="text-lg sm:text-xl font-bold text-white">
+                  {t(`items.${item.key}.name`)}
+                </h3>
+                <p className="mt-1.5 text-sm text-white/80 max-w-xl">
+                  {t(`items.${item.key}.blurb`)}
+                </p>
               </div>
-              <h3 className="text-sm sm:text-base font-semibold text-foreground">
-                {t(`items.${key}.name`)}
-              </h3>
-              <p className="mt-1 text-xs sm:text-sm text-muted-foreground line-clamp-2">
-                {t(`items.${key}.blurb`)}
-              </p>
             </article>
           ))}
         </div>
