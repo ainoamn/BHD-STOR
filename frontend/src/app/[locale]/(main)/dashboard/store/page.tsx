@@ -148,7 +148,9 @@ export default function StoreDashboardPage() {
     (productsResponse as any)?.data ??
     [];
 
-  const lowStockProducts = products.filter((p: Product) => p.stock < 10);
+  const lowStockProducts = products.filter(
+    (p: Product) => (p.stock ?? p.quantity ?? 0) < 10,
+  );
 
   useEffect(() => {
     if (!authLoading && (!user || !isSellerRole(user.role))) {
@@ -407,7 +409,9 @@ export default function StoreDashboardPage() {
                         <div>
                           <p className="font-medium text-sm">{product.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {t("alerts.lowStock.remaining", { count: product.stock })}
+                            {t("alerts.lowStock.remaining", {
+                              count: product.stock ?? product.quantity ?? 0,
+                            })}
                           </p>
                         </div>
                       </div>
