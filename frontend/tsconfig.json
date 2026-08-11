@@ -48,8 +48,8 @@
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     ".next/types/**/*.ts"
   ],
   "exclude": [
@@ -62,6 +62,10 @@
     "playwright.config.ts",
     "playwright-report",
     "test-results",
+    "backend",
+    "mobile",
+    "docs",
+    "scripts",
     "src/components/checkout/ShippingAddressForm.tsx",
     "src/components/checkout/ShippingSelector.tsx",
     "src/components/order/OrderTracking.tsx"
