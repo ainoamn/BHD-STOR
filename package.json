@@ -7,13 +7,15 @@
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
   },
+  "dependencies": {
+    "next": "14.2.15"
+  },
   "scripts": {
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run start:dev",
     "build:frontend": "npm --prefix frontend run build",
     "build:backend": "npm --prefix backend run build",
     "build": "npm run build:backend && npm run build:frontend",
-    "vercel-build": "npm --prefix frontend run build",
     "lint:frontend": "npm --prefix frontend run lint",
     "lint:backend": "npm --prefix backend run lint",
     "lint": "npm run lint:backend && npm run lint:frontend",

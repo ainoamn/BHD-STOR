@@ -310,8 +310,8 @@ const nextConfig = {
     dirs: ['src'],
   },
 
-  // Output configuration
-  output: 'standalone',
+  // Docker/self-host uses standalone; Vercel provides its own output pipeline.
+  ...(process.env.VERCEL ? {} : { output: 'standalone' }),
 
   // Trailing slash configuration
   trailingSlash: false,
