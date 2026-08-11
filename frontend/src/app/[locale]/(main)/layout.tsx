@@ -21,6 +21,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 import { CurrencyProvider } from "@/providers/CurrencyProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
+import { BrandLogo } from "@/components/BrandLogo";
 
 import { isAdminRole } from "@/lib/auth-helpers";
 import { useAuth } from "@/hooks/useAuth";
@@ -102,10 +103,7 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
             <SheetContent side="left" className="w-[280px]">
               <div className="flex flex-col gap-6 mt-4">
                 <Link href="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
-                  <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                    <span className="text-primary-foreground font-bold text-sm">BHD</span>
-                  </div>
-                  <span className="font-bold text-lg">{t("brand")}</span>
+                  <BrandLogo size={32} showWordmark brandLabel={t("brand")} />
                 </Link>
                 <Separator />
                 <nav className="flex flex-col gap-2">
@@ -195,10 +193,13 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold">B</span>
-            </div>
-            <span className="font-bold text-xl hidden sm:inline">{t("brand")}</span>
+            <BrandLogo
+              size={36}
+              showWordmark
+              wordmarkHiddenOnMobile
+              brandLabel={t("brand")}
+              priority
+            />
           </Link>
 
           {/* Desktop Nav */}
@@ -349,10 +350,7 @@ function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">B</span>
-              </div>
-              <span className="font-bold text-lg">{t("brand")}</span>
+              <BrandLogo size={32} showWordmark brandLabel={t("brand")} />
             </div>
             <p className="text-sm text-muted-foreground">{t("description")}</p>
           </div>
