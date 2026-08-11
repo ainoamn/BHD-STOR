@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Build the Next.js app (frontend) and place output where Vercel expects it.
+# Build Next.js at the monorepo root (install script has already linked frontend here).
 set -euo pipefail
 
 export NEXT_TELEMETRY_DISABLED=1
-# Production safety net if env is unset on first deploy.
 export NEXT_PUBLIC_DEMO_MODE="${NEXT_PUBLIC_DEMO_MODE:-false}"
 
-npm run build --prefix frontend
+# Run via linked package.json "build" (next build) so traces use root paths.
+npm run build
 
-rm -rf .next
-cp -a frontend/.next .next
+if [ ! -d .next ]; then
+  echo "ERROR: .next output not found after next build" >&2
+  exit 1
+fi
