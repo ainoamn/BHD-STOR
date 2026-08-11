@@ -80,26 +80,28 @@ export function HeroSection({
   ];
 
   return (
-    <section className="relative min-h-[min(92vh,720px)] flex items-end sm:items-center overflow-hidden">
-      {/* Full-bleed photorealistic Oman coast — optimized WebP via next/image */}
+    <section className="relative min-h-[min(100svh,820px)] flex items-end overflow-hidden">
+      {/* Cinematic Al Hajar mountains — full-bleed hero */}
       <div className="absolute inset-0 z-0">
         <Image
           src="/brand/oman/hero-coast.webp"
-          alt="ساحل مسقط، سلطنة عُمان"
+          alt="جبال الحجر، سلطنة عُمان"
           fill
           priority
           sizes="100vw"
-          quality={80}
-          className="object-cover object-[center_35%]"
+          quality={90}
+          className="object-cover object-[center_40%] hero-kenburns will-change-transform"
         />
-        {/* Readable overlay without hiding the place */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/50 to-black/25" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
+        {/* Soft cinematic grade — keep mountains readable */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.25)_70%,rgba(0,0,0,0.55)_100%)]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/35 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-black/30" />
+        <div className="absolute inset-0 bg-[#0a2f14]/[0.12] mix-blend-soft-light" />
       </div>
 
-      <div className="container relative z-10 mx-auto px-4 pb-12 pt-28 sm:py-20">
+      <div className="container relative z-10 mx-auto px-4 pb-14 pt-32 sm:pb-20 sm:pt-28">
         <div className="max-w-2xl lg:max-w-3xl text-white">
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md text-white/95 text-sm font-medium mb-6 border border-white/15">
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md text-white/95 text-sm font-medium mb-6 border border-white/20 shadow-[0_0_40px_rgba(212,175,55,0.15)]">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D4AF37] opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D4AF37]" />
@@ -107,19 +109,19 @@ export function HeroSection({
             {safe("badge", "BHD Marketplace")}
           </span>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-5 drop-shadow-sm">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-5 drop-shadow-[0_2px_24px_rgba(0,0,0,0.45)] leading-[1.1]">
             {title}
           </h1>
 
-          <p className="text-lg sm:text-xl text-white/85 mb-8 max-w-2xl leading-relaxed">
+          <p className="text-lg sm:text-xl text-white/90 mb-9 max-w-2xl leading-relaxed drop-shadow-md">
             {subtitle}
           </p>
 
-          <div className="flex flex-wrap gap-3 sm:gap-4 mb-10">
+          <div className="flex flex-wrap gap-3 sm:gap-4 mb-11">
             <Button
               size="lg"
               onClick={() => router.push(primaryCta.href)}
-              className="text-base bg-[#006400] hover:bg-[#004d00] text-white"
+              className="text-base bg-[#006400] hover:bg-[#005200] text-white shadow-lg shadow-black/30"
             >
               <ShoppingBag className="me-2 h-5 w-5" />
               {primaryCta.label}
@@ -128,7 +130,7 @@ export function HeroSection({
               size="lg"
               variant="outline"
               onClick={() => router.push(secondaryCta.href)}
-              className="text-base border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white backdrop-blur-sm"
+              className="text-base border-white/35 bg-white/10 text-white hover:bg-white/20 hover:text-white backdrop-blur-md"
             >
               <Store className="me-2 h-5 w-5" />
               {secondaryCta.label}
@@ -139,7 +141,7 @@ export function HeroSection({
             {statItems.map((stat) => (
               <div
                 key={stat.label}
-                className="rounded-xl border border-white/15 bg-black/25 backdrop-blur-md p-3 sm:p-4"
+                className="rounded-2xl border border-white/15 bg-black/30 backdrop-blur-md p-3.5 sm:p-4 shadow-lg shadow-black/20"
               >
                 <stat.icon className="h-5 w-5 text-[#D4AF37] mb-2" />
                 <p className="text-2xl sm:text-3xl font-bold text-white">
