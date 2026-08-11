@@ -111,6 +111,7 @@ export function useProductBySlug(
 /**
  * Hook: useFeaturedProducts
  * Fetch the featured / curated product list.
+ * Soft-fails to [] when API is unavailable (e.g. frontend-only deploy).
  */
 export function useFeaturedProducts(): UseQueryResult<Product[], Error> {
   return useQuery({
@@ -119,7 +120,11 @@ export function useFeaturedProducts(): UseQueryResult<Product[], Error> {
       if (isDemoMode()) {
         return getDemoProductsList();
       }
-      return productsService.getFeaturedProducts();
+      try {
+        return await productsService.getFeaturedProducts();
+      } catch {
+        return [];
+      }
     },
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 15,

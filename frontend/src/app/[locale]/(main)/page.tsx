@@ -88,10 +88,10 @@ function ErrorState({
   onRetry: () => void;
 }) {
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="container mx-auto px-4 py-8">
       <Alert variant="destructive" className="max-w-xl mx-auto">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
+        <AlertTitle>تعذر تحميل بعض البيانات</AlertTitle>
         <AlertDescription className="flex flex-col gap-4">
           <span>{message}</span>
           <Button
@@ -101,7 +101,7 @@ function ErrorState({
             className="w-fit"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
+            إعادة المحاولة
           </Button>
         </AlertDescription>
       </Alert>
@@ -159,19 +159,8 @@ export default function HomePage() {
     );
   }
 
-  if (isError) {
-    return (
-      <ErrorState
-        message={
-          productsErrorMsg?.message ||
-          storesErrorMsg?.message ||
-          categoriesErrorMsg?.message ||
-          t("error.loading")
-        }
-        onRetry={handleRetry}
-      />
-    );
-  }
+  // Never block the whole storefront when catalog APIs are down (common on
+  // frontend-only Vercel deploys without a Nest backend). Hero still renders.
 
   const stats = adminStats
     ? {
@@ -189,6 +178,18 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {isError && (
+        <ErrorState
+          message={
+            productsErrorMsg?.message ||
+            storesErrorMsg?.message ||
+            categoriesErrorMsg?.message ||
+            t("error.loading")
+          }
+          onRetry={handleRetry}
+        />
+      )}
+
       {/* Hero Section */}
       <section>
         <HeroSection

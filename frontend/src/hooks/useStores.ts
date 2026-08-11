@@ -136,6 +136,7 @@ export function useStoreProducts(
 /**
  * Hook: useFeaturedStores
  * Fetch featured / curated stores.
+ * Soft-fails to [] when API is unavailable (e.g. frontend-only deploy).
  */
 export function useFeaturedStores(): UseQueryResult<Store[], Error> {
   return useQuery({
@@ -145,7 +146,11 @@ export function useFeaturedStores(): UseQueryResult<Store[], Error> {
         const { demoStores } = await import("@/lib/demo-data");
         return demoStores as unknown as Store[];
       }
-      return storesService.getFeaturedStores();
+      try {
+        return await storesService.getFeaturedStores();
+      } catch {
+        return [];
+      }
     },
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 15,
