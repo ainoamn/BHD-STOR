@@ -138,7 +138,12 @@ export default function OrderDetailPage() {
                 </div>
                 <span className="text-sm font-semibold">
                   {formatPrice
-                    ? formatPrice(Number(item.total ?? item.price * item.quantity ?? 0))
+                    ? formatPrice(
+                        Number(
+                          item.total ??
+                            (Number(item.price ?? 0) * Number(item.quantity ?? 0)),
+                        ),
+                      )
                     : `${Number(item.total ?? 0).toFixed(3)} ${currency}`}
                 </span>
               </li>
