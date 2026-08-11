@@ -18,6 +18,7 @@ import { HeroSection } from "@/components/home/HeroSection";
 import { CategoriesSection } from "@/components/home/CategoriesSection";
 import { FeaturedStores } from "@/components/home/FeaturedStores";
 import { TrendingProducts } from "@/components/home/TrendingProducts";
+import { OmaniLandmarksSection } from "@/components/home/OmaniLandmarksSection";
 
 function HomePageSkeleton() {
   return (
@@ -267,6 +268,8 @@ export default function HomePage() {
           />
         )}
       </section>
+
+      <OmaniLandmarksSection />
 
       {/* Trust Badges / Stats Banner */}
       <section className="py-12 bg-primary/5 border-y">

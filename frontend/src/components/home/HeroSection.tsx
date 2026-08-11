@@ -5,8 +5,11 @@ import { useInView } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Search, TrendingUp, Store, ShoppingBag, Users } from "lucide-react";
-import Image from "next/image";
+import { TrendingUp, Store, ShoppingBag, Users } from "lucide-react";
+import {
+  OmanSkyline,
+  OmaniLatticePattern,
+} from "@/components/brand/OmaniIllustrations";
 
 interface HeroStats {
   totalUsers: number;
@@ -69,29 +72,24 @@ export function HeroSection({ title, subtitle, stats, primaryCta, secondaryCta }
   ];
 
   return (
-    <section className="relative min-h-[600px] lg:min-h-[700px] flex items-center overflow-hidden">
-      {/* Background Image */}
-      <div className="absolute inset-0 z-0">
-        <Image
-          src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1920&q=80"
-          alt="BHD Marketplace Hero"
-          fill
-          className="object-cover"
-          priority
-          unoptimized
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/40" />
+    <section className="relative min-h-[600px] lg:min-h-[700px] flex items-center overflow-hidden bg-[linear-gradient(160deg,#F8F5F0_0%,#E8F0E4_42%,#F3E9CF_100%)]">
+      {/* Lightweight vector atmosphere — no remote photos */}
+      <div className="absolute inset-0 z-0 text-primary/30">
+        <OmaniLatticePattern className="absolute inset-0 opacity-40" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(212,175,55,0.18),transparent_50%),radial-gradient(ellipse_at_bottom_left,rgba(0,100,0,0.12),transparent_55%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-[42%] sm:h-[48%] lg:h-[52%] pointer-events-none select-none">
+          <OmanSkyline className="absolute inset-x-0 bottom-0 h-full object-cover opacity-90" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
+        </div>
       </div>
 
-      {/* Decorative Elements */}
-      <div className="absolute top-20 right-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-10 left-10 w-96 h-96 bg-chart-2/10 rounded-full blur-3xl" />
+      <div className="absolute top-16 end-0 w-64 h-64 sm:w-80 sm:h-80 rounded-full bg-secondary/15 blur-3xl" aria-hidden />
+      <div className="absolute bottom-24 start-0 w-72 h-72 rounded-full bg-primary/10 blur-3xl" aria-hidden />
 
-      <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-3xl">
-          {/* Badge */}
+      <div className="container mx-auto px-4 relative z-10 py-12 lg:py-16">
+        <div className="max-w-2xl lg:max-w-3xl">
           <div>
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6 border border-primary/10">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
@@ -100,39 +98,35 @@ export function HeroSection({ title, subtitle, stats, primaryCta, secondaryCta }
             </span>
           </div>
 
-          {/* Title */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-foreground">
             {title}
           </h1>
 
-          {/* Subtitle */}
           <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl">
             {subtitle}
           </p>
 
-          {/* CTAs */}
-          <div className="flex flex-wrap gap-4 mb-12">
+          <div className="flex flex-wrap gap-4 mb-10">
             <Button size="lg" onClick={() => router.push(primaryCta.href)} className="text-base">
-              <ShoppingBag className="mr-2 h-5 w-5" />
+              <ShoppingBag className="me-2 h-5 w-5" />
               {primaryCta.label}
             </Button>
             <Button
               size="lg"
               variant="outline"
               onClick={() => router.push(secondaryCta.href)}
-              className="text-base"
+              className="text-base border-primary/20 bg-background/60 backdrop-blur-sm"
             >
-              <Store className="mr-2 h-5 w-5" />
+              <Store className="me-2 h-5 w-5" />
               {secondaryCta.label}
             </Button>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             {statItems.map((stat) => (
               <div
                 key={stat.label}
-                className="bg-background/60 backdrop-blur-sm rounded-xl p-4 border border-border/50"
+                className="rounded-xl border border-border/50 bg-background/70 backdrop-blur-sm p-3 sm:p-4"
               >
                 <stat.icon className="h-5 w-5 text-primary mb-2" />
                 <p className="text-2xl sm:text-3xl font-bold">
