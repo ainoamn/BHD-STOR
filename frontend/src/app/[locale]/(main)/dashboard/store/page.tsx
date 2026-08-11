@@ -93,10 +93,12 @@ interface Product {
   id: string;
   name: string;
   price: number;
-  stock: number;
-  image: string;
-  category: string;
-  sales: number;
+  stock?: number;
+  quantity?: number;
+  image?: string;
+  category?: string | { name?: string };
+  sales?: number;
+  soldCount?: number;
 }
 
 export default function StoreDashboardPage() {
@@ -521,7 +523,9 @@ export default function StoreDashboardPage() {
                           <p className="text-sm text-muted-foreground truncate">
                             {typeof product.category === "string"
                               ? product.category
-                              : product.category?.name || ""}
+                              : product.category && typeof product.category === "object"
+                                ? product.category.name || ""
+                                : ""}
                           </p>
                         </div>
                       </button>
