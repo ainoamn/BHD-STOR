@@ -14,6 +14,7 @@ import {
   ParseUUIDPipe,
   Logger,
   BadRequestException,
+  InternalServerErrorException,
   RawBodyRequest,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, ApiExcludeEndpoint } from '@nestjs/swagger';
@@ -195,13 +196,10 @@ export class PaymentsController {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      // Transient business errors: acknowledge to limit endless provider retries
-      return {
-        success: false,
-        message: `Webhook processing failed: ${error.message}`,
-        processingId: `wh-${Date.now()}`,
-        eventType: 'error',
-      };
+      // Unexpected / DB failures: return 5xx so providers retry
+      throw new InternalServerErrorException(
+        `Webhook processing failed: ${error.message}`,
+      );
     }
   }
 
@@ -313,10 +311,10 @@ export class PaymentsController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Download invoice',
-    description: 'Generate and download a PDF invoice for a payment.',
+    description: 'Generate and download an HTML invoice for a payment.',
   })
   @ApiParam({ name: 'id', description: 'Payment ID (UUID)', format: 'uuid' })
-  @ApiResponse({ status: 200, description: 'Invoice PDF' })
+  @ApiResponse({ status: 200, description: 'Invoice HTML' })
   @ApiResponse({ status: 404, description: 'Payment not found' })
   async downloadInvoice(
     @Param('id', ParseUUIDPipe) paymentId: string,
@@ -326,15 +324,15 @@ export class PaymentsController {
     const userId = requireRequestUserId(req.user);
     this.logger.log(`Invoice download request for payment ${paymentId} by ${userId}`);
 
-    const { pdfBuffer, filename } = await this.paymentsService.generateInvoice(
+    const { htmlBuffer, filename } = await this.paymentsService.generateInvoice(
       paymentId,
       userId,
       req.user?.role,
     );
 
-    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(pdfBuffer);
+    res.send(htmlBuffer);
   }
 
   /**

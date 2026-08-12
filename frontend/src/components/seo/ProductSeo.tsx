@@ -6,6 +6,7 @@ import {
   generateProductJsonLd,
   generateBreadcrumbJsonLd,
   generateReviewJsonLd,
+  safeJsonLd,
 } from "@/lib/seo";
 
 interface Review {
@@ -304,7 +305,7 @@ export default function ProductSeo({
             key={index}
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify(data, null, 2),
+              __html: safeJsonLd(data),
             }}
           />
         ))}
@@ -315,8 +316,7 @@ export default function ProductSeo({
             key={`img-${index}`}
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify(
-                {
+              __html: safeJsonLd({
                   "@context": "https://schema.org",
                   "@type": "ImageObject",
                   contentUrl: img.url.startsWith("http")
@@ -326,10 +326,7 @@ export default function ProductSeo({
                   description: img.alt || `${name} product image`,
                   ...(img.width && { width: img.width.toString() }),
                   ...(img.height && { height: img.height.toString() }),
-                },
-                null,
-                2
-              ),
+                }),
             }}
           />
         ))}

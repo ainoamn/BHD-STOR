@@ -68,6 +68,7 @@
 
 | البند | الواقع |
 |-------|--------|
+| **حكم الجاهزية للإنتاج (أحدث)** | **NO-GO** — [`docs/ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./docs/ENGINEERING-SECURITY-AUDIT-2026-08-11.md) (commit `feb0e491…`) · متتبع الإصلاح: [`docs/AUDIT-REMEDIATION-TRACKER-2026-08.md`](./docs/AUDIT-REMEDIATION-TRACKER-2026-08.md) |
 | المستودع | [ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR) |
 | ما هو هذا؟ | منصة سوق عمانية متعددة البائعين (B2B/B2C/…) — **هيكل احترافي واسع** وليس منتج إنتاج مكتمل |
 | التشغيل المعتمد على Windows | `C:\dev\bhd-app` فقط (مسارات عربية تكسر Webpack لـ Next.js) |

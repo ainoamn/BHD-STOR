@@ -176,7 +176,10 @@ export class NotificationsService {
 
     // Queue SMS for delivery via SMS provider
     // The SMS service processes this queue and delivers via the configured provider
-    this.logger.log(`SMS queued for ${normalizedPhone}: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`, 'NotificationsService');
+    this.logger.log(
+      `SMS queued for ${normalizedPhone}: length=${message.length}`,
+      'NotificationsService',
+    );
 
     return {
       success: true,
@@ -345,6 +348,11 @@ export class NotificationsService {
     channel: string,
     payload: Record<string, any>,
   ): void {
-    this.logger.debug(`[${channel}] ${JSON.stringify(payload)}`, 'NotificationsService');
+    const type = payload?.type ?? payload?.notificationType ?? 'unknown';
+    const id = payload?.id ?? payload?.notificationId ?? 'n/a';
+    this.logger.debug(
+      `[${channel}] type=${type} id=${id}`,
+      'NotificationsService',
+    );
   }
 }

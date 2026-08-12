@@ -8,6 +8,7 @@ import {
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request, Response } from 'express';
+import { redactSensitive } from '../utils/redact.util';
 
 /**
  * Logging Interceptor
@@ -27,21 +28,24 @@ export class LoggingInterceptor implements NestInterceptor {
 
     const { method, url, ip, headers } = request;
     const userAgent = headers['user-agent'] || 'unknown';
-    const requestId = headers['x-request-id'] as string || 'no-id';
+    const requestId = (headers['x-request-id'] as string) || 'no-id';
 
     // Log request (excluding sensitive data)
-    const sanitizedBody = this.sanitizeBody(request.body);
+    const sanitizedBody = redactSensitive(request.body);
+    const sanitizedQuery = redactSensitive(request.query);
+    const sanitizedParams = redactSensitive(request.params);
+    const sanitizedUrl = redactSensitive(url) as string;
 
-    const logMessage = `[${requestId}] ${method} ${url} - Request`;
+    const logMessage = `[${requestId}] ${method} ${sanitizedUrl} - Request`;
     const logData = {
       requestId,
       method,
-      url,
+      url: sanitizedUrl,
       ip,
       userAgent,
       body: sanitizedBody,
-      query: request.query,
-      params: request.params,
+      query: sanitizedQuery,
+      params: sanitizedParams,
       timestamp: new Date().toISOString(),
     };
 
@@ -57,7 +61,7 @@ export class LoggingInterceptor implements NestInterceptor {
           const duration = Date.now() - startTime;
           const statusCode = response.statusCode;
 
-          const responseLog = `[${requestId}] ${method} ${url} - ${statusCode} - ${duration}ms`;
+          const responseLog = `[${requestId}] ${method} ${sanitizedUrl} - ${statusCode} - ${duration}ms`;
 
           if (statusCode >= 500) {
             this.logger.error(responseLog, 'LoggingInterceptor');
@@ -81,7 +85,7 @@ export class LoggingInterceptor implements NestInterceptor {
           const statusCode = error.status || 500;
 
           this.logger.error(
-            `[${requestId}] ${method} ${url} - ${statusCode} - ${duration}ms - Error: ${error.message}`,
+            `[${requestId}] ${method} ${sanitizedUrl} - ${statusCode} - ${duration}ms - Error: ${error.message}`,
             error.stack,
             'LoggingInterceptor',
           );
@@ -98,39 +102,6 @@ export class LoggingInterceptor implements NestInterceptor {
         },
       }),
     );
-  }
-
-  /**
-   * Sanitize request body by removing sensitive fields
-   */
-  private sanitizeBody(body: any): any {
-    if (!body || typeof body !== 'object') {
-      return body;
-    }
-
-    const sensitiveFields = [
-      'password',
-      'newPassword',
-      'currentPassword',
-      'confirmPassword',
-      'token',
-      'refreshToken',
-      'accessToken',
-      'secret',
-      'apiKey',
-      'creditCard',
-      'cvv',
-      'cardNumber',
-    ];
-
-    const sanitized = { ...body };
-    for (const field of sensitiveFields) {
-      if (field in sanitized) {
-        sanitized[field] = '***REDACTED***';
-      }
-    }
-
-    return sanitized;
   }
 
   /**

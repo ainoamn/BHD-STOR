@@ -166,9 +166,29 @@ export class UsersService {
   }
 
   /**
-   * Find user by reset token
+   * Find user by password-reset selector (prefix before ':' in reset_token).
+   * Stored format: `selector:sha256(verifierHex)`.
+   */
+  async findByResetTokenSelector(selector: string): Promise<User | null> {
+    if (!selector || !/^[a-f0-9]{16}$/i.test(selector)) {
+      return null;
+    }
+    return this.userRepository.findOne({
+      where: {
+        resetToken: Like(`${selector}:%`),
+        deletedAt: null,
+      },
+    });
+  }
+
+  /**
+   * @deprecated Prefer findByResetTokenSelector — exact match cannot work with hashed verifiers.
    */
   async findByResetToken(token: string): Promise<User | null> {
+    const selector = token.includes(':') ? token.split(':')[0] : token.split('.')[0];
+    if (selector && /^[a-f0-9]{16}$/i.test(selector)) {
+      return this.findByResetTokenSelector(selector);
+    }
     return this.userRepository.findOne({
       where: { resetToken: token, deletedAt: null },
     });
@@ -249,7 +269,7 @@ export class UsersService {
     const result = await this.userRepository.delete(id);
 
     if (result.affected === 0) {
-      throw NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`User with ID ${id} not found`);
     }
 
     this.logger.log(`Hard deleted user: ${id}`, 'UsersService');

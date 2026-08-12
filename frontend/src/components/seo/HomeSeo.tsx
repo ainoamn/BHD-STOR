@@ -5,6 +5,7 @@ import DefaultSeo from "./DefaultSeo";
 import {
   generateOrganizationJsonLd,
   generateWebsiteJsonLd,
+  safeJsonLd,
 } from "@/lib/seo";
 
 interface FeaturedProduct {
@@ -297,7 +298,7 @@ export default function HomeSeo({
           type="application/ld+json"
           id="organization-schema"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(organizationJsonLd, null, 2),
+            __html: safeJsonLd(organizationJsonLd),
           }}
         />
 
@@ -306,7 +307,7 @@ export default function HomeSeo({
           type="application/ld+json"
           id="website-schema"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(websiteJsonLd, null, 2),
+            __html: safeJsonLd(websiteJsonLd),
           }}
         />
 
@@ -315,7 +316,7 @@ export default function HomeSeo({
           type="application/ld+json"
           id="search-action-schema"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(searchActionJsonLd, null, 2),
+            __html: safeJsonLd(searchActionJsonLd),
           }}
         />
 
@@ -324,7 +325,7 @@ export default function HomeSeo({
           type="application/ld+json"
           id="webpage-schema"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(webPageJsonLd, null, 2),
+            __html: safeJsonLd(webPageJsonLd),
           }}
         />
 
@@ -333,7 +334,7 @@ export default function HomeSeo({
           type="application/ld+json"
           id="faq-schema"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(faqJsonLd, null, 2),
+            __html: safeJsonLd(faqJsonLd),
           }}
         />
 
@@ -343,7 +344,7 @@ export default function HomeSeo({
             type="application/ld+json"
             id="featured-products-schema"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify(carouselJsonLd, null, 2),
+              __html: safeJsonLd(carouselJsonLd),
             }}
           />
         )}
@@ -354,7 +355,7 @@ export default function HomeSeo({
             type="application/ld+json"
             id="featured-stores-schema"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify(storeCarouselJsonLd, null, 2),
+              __html: safeJsonLd(storeCarouselJsonLd),
             }}
           />
         )}
@@ -364,8 +365,7 @@ export default function HomeSeo({
           type="application/ld+json"
           id="hq-schema"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(
-              {
+            __html: safeJsonLd({
                 "@context": "https://schema.org",
                 "@type": "LocalBusiness",
                 name: "BHD Marketplace HQ",
@@ -406,10 +406,7 @@ export default function HomeSeo({
                   },
                 ],
                 priceRange: "$$",
-              },
-              null,
-              2
-            ),
+              }),
           }}
         />
 
@@ -418,8 +415,7 @@ export default function HomeSeo({
           type="application/ld+json"
           id="app-schema"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(
-              {
+            __html: safeJsonLd({
                 "@context": "https://schema.org",
                 "@type": "SoftwareApplication",
                 name: "BHD Marketplace",
@@ -443,10 +439,7 @@ export default function HomeSeo({
                   "إشعارات فورية",
                   "وضع offline",
                 ],
-              },
-              null,
-              2
-            ),
+              }),
           }}
         />
       </Head>

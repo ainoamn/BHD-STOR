@@ -5,6 +5,7 @@ import DefaultSeo from "./DefaultSeo";
 import {
   generateStoreJsonLd,
   generateBreadcrumbJsonLd,
+  safeJsonLd,
 } from "@/lib/seo";
 
 interface StoreLocation {
@@ -241,7 +242,7 @@ export default function StoreSeo({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(storeJsonLd, null, 2),
+            __html: safeJsonLd(storeJsonLd),
           }}
         />
 
@@ -249,7 +250,7 @@ export default function StoreSeo({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(breadcrumbJsonLd, null, 2),
+            __html: safeJsonLd(breadcrumbJsonLd),
           }}
         />
 
@@ -258,8 +259,7 @@ export default function StoreSeo({
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify(
-                {
+              __html: safeJsonLd({
                   "@context": "https://schema.org",
                   "@type": "WebSite",
                   name: `${name} - ${website}`,
@@ -267,10 +267,7 @@ export default function StoreSeo({
                   publisher: {
                     "@id": `${storeUrl}#store`,
                   },
-                },
-                null,
-                2
-              ),
+                }),
             }}
           />
         )}
@@ -280,8 +277,7 @@ export default function StoreSeo({
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify(
-                {
+              __html: safeJsonLd({
                   "@context": "https://schema.org",
                   "@type": "OfferCatalog",
                   name: `منتجات ${name}`,
@@ -294,10 +290,7 @@ export default function StoreSeo({
                   },
                   numberOfItems: productCount.toString(),
                   url: `${storeUrl}/products`,
-                },
-                null,
-                2
-              ),
+                }),
             }}
           />
         )}
@@ -307,17 +300,13 @@ export default function StoreSeo({
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify(
-                {
+              __html: safeJsonLd({
                   "@context": "https://schema.org",
                   "@type": "Organization",
                   name,
                   url: storeUrl,
                   sameAs: socialLinks.map((link) => link.url),
-                },
-                null,
-                2
-              ),
+                }),
             }}
           />
         )}

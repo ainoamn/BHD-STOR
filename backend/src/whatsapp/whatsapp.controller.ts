@@ -108,8 +108,12 @@ export class WhatsAppController {
     });
 
     try {
+      const payloadLength =
+        typeof payload === 'string'
+          ? payload.length
+          : JSON.stringify(payload ?? {}).length;
       this.logger.debug(
-        `Webhook received (${provider}): ${JSON.stringify(payload).substring(0, 200)}`,
+        `Webhook received (${provider}): payloadLength=${payloadLength}`,
       );
 
       if (provider === 'meta') {
@@ -148,7 +152,9 @@ export class WhatsAppController {
       return challenge;
     }
 
-    this.logger.warn(`Webhook verification failed - invalid token: ${token}`);
+    this.logger.warn(
+      `Webhook verification failed - invalid token (length=${token?.length ?? 0})`,
+    );
     throw new UnauthorizedException('Invalid verify token');
   }
 
@@ -418,7 +424,9 @@ export class WhatsAppController {
     const messageId = payload.MessageSid;
     const body = payload.Body;
 
-    this.logger.log(`Received message from ${from}: ${body.substring(0, 50)}...`);
+    this.logger.log(
+      `Received message from ${from}: length=${body.length}, status=${payload.MessageStatus ?? 'inbound'}`,
+    );
 
     // Handle status callbacks
     if (payload.MessageStatus) {

@@ -3,7 +3,7 @@
 # Multi-stage build for NestJS application
 # =============================================================================
 
-ARG NODE_VERSION=18-alpine
+ARG NODE_VERSION=24-alpine
 
 # =============================================================================
 # STAGE 1: Dependencies

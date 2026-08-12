@@ -4,6 +4,7 @@ import Head from "next/head";
 import DefaultSeo from "./DefaultSeo";
 import {
   generateBreadcrumbJsonLd,
+  safeJsonLd,
 } from "@/lib/seo";
 
 interface CategoryProduct {
@@ -251,7 +252,7 @@ export default function CategorySeo({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(collectionJsonLd, null, 2),
+            __html: safeJsonLd(collectionJsonLd),
           }}
         />
 
@@ -259,7 +260,7 @@ export default function CategorySeo({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(breadcrumbJsonLd, null, 2),
+            __html: safeJsonLd(breadcrumbJsonLd),
           }}
         />
 
@@ -267,7 +268,7 @@ export default function CategorySeo({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(searchActionJsonLd, null, 2),
+            __html: safeJsonLd(searchActionJsonLd),
           }}
         />
 
@@ -276,8 +277,7 @@ export default function CategorySeo({
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify(
-                {
+              __html: safeJsonLd({
                   "@context": "https://schema.org",
                   "@type": "ItemList",
                   itemListElement: subcategories.map((sub, index) => ({
@@ -289,10 +289,7 @@ export default function CategorySeo({
                       description: `${sub.count} منتجات`,
                     }),
                   })),
-                },
-                null,
-                2
-              ),
+                }),
             }}
           />
         )}
@@ -302,8 +299,7 @@ export default function CategorySeo({
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify(
-                {
+              __html: safeJsonLd({
                   "@context": "https://schema.org",
                   "@type": "OfferCatalog",
                   name: `${name} - الفلاتر`,
@@ -317,10 +313,7 @@ export default function CategorySeo({
                       },
                     },
                   })),
-                },
-                null,
-                2
-              ),
+                }),
             }}
           />
         )}

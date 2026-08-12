@@ -3,7 +3,7 @@
 # Multi-stage build for Next.js 14+ application
 # =============================================================================
 
-ARG NODE_VERSION=18-alpine
+ARG NODE_VERSION=24-alpine
 
 # =============================================================================
 # STAGE 1: Dependencies

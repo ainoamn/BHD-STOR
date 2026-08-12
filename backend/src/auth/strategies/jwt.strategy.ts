@@ -1,8 +1,16 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { Request } from 'express';
 import { UsersService } from '@users/users.service';
+import { AuthService } from '../auth.service';
 
 export interface JwtPayload {
   sub: string;
@@ -31,6 +39,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
   ) {
     const jwtSecret = configService.get<string>('JWT_SECRET', '');
     const jwtIssuer = configService.get<string>('JWT_ISSUER', 'bhd-oman-marketplace');
@@ -51,17 +61,27 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       issuer: jwtIssuer,
       audience: jwtAudience,
       algorithms: ['HS256'],
-      passReqToCallback: false,
+      passReqToCallback: true,
     });
 
     this.logger.log('JWT Strategy initialized', 'JwtStrategy');
   }
 
-  async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
+  async validate(req: Request, payload: JwtPayload): Promise<AuthenticatedUser> {
     // Verify this is an access token
     if (payload.type !== 'access') {
       this.logger.warn(`Invalid token type: ${payload.type}`, 'JwtStrategy');
       throw new UnauthorizedException('Invalid token type');
+    }
+
+    const rawToken =
+      req?.cookies?.accessToken ||
+      ExtractJwt.fromAuthHeaderAsBearerToken()(req) ||
+      undefined;
+
+    if (await this.authService.isSessionTokenRevoked(rawToken, payload)) {
+      this.logger.warn(`Revoked token used for user: ${payload.sub}`, 'JwtStrategy');
+      throw new UnauthorizedException('Token has been revoked');
     }
 
     // Check if user still exists and is active

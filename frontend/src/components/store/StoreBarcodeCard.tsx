@@ -273,42 +273,81 @@ export function StoreBarcodeCard({
       toast.error(t("printBlocked"));
       return;
     }
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>${identity.storeSerial} — BHD</title>
-  <style>
-    @page { size: 80mm 100mm; margin: 6mm; }
-    body { font-family: system-ui, sans-serif; text-align: center; color: #111; }
-    .box { border: 2px solid #111; padding: 12px; border-radius: 8px; }
-    h1 { font-size: 18px; margin: 0 0 4px; }
-    h2 { font-size: 14px; font-weight: 600; margin: 0 0 12px; }
-    img.qr { width: 180px; height: 180px; }
-    img.bc { width: 90%; max-width: 260px; margin-top: 10px; }
-    .serial { font-family: ui-monospace, monospace; font-size: 18px; font-weight: 700; margin-top: 10px; }
-    .code { font-family: ui-monospace, monospace; font-size: 12px; color: #333; }
-    .url { font-size: 10px; word-break: break-all; color: #444; margin-top: 8px; }
-    .hint { font-size: 10px; margin-top: 10px; }
-  </style>
-</head>
-<body>
-  <div class="box">
-    <h1>BHD</h1>
-    <h2>${identity.name.replace(/</g, "")}</h2>
-    <img class="qr" src="${qrSrc}" alt="QR" />
-    <div class="serial">${identity.storeSerial}</div>
-    <div class="code">${identity.storeCode}</div>
-    <img class="bc" src="${barcodeImgSrc}" alt="Barcode" />
-    <div class="url">${identity.scanUrl}</div>
-    <p class="hint">${t("stickerFooter")}</p>
-  </div>
-  <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 400); };</script>
-</body>
-</html>`;
-    win.document.write(html);
-    win.document.close();
+
+    const doc = win.document;
+    doc.open();
+    doc.close();
+
+    const style = doc.createElement("style");
+    style.textContent = `
+      @page { size: 80mm 100mm; margin: 6mm; }
+      body { font-family: system-ui, sans-serif; text-align: center; color: #111; }
+      .box { border: 2px solid #111; padding: 12px; border-radius: 8px; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      h2 { font-size: 14px; font-weight: 600; margin: 0 0 12px; }
+      img.qr { width: 180px; height: 180px; }
+      img.bc { width: 90%; max-width: 260px; margin-top: 10px; }
+      .serial { font-family: ui-monospace, monospace; font-size: 18px; font-weight: 700; margin-top: 10px; }
+      .code { font-family: ui-monospace, monospace; font-size: 12px; color: #333; }
+      .url { font-size: 10px; word-break: break-all; color: #444; margin-top: 8px; }
+      .hint { font-size: 10px; margin-top: 10px; }
+    `;
+    doc.head.appendChild(style);
+    doc.title = `${identity.storeSerial} — BHD`;
+
+    const box = doc.createElement("div");
+    box.className = "box";
+
+    const brand = doc.createElement("h1");
+    brand.textContent = "BHD";
+    box.appendChild(brand);
+
+    const storeName = doc.createElement("h2");
+    storeName.textContent = identity.name;
+    box.appendChild(storeName);
+
+    if (qrSrc) {
+      const qr = doc.createElement("img");
+      qr.className = "qr";
+      qr.src = qrSrc;
+      qr.alt = "QR";
+      box.appendChild(qr);
+    }
+
+    const serial = doc.createElement("div");
+    serial.className = "serial";
+    serial.textContent = identity.storeSerial;
+    box.appendChild(serial);
+
+    const code = doc.createElement("div");
+    code.className = "code";
+    code.textContent = identity.storeCode;
+    box.appendChild(code);
+
+    if (barcodeImgSrc) {
+      const barcode = doc.createElement("img");
+      barcode.className = "bc";
+      barcode.src = barcodeImgSrc;
+      barcode.alt = "Barcode";
+      box.appendChild(barcode);
+    }
+
+    const url = doc.createElement("div");
+    url.className = "url";
+    url.textContent = identity.scanUrl;
+    box.appendChild(url);
+
+    const hint = doc.createElement("p");
+    hint.className = "hint";
+    hint.textContent = t("stickerFooter");
+    box.appendChild(hint);
+
+    doc.body.appendChild(box);
+
+    const script = doc.createElement("script");
+    script.textContent =
+      "window.onload = function(){ setTimeout(function(){ window.print(); }, 400); };";
+    doc.body.appendChild(script);
   }, [identity, qrSrc, barcodeImgSrc, t]);
 
   if (loading) {

@@ -173,14 +173,14 @@ jobs:
             docker-compose -f docker-compose.prod.yml exec -T app npm run migration:run
 
             sleep 10
-            curl -f http://localhost:3001/api/v1/health || exit 1
+            curl -f http://localhost:3001/health || exit 1
             echo "Staging deployment successful! tag=$VERSION"
           EOF
 
       - name: Run smoke tests
         run: |
           sleep 15
-          curl -sf https://staging.bhdoman.com/api/v1/health || exit 1
+          curl -sf https://staging.bhdoman.com/health || exit 1
           curl -sf https://staging.bhdoman.com || exit 1
           echo "Smoke tests passed!"
 
@@ -261,7 +261,7 @@ jobs:
       - name: Run production smoke tests
         run: |
           sleep 20
-          curl -sf https://bhdoman.com/api/v1/health || exit 1
+          curl -sf https://bhdoman.com/health || exit 1
           curl -sf https://bhdoman.com || exit 1
           echo "Production smoke tests passed!"
 

@@ -811,6 +811,14 @@ export function generatePaginationLinks(
 }
 
 /**
+ * Serialize JSON-LD for dangerouslySetInnerHTML.
+ * Escapes `<` so user-controlled strings cannot break out of the script tag.
+ */
+export function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data, null, 2).replace(/</g, '\\u003c');
+}
+
+/**
  * Validate structured data (basic checks)
  */
 export function validateStructuredData(

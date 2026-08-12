@@ -1,8 +1,10 @@
 # BHD Oman Marketplace - Security Documentation
 
+> **Production readiness: NO-GO per Aug 2026 audit until P0 closed. See [`docs/ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./docs/ENGINEERING-SECURITY-AUDIT-2026-08-11.md)**
+
 > **صدق الحالة (2026-07-21):** هذا المستند يصف **التصميم المستهدف** ووحدات الأمان الموجودة في `backend/src/security/`.  
 > **لا يوجد حالياً شهادة SOC2 مثبتة.** ORM الفعلي هو **TypeORM** وليس Prisma. MFA/OAuth مذكورة في الكيانات/التوثيق وليست كلها مفعّلة كمنتج.  
-> للتقييم العملي والنواقص الحرجة (مثل `ENCRYPTION_MASTER_KEY`) راجع **[`ROADMAP.md`](./ROADMAP.md)** فقط — لا تكرر تقارير أمنية متضاربة في ملفات أخرى.
+> للتقييم العملي والنواقص الحرجة راجع **[`docs/ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./docs/ENGINEERING-SECURITY-AUDIT-2026-08-11.md)** و [`ROADMAP.md`](./ROADMAP.md) — لا تعتبر جداول OWASP أدناه شهادة امتثال.
 
 ---
 
@@ -67,19 +69,19 @@ BHD Oman Marketplace implements enterprise-grade security measures to protect us
 | Role-Based Access Control | ✅ | RolesGuard + `@Roles`; `super_admin` satisfies `admin` |
 | Rate Limiting | ✅ | Redis-backed `ThrottlerGuard` with in-memory fallback |
 | SQL Injection Prevention | ✅ | **TypeORM** parameterized queries (not Prisma) |
-| XSS Prevention | ✅ | Output encoding, CSP headers |
-| CSRF Protection | ✅ | Double-submit cookie (`CsrfGuard` APP_GUARD) |
+| XSS Prevention | ⚠️ | CSP/guards present; invoice/print/JSON-LD XSS open — see Aug 2026 audit |
+| CSRF Protection | ⚠️ | Global guard exists; Origin/bypass gaps — see Aug 2026 audit |
 | File Upload Security | ⚠️ Partial | Type validation; virus scanning depends on deploy |
-| Data Encryption at Rest | ✅ | AES-256-GCM for sensitive fields; prod key fail-closed |
+| Data Encryption at Rest | ⚠️ | AES-GCM service present but underused; auth CBC weaker — see audit |
 | Data Encryption in Transit | 🎯 Target | TLS at edge / load balancer |
 | Password Hashing | ✅ | Argon2id / Bcrypt |
-| Audit Logging | ⚠️ Partial | Module present; coverage varies by feature |
+| Audit Logging | ❌ | Redaction incomplete; secrets/tokens can leak — see Aug 2026 audit |
 | DDoS Protection | 🎯 Target | App rate limits + edge (e.g. Cloudflare) when deployed |
 | Security Headers | ✅ | Helmet / OWASP-oriented set |
 | Input Validation | ✅ | class-validator / DTO pipes (not only Zod) |
-| API Security | ✅ | Webhook signatures; fail-closed where required |
+| API Security | ⚠️ | Webhook signatures mixed; SSRF/idempotency gaps — see Aug 2026 audit |
 | Payment Security | ⚠️ In progress | Gateway ownership checks + signed webhooks; PCI scope at processor |
-| Session Management | ✅ | HttpOnly cookies + refresh rotation |
+| Session Management | ❌ | Refresh revoke/blacklist stubs; reset broken — see Aug 2026 audit |
 | SOC 2 | ❌ | **Not certified** — do not claim compliance |
 
 ---
@@ -729,37 +731,39 @@ GET /api/v1/admin/audit-log/export?format=csv&from=2024-01-01&to=2024-01-31
 
 ---
 
-## ✅ OWASP Compliance
+## ⚠️ OWASP Compliance
+
+> Status below reflects **current code reality**, not target design. Details: [`docs/ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./docs/ENGINEERING-SECURITY-AUDIT-2026-08-11.md).
 
 ### OWASP Top 10 (2021) Compliance
 
 | # | Risk | Status | Mitigation |
 |---|------|--------|------------|
-| A01 | Broken Access Control | ✅ | RBAC, route guards, ownership checks |
-| A02 | Cryptographic Failures | ✅ | AES-256, TLS 1.3, Argon2id |
-| A03 | Injection | ✅ | TypeORM parameterized queries |
-| A04 | Insecure Design | ✅ | Secure by design, threat modeling |
-| A05 | Security Misconfiguration | ✅ | Hardened configs, security headers |
-| A06 | Vulnerable Components | ✅ | Dependency scanning, auto-updates |
-| A07 | Auth Failures | ⚠️ | Sessions + rate limits; MFA not fully productized |
-| A08 | Data Integrity Failures | ✅ | Digital signatures, integrity checks |
-| A09 | Logging Failures | ✅ | Comprehensive audit logging |
-| A10 | SSRF | ✅ | URL validation, whitelist approach |
+| A01 | Broken Access Control | ⚠️ | JWT/Roles guards exist; permissions unused, ownership ad hoc — see audit |
+| A02 | Cryptographic Failures | ⚠️ | Argon2id OK; EncryptionService underused; auth CBC weaker — see audit |
+| A03 | Injection | ⚠️ | TypeORM params OK; XSS in invoice/print/JSON-LD — see audit |
+| A04 | Insecure Design | ❌ | Payment/idempotency/inventory races — see audit §7 |
+| A05 | Security Misconfiguration | ⚠️ | Headers present; CORS/upload/health gaps — see audit |
+| A06 | Vulnerable Components | ❌ | npm audit findings open — see Aug 2026 audit |
+| A07 | Auth Failures | ❌ | Password reset broken; session revoke stubs; MFA not productized — see audit |
+| A08 | Data Integrity Failures | ⚠️ | Webhook/payment integrity incomplete — see audit |
+| A09 | Logging Failures | ❌ | Incomplete redaction; token/payload leaks — see audit |
+| A10 | SSRF | ❌ | Confirmed B2B webhook SSRF; no egress URL policy — see audit |
 
 ### OWASP API Security Top 10
 
 | # | Risk | Status | Mitigation |
 |---|------|--------|------------|
-| API1 | Broken Object Level Auth | ✅ | Resource ownership verification |
-| API2 | Broken Auth | ✅ | JWT with short expiry, rotation |
-| API3 | Excessive Data Exposure | ✅ | DTOs, field-level filtering |
-| API4 | Lack of Rate Limiting | ✅ | Multi-tier rate limiting |
-| API5 | Broken Function Level Auth | ✅ | Role-based decorators |
-| API6 | Mass Assignment | ✅ | Whitelist DTO properties |
-| API7 | Security Misconfiguration | ✅ | Hardened configurations |
-| API8 | Injection | ✅ | Parameterized queries |
-| API9 | Improper Asset Management | ✅ | API versioning, deprecation |
-| API10 | Insufficient Logging | ✅ | Comprehensive audit trail |
+| API1 | Broken Object Level Auth | ⚠️ | Ownership checks ad hoc, not centralized — see audit |
+| API2 | Broken Auth | ❌ | Reset/session revoke failures — see audit |
+| API3 | Excessive Data Exposure | ⚠️ | DTOs partial; logging may expose secrets — see audit |
+| API4 | Lack of Rate Limiting | ⚠️ | Throttler present; coverage/bypass gaps — see audit |
+| API5 | Broken Function Level Auth | ⚠️ | `@Roles` only; permissions unused — see audit |
+| API6 | Mass Assignment | ⚠️ | DTO whitelists uneven — see audit |
+| API7 | Security Misconfiguration | ⚠️ | Hardening incomplete vs production needs — see audit |
+| API8 | Injection | ⚠️ | SQL params OK; XSS vectors remain — see audit |
+| API9 | Improper Asset Management | ⚠️ | Versioning present; unused/scaffolded APIs — see audit |
+| API10 | Insufficient Logging | ❌ | Audit trail incomplete; redaction fails — see audit |
 
 ### Security Testing Checklist
 

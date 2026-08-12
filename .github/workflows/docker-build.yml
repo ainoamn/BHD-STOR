@@ -79,7 +79,7 @@ jobs:
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
           build-args: |
-            NODE_VERSION=18-alpine
+            NODE_VERSION=24-alpine
 
       - name: Scan backend image
         uses: aquasecurity/trivy-action@master
@@ -139,7 +139,7 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
           build-args: |
-            NODE_VERSION=18-alpine
+            NODE_VERSION=24-alpine
             NEXT_PUBLIC_API_URL=${{ vars.API_URL }}
             NEXT_PUBLIC_APP_URL=${{ vars.APP_URL }}
             NEXT_PUBLIC_APP_NAME=${{ vars.APP_NAME || 'BHD Marketplace' }}

@@ -6,9 +6,12 @@ import {
   NotFoundException,
   InternalServerErrorException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { InjectRedis } from '@nestjs-modules/ioredis';
+import Redis from 'ioredis';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UsersService } from '@users/users.service';
@@ -47,6 +50,10 @@ export interface AuthResponse {
   tokens: AuthTokens;
 }
 
+/** Process-local fallback when Redis is down (single-instance only). */
+const memoryBlacklist = new Map<string, number>(); // key -> expiresAtMs
+const memoryUserRevokes = new Map<string, number>(); // userId -> revokedAtMs
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -62,6 +69,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    @Optional() @InjectRedis() private readonly redis?: Redis,
   ) {
     this.jwtSecret = this.configService.get<string>('JWT_SECRET', '');
     this.jwtRefreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET', '');
@@ -214,6 +222,10 @@ export class AuthService {
         throw new UnauthorizedException('Token has been revoked');
       }
 
+      if (await this.areUserTokensRevoked(payload.sub, payload.iat)) {
+        throw new UnauthorizedException('Token has been revoked');
+      }
+
       // Get user
       const user = await this.usersService.findOne(payload.sub);
       if (!user) {
@@ -249,82 +261,114 @@ export class AuthService {
   }
 
   /**
-   * Request password reset
+   * Request password reset.
+   * Stores `selector:sha256(verifier)` in reset_token; emails/returns `selector.verifier`.
    */
-  async forgotPassword(email: string): Promise<{ message: string }> {
+  async forgotPassword(
+    email: string,
+  ): Promise<{ message: string; resetToken?: string }> {
+    const genericMessage =
+      'If an account exists with this email, you will receive a password reset link.';
+
     try {
       const user = await this.usersService.findByEmail(email);
       if (!user) {
-        // Return success even if email not found (security best practice)
-        return {
-          message: 'If an account exists with this email, you will receive a password reset link.',
-        };
+        return { message: genericMessage };
       }
 
-      // Generate reset token
-      const resetToken = this.generateResetToken();
+      const { selector, verifier, rawToken } = this.generateResetTokenPair();
+      const verifierHash = this.hashVerifier(verifier);
+      const storedToken = `${selector}:${verifierHash}`;
+
       const resetTokenExpiry = new Date();
-      resetTokenExpiry.setHours(resetTokenExpiry.getHours() + 1); // 1 hour expiry
+      resetTokenExpiry.setHours(resetTokenExpiry.getHours() + 1);
 
-      // Hash reset token and save
-      const hashedResetToken = await bcrypt.hash(resetToken, 10);
-      await this.usersService.updateResetToken(user.id, hashedResetToken, resetTokenExpiry);
+      await this.usersService.updateResetToken(user.id, storedToken, resetTokenExpiry);
 
-      // Encrypt reset token for email
-      const encryptedToken = this.encryptSensitiveData(resetToken);
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ||
+        this.configService.get<string>('PUBLIC_APP_URL') ||
+        this.configService.get<string>('APP_URL') ||
+        'http://localhost:3000';
+      const resetUrl = `${frontendUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(rawToken)}`;
 
-      // Queue password reset email for delivery via notification service
-      // The notification service will handle email template rendering and SMTP delivery
-      this.logger.log(`Password reset requested for: ${email}. Reset token generated and encrypted.`, 'AuthService');
-      this.logger.debug(`Encrypted reset token: ${encryptedToken.slice(0, 20)}...`, 'AuthService');
+      // No MailService in this codebase — structured log without the full token.
+      this.logger.log(
+        JSON.stringify({
+          event: 'password_reset_requested',
+          userId: user.id,
+          email: user.email,
+          selector,
+          expiresAt: resetTokenExpiry.toISOString(),
+          resetPath: '/reset-password',
+        }),
+        'AuthService',
+      );
+      this.logger.debug(
+        `Password reset link prepared for ${user.email} (selector=${selector}, urlHost=${new URL(resetUrl).host})`,
+        'AuthService',
+      );
 
-      return {
-        message: 'If an account exists with this email, you will receive a password reset link.',
-      };
+      const isDev = this.configService.get<string>('NODE_ENV') !== 'production';
+      if (isDev) {
+        return { message: genericMessage, resetToken: rawToken };
+      }
+
+      return { message: genericMessage };
     } catch (error) {
       this.logger.error(`Forgot password failed: ${error.message}`, error.stack, 'AuthService');
-      return {
-        message: 'If an account exists with this email, you will receive a password reset link.',
-      };
+      return { message: genericMessage };
     }
   }
 
   /**
-   * Reset password with token
+   * Reset password with selector.verifier token from email / forgotPassword.
    */
   async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
     try {
-      // Decrypt token
-      const resetToken = this.decryptSensitiveData(resetPasswordDto.token);
-
-      // Find user by reset token (need to check all users with valid reset tokens)
-      const user = await this.usersService.findByResetToken(resetToken);
-      if (!user) {
+      const rawToken = this.normalizeResetToken(resetPasswordDto.token);
+      const parsed = this.parseResetToken(rawToken);
+      if (!parsed) {
         throw new BadRequestException('Invalid or expired reset token');
       }
 
-      // Check token expiry
+      const { selector, verifier } = parsed;
+      const user = await this.usersService.findByResetTokenSelector(selector);
+      if (!user || !user.resetToken) {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+
       if (user.resetTokenExpiry && user.resetTokenExpiry < new Date()) {
+        await this.usersService.clearResetToken(user.id);
         throw new BadRequestException('Reset token has expired');
       }
 
-      // Validate token
-      const isValidToken = await bcrypt.compare(resetToken, user.resetToken);
-      if (!isValidToken) {
-        throw new BadRequestException('Invalid reset token');
+      const storedParts = user.resetToken.split(':');
+      if (storedParts.length !== 2 || storedParts[0] !== selector) {
+        throw new BadRequestException('Invalid or expired reset token');
       }
 
-      // Hash new password
+      const expectedHash = storedParts[1];
+      const actualHash = this.hashVerifier(verifier);
+      if (!this.equalHexHashes(expectedHash, actualHash)) {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+
       const hashedPassword = await this.hashPassword(resetPasswordDto.newPassword);
 
-      // Update password and clear reset token
       await this.usersService.updatePassword(user.id, hashedPassword);
       await this.usersService.clearResetToken(user.id);
 
-      // Revoke all existing tokens
       await this.revokeRefreshTokens(user.id);
 
-      this.logger.log(`Password reset successful for: ${user.email}`, 'AuthService');
+      this.logger.log(
+        JSON.stringify({
+          event: 'password_reset_completed',
+          userId: user.id,
+          email: user.email,
+        }),
+        'AuthService',
+      );
 
       return { message: 'Password has been reset successfully. Please login with your new password.' };
     } catch (error) {
@@ -412,6 +456,19 @@ export class AuthService {
   }
 
   /**
+   * Reject access/refresh tokens that were blacklisted or issued before a user-wide revoke.
+   */
+  async isSessionTokenRevoked(
+    token: string | undefined,
+    payload: { sub: string; iat?: number },
+  ): Promise<boolean> {
+    if (token && (await this.isTokenBlacklisted(token))) {
+      return true;
+    }
+    return this.areUserTokensRevoked(payload.sub, payload.iat);
+  }
+
+  /**
    * Hash password with bcrypt
    */
   private async hashPassword(password: string): Promise<string> {
@@ -464,29 +521,75 @@ export class AuthService {
   }
 
   /**
-   * Generate random reset token
+   * Generate selector (public lookup key) + verifier (secret).
    */
-  private generateResetToken(): string {
-    return crypto.randomBytes(32).toString('hex');
+  private generateResetTokenPair(): {
+    selector: string;
+    verifier: string;
+    rawToken: string;
+  } {
+    const selector = crypto.randomBytes(8).toString('hex'); // 16 hex
+    const verifier = crypto.randomBytes(32).toString('hex'); // 64 hex
+    return {
+      selector,
+      verifier,
+      rawToken: `${selector}.${verifier}`,
+    };
+  }
+
+  private hashVerifier(verifier: string): string {
+    return crypto.createHash('sha256').update(verifier, 'utf8').digest('hex');
+  }
+
+  /** Accept raw selector.verifier, or legacy AES-encrypted blobs. */
+  private normalizeResetToken(token: string): string {
+    const trimmed = token?.trim();
+    if (!trimmed) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+    if (trimmed.includes('.') && /^[a-f0-9]{16}\.[a-f0-9]+$/i.test(trimmed)) {
+      return trimmed;
+    }
+    // Legacy path: token may still be AES-encrypted from older clients
+    if (trimmed.includes(':') && this.aesKey) {
+      try {
+        return this.decryptSensitiveData(trimmed);
+      } catch {
+        // fall through — treat as invalid below
+      }
+    }
+    return trimmed;
+  }
+
+  private parseResetToken(
+    rawToken: string,
+  ): { selector: string; verifier: string } | null {
+    const parts = rawToken.split('.');
+    if (parts.length !== 2) {
+      return null;
+    }
+    const [selector, verifier] = parts;
+    if (!/^[a-f0-9]{16}$/i.test(selector) || !/^[a-f0-9]{64}$/i.test(verifier)) {
+      return null;
+    }
+    return { selector: selector.toLowerCase(), verifier: verifier.toLowerCase() };
+  }
+
+  private equalHexHashes(a: string, b: string): boolean {
+    try {
+      const bufA = Buffer.from(a, 'hex');
+      const bufB = Buffer.from(b, 'hex');
+      if (bufA.length === 0 || bufA.length !== bufB.length) {
+        return false;
+      }
+      return crypto.timingSafeEqual(bufA, bufB);
+    } catch {
+      return false;
+    }
   }
 
   /**
-   * Encrypt sensitive data with AES-256
-   */
-  private encryptSensitiveData(data: string): string {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(
-      'aes-256-cbc',
-      Buffer.from(this.aesKey.padEnd(32).slice(0, 32)),
-      iv,
-    );
-    let encrypted = cipher.update(data, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    return iv.toString('hex') + ':' + encrypted;
-  }
-
-  /**
-   * Decrypt sensitive data
+   * Decrypt sensitive data (legacy reset tokens only)
    */
   private decryptSensitiveData(encryptedData: string): string {
     const parts = encryptedData.split(':');
@@ -506,50 +609,137 @@ export class AuthService {
   }
 
   /**
-   * Add token to blacklist (Redis)
-   * Tokens are blacklisted with a TTL matching the refresh token expiry (7 days)
+   * Add token to blacklist (Redis, with in-memory fallback).
+   * TTL matches remaining JWT lifetime when available.
    */
-  private async blacklistToken(token: string): Promise<void> {
+  async blacklistToken(token: string): Promise<void> {
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const blacklistKey = `token:blacklist:${tokenHash}`;
-    const ttl = 7 * 24 * 60 * 60; // 7 days in seconds
+    const blacklistKey = `auth:blacklist:${tokenHash}`;
+    const ttl = this.getTokenRemainingTtlSeconds(token);
 
-    // Store in Redis with TTL - if Redis is unavailable, log the token hash for cleanup
-    this.logger.debug(`Blacklisting token: ${blacklistKey} (TTL: ${ttl}s)`, 'AuthService');
-
-    // When Redis cache service is integrated:
-    // await this.cacheService.set(blacklistKey, 'revoked', ttl);
+    const stored = await this.kvSet(blacklistKey, '1', ttl);
+    if (!stored) {
+      // In-memory fallback for single-instance / test environments without Redis
+      memoryBlacklist.set(blacklistKey, Date.now() + ttl * 1000);
+      this.logger.debug(
+        `Blacklisted token in memory: ${blacklistKey} (TTL: ${ttl}s)`,
+        'AuthService',
+      );
+      return;
+    }
+    this.logger.debug(`Blacklisted token: ${blacklistKey} (TTL: ${ttl}s)`, 'AuthService');
   }
 
   /**
    * Check if token is blacklisted
    */
-  private async isTokenBlacklisted(token: string): Promise<boolean> {
+  async isTokenBlacklisted(token: string): Promise<boolean> {
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const blacklistKey = `token:blacklist:${tokenHash}`;
+    const blacklistKey = `auth:blacklist:${tokenHash}`;
 
-    // Check Redis for blacklisted token
-    // When Redis cache service is integrated:
-    // const result = await this.cacheService.get(blacklistKey);
-    // return result === 'revoked';
+    const fromRedis = await this.kvGet(blacklistKey);
+    if (fromRedis !== null) {
+      return fromRedis === '1' || fromRedis === 'revoked';
+    }
 
-    this.logger.debug(`Checking blacklist status: ${blacklistKey}`, 'AuthService');
-    return false;
+    const expiresAt = memoryBlacklist.get(blacklistKey);
+    if (expiresAt === undefined) {
+      return false;
+    }
+    if (expiresAt <= Date.now()) {
+      memoryBlacklist.delete(blacklistKey);
+      return false;
+    }
+    return true;
   }
 
   /**
-   * Revoke all refresh tokens for user
-   * Sets a revocation timestamp that invalidates all tokens issued before it
+   * Revoke all tokens for user issued at or before now (iat check in validators).
    */
-  private async revokeRefreshTokens(userId: string): Promise<void> {
-    const revokeKey = `token:revoke:${userId}`;
-    const timestamp = Date.now().toString();
-    const ttl = 7 * 24 * 60 * 60; // 7 days in seconds
+  async revokeRefreshTokens(userId: string): Promise<void> {
+    const revokeKey = `auth:revoke:user:${userId}`;
+    const timestampMs = Date.now();
+    const ttl = this.parseExpiresIn(this.jwtRefreshExpiresIn);
 
-    this.logger.debug(`Revoking all refresh tokens for user: ${userId} at ${timestamp}`, 'AuthService');
+    const stored = await this.kvSet(revokeKey, String(timestampMs), ttl);
+    if (!stored) {
+      memoryUserRevokes.set(userId, timestampMs);
+      this.logger.debug(
+        `Revoked user tokens in memory: ${userId} at ${timestampMs}`,
+        'AuthService',
+      );
+      return;
+    }
+    this.logger.debug(`Revoking all tokens for user: ${userId} at ${timestampMs}`, 'AuthService');
+  }
 
-    // When Redis cache service is integrated:
-    // await this.cacheService.set(revokeKey, timestamp, ttl);
+  /**
+   * True if JWT iat (seconds) is before the user-wide revoke timestamp.
+   */
+  async areUserTokensRevoked(userId: string, iat?: number): Promise<boolean> {
+    if (iat == null) {
+      return false;
+    }
+
+    const revokeKey = `auth:revoke:user:${userId}`;
+    let revokedAtMs: number | undefined;
+
+    const fromRedis = await this.kvGet(revokeKey);
+    if (fromRedis !== null) {
+      revokedAtMs = Number(fromRedis);
+    } else {
+      revokedAtMs = memoryUserRevokes.get(userId);
+    }
+
+    if (revokedAtMs == null || Number.isNaN(revokedAtMs)) {
+      return false;
+    }
+
+    // JWT iat is in seconds
+    return iat < Math.floor(revokedAtMs / 1000);
+  }
+
+  private async kvSet(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    if (!this.redis) {
+      return false;
+    }
+    try {
+      await this.redis.set(key, value, 'EX', Math.max(1, ttlSeconds));
+      return true;
+    } catch (err) {
+      this.logger.warn(
+        `Redis SET failed for ${key}; using memory fallback: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return false;
+    }
+  }
+
+  private async kvGet(key: string): Promise<string | null> {
+    if (!this.redis) {
+      return null;
+    }
+    try {
+      return await this.redis.get(key);
+    } catch (err) {
+      this.logger.warn(
+        `Redis GET failed for ${key}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return null;
+    }
+  }
+
+  private getTokenRemainingTtlSeconds(token: string): number {
+    try {
+      const decoded = this.jwtService.decode(token) as { exp?: number } | null;
+      if (decoded?.exp) {
+        return Math.max(1, decoded.exp - Math.floor(Date.now() / 1000));
+      }
+    } catch {
+      // ignore
+    }
+    return this.parseExpiresIn(this.jwtRefreshExpiresIn);
   }
 
   /**

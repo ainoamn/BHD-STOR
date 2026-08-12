@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
+import { AuthService } from '../auth.service';
 
 export interface RefreshTokenPayload {
   sub: string;
@@ -22,7 +23,11 @@ export class RefreshTokenStrategy extends PassportStrategy(
 ) {
   private readonly logger = new Logger(RefreshTokenStrategy.name);
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
+  ) {
     const jwtRefreshSecret = configService.get<string>('JWT_REFRESH_SECRET', '');
     const jwtIssuer = configService.get<string>('JWT_ISSUER', 'bhd-oman-marketplace');
     const jwtAudience = configService.get<string>('JWT_AUDIENCE', 'bhd-oman-api');
@@ -73,6 +78,14 @@ export class RefreshTokenStrategy extends PassportStrategy(
       throw new UnauthorizedException({
         statusCode: 401,
         message: 'Refresh token is required',
+        error: 'Unauthorized',
+      });
+    }
+
+    if (await this.authService.isSessionTokenRevoked(refreshToken, payload)) {
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: 'Token has been revoked',
         error: 'Unauthorized',
       });
     }

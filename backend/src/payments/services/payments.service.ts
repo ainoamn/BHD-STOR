@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -34,6 +35,7 @@ import {
   resolveRefundAmount,
 } from '../utils/refund-amount';
 import { resolveCaptureAmount } from '../utils/capture-amount';
+import { escapeHtml } from '../../common/utils/escape-html';
 
 export interface PaymentResult {
   success: boolean;
@@ -109,6 +111,19 @@ export class PaymentsService {
       throw new BadRequestException('orderId is required');
     }
 
+    const isCod =
+      normalizedGateway === 'cod' || normalizedGateway === 'cash_on_delivery';
+    const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+    if (
+      nodeEnv === 'production' &&
+      this.configService.get<string>('PAYMENTS_LIVE_ENABLED') !== 'true' &&
+      !isCod
+    ) {
+      throw new ServiceUnavailableException(
+        'Live payments are disabled. Set PAYMENTS_LIVE_ENABLED=true to enable card/gateway payments.',
+      );
+    }
+
     await this.assertGatewayEnabled(normalizedGateway);
     await this.assertOrderOwnedByUser(orderId, userId);
 
@@ -117,7 +132,7 @@ export class PaymentsService {
     const currency = String(order.currency || dto.currency || 'OMR').toUpperCase();
 
     // Cash on delivery — no external gateway; order already confirmed at create
-    if (normalizedGateway === 'cod' || normalizedGateway === 'cash_on_delivery') {
+    if (isCod) {
       return {
         success: true,
         paymentId: `cod_${orderId}`,
@@ -922,6 +937,8 @@ export class PaymentsService {
         `Failed to apply webhook to order ${result.orderId}: ${err.message}`,
         err.stack,
       );
+      // Re-throw so the webhook endpoint returns 5xx and providers can retry
+      throw err;
     }
   }
 
@@ -1017,13 +1034,14 @@ export class PaymentsService {
   }
 
   /**
-   * Generate an invoice PDF for a payment (payer, store owner, or staff).
+   * Generate an invoice HTML document for a payment (payer, store owner, or staff).
+   * Returned as a buffer with an .html filename; controller must use text/html.
    */
   async generateInvoice(
     paymentId: string,
     userId: string,
     role?: string,
-  ): Promise<{ pdfBuffer: Buffer; filename: string }> {
+  ): Promise<{ htmlBuffer: Buffer; filename: string }> {
     this.logger.log(`Generating invoice for payment ${paymentId}`);
 
     const payment = await this.getPaymentRecord(paymentId);
@@ -1033,12 +1051,23 @@ export class PaymentsService {
 
     await this.assertPaymentViewAccess(payment, userId, role);
 
-    // Generate invoice HTML for PDF conversion
+    const safePaymentId = escapeHtml(paymentId);
+    const safeInvoiceNum = escapeHtml(paymentId.slice(0, 8).toUpperCase());
+    const safeOrderId = escapeHtml(String(payment.orderId ?? ''));
+    const safeId = escapeHtml(String(payment.id ?? ''));
+    const safeTxn = escapeHtml(String(payment.transactionId || 'N/A'));
+    const safeDate = escapeHtml(payment.createdAt.toISOString());
+    const safeGateway = escapeHtml(String(payment.gateway || '').toUpperCase());
+    const safeStatus = escapeHtml(String(payment.status || '').toUpperCase());
+    const safeAmount = escapeHtml(Number(payment.amount).toFixed(3));
+    const safeCurrency = escapeHtml(String(payment.currency || ''));
+
     const invoiceHtml = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Invoice #${paymentId}</title>
+        <meta charset="utf-8" />
+        <title>Invoice #${safePaymentId}</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 40px; }
           .header { text-align: center; margin-bottom: 30px; }
@@ -1058,17 +1087,17 @@ export class PaymentsService {
         </div>
         <div class="details">
           <table>
-            <tr><td>Invoice Number:</td><td>INV-${paymentId.slice(0, 8).toUpperCase()}</td></tr>
-            <tr><td>Order ID:</td><td>${payment.orderId}</td></tr>
-            <tr><td>Payment ID:</td><td>${payment.id}</td></tr>
-            <tr><td>Transaction ID:</td><td>${payment.transactionId || 'N/A'}</td></tr>
-            <tr><td>Date:</td><td>${payment.createdAt.toISOString()}</td></tr>
-            <tr><td>Payment Method:</td><td>${payment.gateway.toUpperCase()}</td></tr>
-            <tr><td>Status:</td><td>${payment.status.toUpperCase()}</td></tr>
+            <tr><td>Invoice Number:</td><td>INV-${safeInvoiceNum}</td></tr>
+            <tr><td>Order ID:</td><td>${safeOrderId}</td></tr>
+            <tr><td>Payment ID:</td><td>${safeId}</td></tr>
+            <tr><td>Transaction ID:</td><td>${safeTxn}</td></tr>
+            <tr><td>Date:</td><td>${safeDate}</td></tr>
+            <tr><td>Payment Method:</td><td>${safeGateway}</td></tr>
+            <tr><td>Status:</td><td>${safeStatus}</td></tr>
           </table>
         </div>
         <div class="total">
-          Total: ${payment.amount.toFixed(3)} ${payment.currency}
+          Total: ${safeAmount} ${safeCurrency}
         </div>
         <div class="footer">
           BHD Oman Marketplace | Tax Registration: OM12345678<br>
@@ -1078,13 +1107,11 @@ export class PaymentsService {
       </html>
     `;
 
-    // Convert HTML to PDF buffer for download
-    // When puppeteer is available: use page.pdf({ format: 'A4' })
-    const pdfBuffer = Buffer.from(invoiceHtml);
+    const htmlBuffer = Buffer.from(invoiceHtml, 'utf8');
 
     return {
-      pdfBuffer,
-      filename: `invoice-${paymentId.slice(0, 8)}.pdf`,
+      htmlBuffer,
+      filename: `invoice-${paymentId.slice(0, 8)}.html`,
     };
   }
 

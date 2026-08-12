@@ -3,11 +3,11 @@ import {
   UnauthorizedException,
   NotFoundException,
   ForbiddenException,
-  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { B2bCreateShipmentDto } from '../dto/b2b-create-shipment.dto';
+import { assertSafeWebhookUrl } from '../../common/utils/safe-webhook-url';
 
 /**
  * B2B Customer entity
@@ -467,12 +467,7 @@ export class B2bShipmentService {
     events: string[];
     secret: string;
   }> {
-    // Validate URL
-    try {
-      new URL(webhookUrl);
-    } catch {
-      throw new BadRequestException('Invalid webhook URL');
-    }
+    await assertSafeWebhookUrl(webhookUrl);
 
     // Generate webhook secret
     const secret = this.generateWebhookSecret();
@@ -534,6 +529,8 @@ export class B2bShipmentService {
     payload: Record<string, unknown>,
   ): Promise<void> {
     try {
+      await assertSafeWebhookUrl(url);
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -541,6 +538,7 @@ export class B2bShipmentService {
           'User-Agent': 'BHD-Logistics-Webhook/1.0',
         },
         body: JSON.stringify(payload),
+        redirect: 'error',
       });
 
       // Update webhook log with response status
