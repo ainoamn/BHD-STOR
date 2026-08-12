@@ -1,7 +1,8 @@
 # =============================================================================
 # BHD-STOR — Continuous Integration
 # Blocking: Backend build, Frontend build+typecheck, Backend tsc error budget,
-#           Backend security unit tests (with Postgres/Redis services).
+#           Backend security unit tests (with Postgres/Redis services),
+#           Migration smoke (Postgres from empty DB).
 # Informational: full unit suite, Playwright smoke, npm audit, ESLint.
 # =============================================================================
 
@@ -98,6 +99,62 @@ jobs:
       - name: Security unit tests (blocking)
         working-directory: ./backend
         run: npm run test:security
+
+  migration-smoke:
+    name: Migration smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bhd
+          POSTGRES_PASSWORD: bhd
+          POSTGRES_DB: bhd_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bhd -d bhd_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      CI: "true"
+      # Match backend/src/data-source.ts (DB_* not DATABASE_*)
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_USERNAME: bhd
+      DB_PASSWORD: bhd
+      DB_NAME: bhd_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install
+        working-directory: ./backend
+        run: npm ci
+      - name: Write minimal .env
+        working-directory: ./backend
+        run: |
+          printf '%s\n' \
+            'NODE_ENV=test' \
+            'DB_HOST=localhost' \
+            'DB_PORT=5432' \
+            'DB_USERNAME=bhd' \
+            'DB_PASSWORD=bhd' \
+            'DB_NAME=bhd_test' > .env
+      - name: Enable uuid-ossp (migrations use uuid_generate_v4)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          PGPASSWORD=bhd psql -h localhost -U bhd -d bhd_test -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'
+      - name: Run migrations against empty DB
+        working-directory: ./backend
+        run: npm run migration:run
 
   build-frontend:
     name: Frontend build

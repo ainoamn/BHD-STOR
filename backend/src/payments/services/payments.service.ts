@@ -44,6 +44,7 @@ import {
   resolveChargeAmount,
   webhookAmountMatchesOrder,
 } from '../utils/payment-amount';
+import { hashPaymentRequest } from '../utils/payment-request-hash';
 import {
   isPaymentRefundableStatus,
   resolveRefundAmount,
@@ -152,16 +153,12 @@ export class PaymentsService {
     const amount = resolveChargeAmount(Number(order.total), dto.amount);
     const currency = String(order.currency || dto.currency || 'OMR').toUpperCase();
 
-    const requestHash = createHash('sha256')
-      .update(
-        JSON.stringify({
-          orderId,
-          gateway: normalizedGateway,
-          amount,
-          currency,
-        }),
-      )
-      .digest('hex');
+    const requestHash = hashPaymentRequest({
+      orderId,
+      gateway: normalizedGateway,
+      amount,
+      currency,
+    });
 
     let idempotencyKey = dto.idempotencyKey?.trim() || undefined;
     let attempt: PaymentAttempt | null = null;
