@@ -54,8 +54,7 @@ function extractClientIp(req: Request): string {
  */
 function buildIdentifier(req: Request): string {
   const ip = extractClientIp(req);
-  // @ts-expect-error user may be attached by auth middleware
-  const userId = getRequestUserId(req.user);
+  const userId = getRequestUserId((req as any).user);
 
   // Combine IP and user ID for dual-key rate limiting
   // This prevents: shared IP bypass and per-user tracking

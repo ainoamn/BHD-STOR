@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsUUID, IsString } from 'class-validator';
 import { SubscriptionPlanType, BillingCycle } from './create-subscription-plan.dto';

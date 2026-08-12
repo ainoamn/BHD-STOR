@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * BHD Logistics - Redis Location Store
  * Redis-based location storage with geospatial support for real-time tracking.

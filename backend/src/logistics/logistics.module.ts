@@ -37,7 +37,7 @@ import { HubService } from './services/hub.service';
 import { PricingService } from './services/pricing.service';
 import { RouteService } from './services/route.service';
 import { MaintenanceService } from './services/maintenance.service';
-import { B2BCustomerService } from './services/b2b-customer.service';
+import { B2bCustomerService } from './services/b2b-customer.service';
 import { DriverEarningService } from './services/driver-earning.service';
 import { TrackingService } from './services/tracking.service';
 import { LocationTrackingService } from './services/location-tracking.service';
@@ -146,7 +146,7 @@ import { OrdersModule } from '../orders/orders.module';
     PricingService,
     RouteService,
     MaintenanceService,
-    B2BCustomerService,
+    B2bCustomerService,
     DriverEarningService,
     TrackingService,
     LocationTrackingService,
