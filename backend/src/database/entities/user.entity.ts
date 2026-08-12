@@ -138,8 +138,33 @@ export class User {
   @Column({ type: 'boolean', default: false, name: 'two_factor_enabled' })
   twoFactorEnabled: boolean;
 
-  @Column({ type: 'varchar', length: 255, nullable: true, name: 'two_factor_secret' })
+  @Column({
+    type: 'varchar',
+    length: 512,
+    nullable: true,
+    select: false,
+    name: 'two_factor_secret',
+  })
   twoFactorSecret: string | null;
+
+  /** Encrypted TOTP secret pending enrollment confirmation */
+  @Column({
+    type: 'varchar',
+    length: 512,
+    nullable: true,
+    select: false,
+    name: 'two_factor_temp_secret',
+  })
+  twoFactorTempSecret: string | null;
+
+  /** SHA-256(+pepper) hashes of one-time backup codes */
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+    select: false,
+    name: 'two_factor_backup_hashes',
+  })
+  twoFactorBackupHashes: string[] | null;
 
   @Column({ type: 'timestamptz', nullable: true, name: 'last_login_at' })
   lastLoginAt: Date | null;

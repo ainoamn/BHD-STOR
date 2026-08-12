@@ -5,6 +5,7 @@ import { BadRequestException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { AuthService } from './auth.service';
 import { UsersService } from '@users/users.service';
+import { TotpService } from './services/totp.service';
 
 describe('AuthService password reset & revocation', () => {
   let service: AuthService;
@@ -69,6 +70,7 @@ describe('AuthService password reset & revocation', () => {
       usersService as unknown as UsersService,
       jwtService as unknown as JwtService,
       configService as unknown as ConfigService,
+      { setup: jest.fn(), enable: jest.fn(), disable: jest.fn(), verifyLoginCode: jest.fn() } as any,
       redis as any,
     );
   });
@@ -224,6 +226,15 @@ describe('AuthService password reset & revocation', () => {
           { provide: UsersService, useValue: usersService },
           { provide: JwtService, useValue: jwtService },
           { provide: ConfigService, useValue: configService },
+          {
+            provide: TotpService,
+            useValue: {
+              setup: jest.fn(),
+              enable: jest.fn(),
+              disable: jest.fn(),
+              verifyLoginCode: jest.fn(),
+            },
+          },
         ],
       }).compile();
 

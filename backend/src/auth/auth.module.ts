@@ -13,6 +13,7 @@ import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { ThrottlerGuard } from './guards/throttler.guard';
+import { TotpService } from './services/totp.service';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ThrottlerGuard } from './guards/throttler.guard';
   ],
   providers: [
     AuthService,
+    TotpService,
     JwtStrategy,
     LocalStrategy,
     RefreshTokenStrategy,
@@ -56,6 +58,7 @@ import { ThrottlerGuard } from './guards/throttler.guard';
   controllers: [AuthController],
   exports: [
     AuthService,
+    TotpService,
     PassportModule,
     JwtModule,
     JwtAuthGuard,

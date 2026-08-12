@@ -31,6 +31,9 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { VerifyTwoFactorDto } from './dto/verify-two-factor.dto';
+import { EnableTwoFactorDto } from './dto/enable-two-factor.dto';
+import { DisableTwoFactorDto } from './dto/disable-two-factor.dto';
 import { clearAuthCookies, setAuthCookies } from './utils/auth-cookies';
 
 @ApiTags('Authentication')
@@ -101,6 +104,92 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(_loginDto);
+    if (result?.requiresTwoFactor) {
+      return result;
+    }
+    if (result?.tokens) {
+      setAuthCookies(res, result.tokens, this.configService);
+    }
+    return result;
+  }
+
+  /**
+   * Begin TOTP enrollment
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/setup')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Setup two-factor authentication',
+    description: 'Generate a TOTP secret and otpauth URL for authenticator apps.',
+  })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Setup payload returned' })
+  async setupTwoFactor(@CurrentUser('userId') userId: string) {
+    return this.authService.setupTwoFactor(userId);
+  }
+
+  /**
+   * Confirm TOTP enrollment
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/enable')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Enable two-factor authentication',
+    description: 'Verify a TOTP code against the pending secret and enable 2FA. Returns backup codes once.',
+  })
+  @ApiBody({ type: EnableTwoFactorDto })
+  @ApiResponse({ status: HttpStatus.OK, description: '2FA enabled; backup codes returned' })
+  async enableTwoFactor(
+    @CurrentUser('userId') userId: string,
+    @Body() dto: EnableTwoFactorDto,
+  ) {
+    return this.authService.enableTwoFactor(userId, dto.code);
+  }
+
+  /**
+   * Disable TOTP
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/disable')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Disable two-factor authentication',
+    description: 'Disable 2FA after verifying a TOTP or backup code.',
+  })
+  @ApiBody({ type: DisableTwoFactorDto })
+  @ApiResponse({ status: HttpStatus.OK, description: '2FA disabled' })
+  async disableTwoFactor(
+    @CurrentUser('userId') userId: string,
+    @Body() dto: DisableTwoFactorDto,
+  ) {
+    return this.authService.disableTwoFactor(userId, dto.code);
+  }
+
+  /**
+   * Complete login after 2FA challenge
+   */
+  @Public()
+  @Post('2fa/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Verify two-factor login',
+    description: 'Complete login using the challenge token from login and a TOTP/backup code.',
+  })
+  @ApiBody({ type: VerifyTwoFactorDto })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Login completed' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid challenge or code' })
+  async verifyTwoFactor(
+    @Body() dto: VerifyTwoFactorDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifyTwoFactorLogin(
+      dto.challengeToken,
+      dto.code,
+    );
     if (result?.tokens) {
       setAuthCookies(res, result.tokens, this.configService);
     }

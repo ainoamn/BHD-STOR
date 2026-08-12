@@ -57,14 +57,14 @@ export class ApiKey {
    * The raw key is only shown once at creation time.
    * Uses SHA-256 hash with server-side pepper.
    */
-  @Column({ type: 'varchar', length: 128, unique: true })
+  @Column({ type: 'varchar', length: 128, unique: true, name: 'key_hash' })
   keyHash: string;
 
   /**
    * Last 4 characters of the raw key for identification purposes.
    * Example: "...a3f9"
    */
-  @Column({ type: 'varchar', length: 8 })
+  @Column({ type: 'varchar', length: 8, name: 'key_mask' })
   keyMask: string;
 
   /** Granted permission scopes */
@@ -75,54 +75,54 @@ export class ApiKey {
   scopes: ApiKeyScope[];
 
   /** Whether the key is active */
-  @Column({ type: 'boolean', default: true })
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive: boolean;
 
   /** Whether the key has been revoked */
-  @Column({ type: 'boolean', default: false })
+  @Column({ type: 'boolean', default: false, name: 'is_revoked' })
   isRevoked: boolean;
 
   /** Revocation reason */
-  @Column({ type: 'varchar', length: 500, nullable: true })
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'revoke_reason' })
   revokeReason?: string;
 
   /** Timestamp of last use */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true, name: 'last_used_at' })
   lastUsedAt: Date | null;
 
   /** Expiration timestamp */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true, name: 'expires_at' })
   expiresAt: Date | null;
 
   /** ID of the user who created this key */
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'created_by' })
   createdBy: string;
 
   /** Request IP at creation time */
-  @Column({ type: 'varchar', length: 45, nullable: true })
+  @Column({ type: 'varchar', length: 45, nullable: true, name: 'created_from_ip' })
   createdFromIp?: string;
 
   /** User agent at creation time */
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, name: 'created_from_user_agent' })
   createdFromUserAgent?: string;
 
   /** Number of times this key has been used */
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: 'int', default: 0, name: 'usage_count' })
   usageCount: number;
 
   /** Rate limit: requests per minute */
-  @Column({ type: 'int', default: 100 })
+  @Column({ type: 'int', default: 100, name: 'rate_limit_per_minute' })
   rateLimitPerMinute: number;
 
   /** Rate limit: requests per day */
-  @Column({ type: 'int', default: 10000 })
+  @Column({ type: 'int', default: 10000, name: 'rate_limit_per_day' })
   rateLimitPerDay: number;
 
   /** Creation timestamp */
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 
   /** Last update timestamp */
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
   updatedAt: Date;
 }
