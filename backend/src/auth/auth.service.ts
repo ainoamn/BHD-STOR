@@ -19,6 +19,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { TotpService } from './services/totp.service';
 
 export interface TokenPayload {
   sub: string;
@@ -39,7 +40,7 @@ export interface AuthTokens {
 }
 
 export interface AuthResponse {
-  user: {
+  user?: {
     id: string;
     email: string;
     firstName: string;
@@ -47,7 +48,9 @@ export interface AuthResponse {
     role: string;
     avatar?: string;
   };
-  tokens: AuthTokens;
+  tokens?: AuthTokens;
+  requiresTwoFactor?: boolean;
+  challengeToken?: string;
 }
 
 /** Process-local fallback when Redis is down (single-instance only). */
@@ -69,6 +72,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly totpService: TotpService,
     @Optional() @InjectRedis() private readonly redis?: Redis,
   ) {
     this.jwtSecret = this.configService.get<string>('JWT_SECRET', '');
@@ -152,6 +156,29 @@ export class AuthService {
       // Update last login
       await this.usersService.updateLastLogin(user.id);
 
+      // Challenge with 2FA instead of issuing tokens
+      if (user.twoFactorEnabled) {
+        const challengeToken = await this.jwtService.signAsync(
+          {
+            sub: user.id,
+            purpose: '2fa-challenge',
+          },
+          {
+            secret: this.jwtSecret,
+            expiresIn: '5m',
+            issuer: this.jwtIssuer,
+            audience: this.jwtAudience,
+          },
+        );
+
+        this.logger.log(`2FA challenge issued for: ${user.email}`, 'AuthService');
+
+        return {
+          requiresTwoFactor: true,
+          challengeToken,
+        };
+      }
+
       // Generate tokens
       const tokens = await this.generateTokens(user.id, user.email, user.role);
 
@@ -175,6 +202,92 @@ export class AuthService {
       this.logger.error(`Login failed: ${error.message}`, error.stack, 'AuthService');
       throw new InternalServerErrorException('Failed to login');
     }
+  }
+
+  /**
+   * Complete login after 2FA challenge.
+   */
+  async verifyTwoFactorLogin(
+    challengeToken: string,
+    code: string,
+  ): Promise<AuthResponse> {
+    try {
+      const payload = await this.jwtService.verifyAsync<{
+        sub: string;
+        purpose?: string;
+      }>(challengeToken, {
+        secret: this.jwtSecret,
+        issuer: this.jwtIssuer,
+        audience: this.jwtAudience,
+      });
+
+      if (payload.purpose !== '2fa-challenge' || !payload.sub) {
+        throw new UnauthorizedException('Invalid two-factor challenge');
+      }
+
+      const valid = await this.totpService.verifyLoginCode(payload.sub, code);
+      if (!valid) {
+        throw new UnauthorizedException('Invalid verification code');
+      }
+
+      const user = await this.usersService.findOne(payload.sub);
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+      if (!user.isActive) {
+        throw new UnauthorizedException('Account is deactivated');
+      }
+
+      await this.usersService.updateLastLogin(user.id);
+      const tokens = await this.generateTokens(user.id, user.email, user.role);
+
+      this.logger.log(`User completed 2FA login: ${user.email}`, 'AuthService');
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          avatar: user.avatar,
+        },
+        tokens,
+      };
+    } catch (error) {
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      if (error?.name === 'TokenExpiredError') {
+        throw new UnauthorizedException(
+          'Two-factor challenge has expired. Please login again.',
+        );
+      }
+      if (error?.name === 'JsonWebTokenError') {
+        throw new UnauthorizedException('Invalid two-factor challenge');
+      }
+      this.logger.error(
+        `2FA login verify failed: ${error.message}`,
+        error.stack,
+        'AuthService',
+      );
+      throw new UnauthorizedException('Failed to verify two-factor code');
+    }
+  }
+
+  setupTwoFactor(userId: string) {
+    return this.totpService.setup(userId);
+  }
+
+  enableTwoFactor(userId: string, code: string) {
+    return this.totpService.enable(userId, code);
+  }
+
+  disableTwoFactor(userId: string, code: string) {
+    return this.totpService.disable(userId, code);
   }
 
   /**

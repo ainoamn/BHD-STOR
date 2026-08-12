@@ -112,16 +112,16 @@ export class AuditLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  /** Action type */
-  @Column({ type: 'enum', enum: AuditAction })
+  /** Action type (varchar to avoid huge Postgres enum churn) */
+  @Column({ type: 'varchar', length: 64 })
   action: AuditAction;
 
   /** User ID (if authenticated) */
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ type: 'uuid', nullable: true, name: 'user_id' })
   userId: string | null;
 
   /** User email/username for display */
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'user_email' })
   userEmail?: string;
 
   /** Resource being accessed */
@@ -137,7 +137,7 @@ export class AuditLog {
   path: string | null;
 
   /** HTTP status code */
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, name: 'status_code' })
   statusCode: number | null;
 
   /** Client IP address */
@@ -145,31 +145,32 @@ export class AuditLog {
   ip: string | null;
 
   /** Geolocation data (country, city) */
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'jsonb', nullable: true, name: 'geo_location' })
   geoLocation: Record<string, string> | null;
 
   /** User agent string */
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, name: 'user_agent' })
   userAgent: string | null;
 
   /** Parsed user agent (browser, OS, device) */
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'jsonb', nullable: true, name: 'parsed_user_agent' })
   parsedUserAgent: Record<string, string> | null;
 
   /** Risk severity level */
   @Column({
-    type: 'enum',
-    enum: RiskLevel,
+    type: 'varchar',
+    length: 32,
     default: RiskLevel.INFO,
+    name: 'risk_level',
   })
   riskLevel: RiskLevel;
 
   /** Risk score (0-100) */
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: 'int', default: 0, name: 'risk_score' })
   riskScore: number;
 
   /** Request/response time in milliseconds */
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, name: 'response_time' })
   responseTime: number | null;
 
   /** Additional details (JSON) */
@@ -177,19 +178,19 @@ export class AuditLog {
   details: Record<string, unknown> | null;
 
   /** Error message (if any) */
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, name: 'error_message' })
   errorMessage: string | null;
 
   /** API key ID (if API key auth) */
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ type: 'uuid', nullable: true, name: 'api_key_id' })
   apiKeyId: string | null;
 
   /** Session ID */
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'session_id' })
   sessionId: string | null;
 
   /** Request ID for correlation */
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'request_id' })
   requestId: string | null;
 
   /** Event timestamp */

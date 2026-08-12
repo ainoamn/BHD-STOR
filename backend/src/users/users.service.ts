@@ -31,6 +31,23 @@ export interface PaginatedUsers {
   };
 }
 
+/** Security fields for TOTP / 2FA (includes select:false columns). */
+export interface UserSecurityFields {
+  id: string;
+  email: string;
+  twoFactorEnabled: boolean;
+  twoFactorSecret: string | null;
+  twoFactorTempSecret: string | null;
+  twoFactorBackupHashes: string[] | null;
+}
+
+export type TwoFactorStateUpdate = Partial<{
+  twoFactorEnabled: boolean;
+  twoFactorSecret: string | null;
+  twoFactorTempSecret: string | null;
+  twoFactorBackupHashes: string[] | null;
+}>;
+
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
@@ -359,6 +376,56 @@ export class UsersService {
       resetToken: null,
       resetTokenExpiry: null,
     });
+  }
+
+  /**
+   * Load 2FA security fields (including select:false columns).
+   */
+  async getUserSecurity(userId: string): Promise<UserSecurityFields | null> {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.twoFactorSecret')
+      .addSelect('user.twoFactorTempSecret')
+      .addSelect('user.twoFactorBackupHashes')
+      .where('user.id = :userId', { userId })
+      .andWhere('user.deleted_at IS NULL')
+      .getOne();
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      twoFactorEnabled: user.twoFactorEnabled,
+      twoFactorSecret: user.twoFactorSecret ?? null,
+      twoFactorTempSecret: user.twoFactorTempSecret ?? null,
+      twoFactorBackupHashes: user.twoFactorBackupHashes ?? null,
+    };
+  }
+
+  /**
+   * Persist 2FA-related columns.
+   */
+  async saveTwoFactorState(
+    userId: string,
+    state: TwoFactorStateUpdate,
+  ): Promise<void> {
+    await this.updateTwoFactorFields(userId, state);
+  }
+
+  /**
+   * Partial update helper for TOTP enrollment / disable.
+   */
+  async updateTwoFactorFields(
+    userId: string,
+    fields: TwoFactorStateUpdate,
+  ): Promise<void> {
+    const result = await this.userRepository.update(userId, fields);
+    if (!result.affected) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
   }
 
   /**
