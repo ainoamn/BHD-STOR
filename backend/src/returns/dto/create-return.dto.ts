@@ -8,6 +8,8 @@ import {
   IsArray,
   IsDateString,
   IsObject,
+  IsNumber,
+  Min,
   Length,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -65,4 +67,10 @@ export class CreateReturnDto {
   @IsOptional()
   @IsObject()
   pickupAddress?: PickupAddress;
+
+  @ApiPropertyOptional({ description: 'Suggested refund amount (OMR)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  refundAmount?: number;
 }

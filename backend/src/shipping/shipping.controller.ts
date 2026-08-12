@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   Controller,
   Post,
@@ -115,7 +114,14 @@ export class ShippingController {
       dto.origin,
       dto.destination,
       dto.weight,
-      dto.dimensions,
+      dto.dimensions
+        ? {
+            length: dto.dimensions.length,
+            width: dto.dimensions.width,
+            height: dto.dimensions.height,
+            unit: dto.dimensions.unit ?? 'cm',
+          }
+        : undefined,
     );
   }
 

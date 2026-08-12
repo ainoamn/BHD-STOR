@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   Controller,
   Get,
@@ -243,7 +242,10 @@ export class StoresController {
       return { success: false, message: 'Permission denied' };
     }
 
-    const uploadResult = await this.uploadService.uploadImage(file);
+    const uploadResult = await this.uploadService.uploadImage(
+      file,
+      requireRequestUserId(req.user),
+    );
     const store = await this.storesService.updateLogo(id, uploadResult.url);
 
     return {
@@ -278,7 +280,10 @@ export class StoresController {
       return { success: false, message: 'Permission denied' };
     }
 
-    const uploadResult = await this.uploadService.uploadImage(file);
+    const uploadResult = await this.uploadService.uploadImage(
+      file,
+      requireRequestUserId(req.user),
+    );
     const store = await this.storesService.updateCover(id, uploadResult.url);
 
     return {

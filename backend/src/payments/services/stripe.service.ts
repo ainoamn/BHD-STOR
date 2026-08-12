@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Injectable, Logger, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
@@ -53,7 +52,7 @@ export class StripeService {
       this.logger.warn('STRIPE_SECRET_KEY is not configured. Stripe features will degrade safely.');
     } else {
       this.stripe = new Stripe(secretKey, {
-        apiVersion: '2024-06-20',
+        apiVersion: '2024-06-20' as any,
         typescript: true,
         maxNetworkRetries: 3,
       });

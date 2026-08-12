@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   Controller,
   Get,
@@ -63,7 +62,7 @@ export class OrdersController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'status', required: false, enum: OrderStatus })
-  @ApiQuery({ name: 'storeId', required: false, format: 'uuid' })
+  @ApiQuery({ name: 'storeId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async findAll(

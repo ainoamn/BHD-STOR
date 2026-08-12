@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -60,7 +59,7 @@ export class Payout {
   metadata: Record<string, unknown> | null;
 
   // Relations
-  @ManyToOne(() => Store, (store) => store.payouts, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Store, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'store_id' })
   store: Relation<Store>;
 

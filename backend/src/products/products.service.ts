@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   Injectable,
   NotFoundException,
@@ -88,12 +87,22 @@ export class ProductsService {
     const slug = await this.generateSlug(dto.name);
 
     const product = this.productRepository.create({
-      ...dto,
+      name: dto.name,
+      description: dto.description,
       slug,
-      store,
-      category,
-      viewCount: 0,
+      price: dto.price,
+      salePrice: dto.compareAtPrice ?? 0,
+      stock: dto.inventoryQuantity,
+      status: dto.status ?? ProductStatus.DRAFT,
+      isFeatured: dto.isFeatured ?? false,
       salesCount: 0,
+      storeId: store.id,
+      store,
+      images: dto.images,
+      attributes: dto.attributes
+        ? Object.fromEntries(dto.attributes.map((a) => [a.name, a.value]))
+        : undefined,
+      category: category.id,
       rating: 0,
       reviewCount: 0,
     });
@@ -252,12 +261,12 @@ export class ProductsService {
       dto['slug'] = await this.generateSlug(dto.name);
     }
 
-    if (dto.categoryId && dto.categoryId !== product.category?.id) {
+    if (dto.categoryId && dto.categoryId !== product.category) {
       const category = await this.categoryRepository.findOne({ where: { id: dto.categoryId } });
       if (!category) {
         throw new NotFoundException(`Category with ID "${dto.categoryId}" not found`);
       }
-      product.category = category;
+      product.category = category.id;
     }
 
     Object.assign(product, dto);
@@ -279,7 +288,7 @@ export class ProductsService {
    */
   async updateInventory(id: string, quantity: number): Promise<Product> {
     const product = await this.findOne(id);
-    product.inventoryQuantity = quantity;
+    product.stock = quantity;
 
     if (quantity === 0) {
       product.status = ProductStatus.OUT_OF_STOCK;
@@ -355,7 +364,7 @@ export class ProductsService {
         salesCount: MoreThan(0),
       },
       relations: ['store', 'category'],
-      order: { salesCount: 'DESC', viewCount: 'DESC' },
+      order: { salesCount: 'DESC', reviewCount: 'DESC' },
       take: 20,
     });
   }
@@ -370,7 +379,7 @@ export class ProductsService {
     }
 
     return this.productRepository.find({
-      where: { category: { id: categoryId }, status: ProductStatus.ACTIVE },
+      where: { category: categoryId, status: ProductStatus.ACTIVE },
       relations: ['store'],
       order: { createdAt: 'DESC' },
     });

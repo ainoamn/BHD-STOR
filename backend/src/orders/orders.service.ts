@@ -19,6 +19,7 @@ import { CartService } from './cart.service';
 import { isStaffRole } from '../auth/utils/roles';
 import { evaluateCoupon } from './utils/coupons';
 import { addMoney, mulMoney, roundMoney } from '../common/utils/money.util';
+import { canDecrementStock } from './utils/stock-decrement';
 
 export interface OrderTotals {
   subtotal: number;
@@ -104,6 +105,12 @@ export class OrdersService {
         const qty = Math.trunc(Number(item.quantity));
         if (!Number.isFinite(qty) || qty <= 0) {
           throw new BadRequestException(`Invalid quantity for product ${product.id}`);
+        }
+
+        if (!canDecrementStock(Number(product.stock ?? 0), qty)) {
+          throw new BadRequestException(
+            `Insufficient inventory for "${product.name}". Available: ${Number(product.stock ?? 0)}, Requested: ${qty}`,
+          );
         }
 
         // Conditional stock decrement — fails if concurrent checkout drained stock
