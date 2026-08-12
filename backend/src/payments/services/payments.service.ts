@@ -1,18 +1,32 @@
+import { createHash } from 'crypto';
 import {
   Injectable,
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   InternalServerErrorException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Payment, PaymentStatus as DbPaymentStatus } from '../entities/payment.entity';
+import {
+  Payment,
+  PaymentMethod,
+  PaymentStatus as DbPaymentStatus,
+} from '../entities/payment.entity';
 import { PaymentGateway } from '../entities/payment-gateway.entity';
+import {
+  PaymentAttempt,
+  PaymentAttemptStatus,
+} from '../entities/payment-attempt.entity';
+import {
+  WebhookEvent,
+  WebhookProcessingStatus,
+} from '../entities/webhook-event.entity';
 import { PaymentGatewayFactory, PaymentGatewayType } from './payment-gateway.factory';
 import { ProcessPaymentDto } from '../dto/process-payment.dto';
 import { RefundPaymentDto } from '../dto/refund-payment.dto';
@@ -36,6 +50,7 @@ import {
 } from '../utils/refund-amount';
 import { resolveCaptureAmount } from '../utils/capture-amount';
 import { escapeHtml } from '../../common/utils/escape-html';
+import { addMoney, moneyEquals, roundMoney } from '../../common/utils/money.util';
 
 export interface PaymentResult {
   success: boolean;
@@ -93,6 +108,10 @@ export class PaymentsService {
     private readonly paymentRepository: Repository<Payment>,
     @InjectRepository(PaymentGateway)
     private readonly gatewayRepository: Repository<PaymentGateway>,
+    @InjectRepository(PaymentAttempt)
+    private readonly paymentAttemptRepository: Repository<PaymentAttempt>,
+    @InjectRepository(WebhookEvent)
+    private readonly webhookEventRepository: Repository<WebhookEvent>,
   ) {
     this.defaultCommissionRate = parseFloat(this.configService.get<string>('PLATFORM_COMMISSION_RATE') || '0.10');
   }
@@ -131,9 +150,56 @@ export class PaymentsService {
     const amount = resolveChargeAmount(Number(order.total), dto.amount);
     const currency = String(order.currency || dto.currency || 'OMR').toUpperCase();
 
+    const requestHash = createHash('sha256')
+      .update(
+        JSON.stringify({
+          orderId,
+          gateway: normalizedGateway,
+          amount,
+          currency,
+        }),
+      )
+      .digest('hex');
+
+    let idempotencyKey = dto.idempotencyKey?.trim() || undefined;
+    let attempt: PaymentAttempt | null = null;
+
+    if (idempotencyKey) {
+      attempt = await this.paymentAttemptRepository.findOne({
+        where: { userId, idempotencyKey },
+      });
+      if (attempt) {
+        if (attempt.requestHash && attempt.requestHash !== requestHash) {
+          throw new ConflictException(
+            'Idempotency key already used with a different payment request',
+          );
+        }
+        if (attempt.resultPayload) {
+          return attempt.resultPayload as unknown as PaymentResult;
+        }
+      }
+    } else {
+      idempotencyKey = `auto_${orderId}_${normalizedGateway}_${Date.now()}`;
+    }
+
+    if (!attempt) {
+      attempt = await this.paymentAttemptRepository.save(
+        this.paymentAttemptRepository.create({
+          orderId,
+          userId,
+          idempotencyKey,
+          gateway: normalizedGateway,
+          amount,
+          currency,
+          status: PaymentAttemptStatus.PENDING,
+          requestHash,
+        }),
+      );
+    }
+
     // Cash on delivery — no external gateway; order already confirmed at create
     if (isCod) {
-      return {
+      const result: PaymentResult = {
         success: true,
         paymentId: `cod_${orderId}`,
         status: 'pending',
@@ -142,10 +208,24 @@ export class PaymentsService {
         gateway: 'cod',
         metadata: { method: 'cash_on_delivery', note: 'Pay on delivery' },
       };
+      await this.persistPaymentAttemptResult(
+        attempt,
+        userId,
+        orderId,
+        normalizedGateway,
+        amount,
+        currency,
+        result,
+        true,
+      );
+      return result;
     }
 
     // Validate gateway is supported
     if (!this.gatewayFactory.isGatewaySupported(normalizedGateway)) {
+      attempt.status = PaymentAttemptStatus.FAILED;
+      attempt.lastError = `Unsupported payment gateway: ${gateway}`;
+      await this.paymentAttemptRepository.save(attempt);
       throw new BadRequestException(`Unsupported payment gateway: ${gateway}`);
     }
 
@@ -157,12 +237,16 @@ export class PaymentsService {
       ? configValidation.find((c) => c.gateway === normalizedGateway)
       : configValidation;
     if (gatewayConfig && !gatewayConfig.isConfigured) {
-      throw new BadRequestException(
-        `Gateway ${gateway} is not properly configured. Missing: ${gatewayConfig.missingKeys.join(', ')}`,
-      );
+      const msg = `Gateway ${gateway} is not properly configured. Missing: ${gatewayConfig.missingKeys.join(', ')}`;
+      attempt.status = PaymentAttemptStatus.FAILED;
+      attempt.lastError = msg;
+      await this.paymentAttemptRepository.save(attempt);
+      throw new BadRequestException(msg);
     }
 
     try {
+      let result: PaymentResult;
+
       switch (normalizedGateway) {
         case 'stripe': {
           // Get or create customer
@@ -177,7 +261,7 @@ export class PaymentsService {
             }
           }
 
-          const result = await this.stripeService.createPaymentIntent(
+          const stripeResult = await this.stripeService.createPaymentIntent(
             orderId,
             amount,
             currency,
@@ -186,21 +270,22 @@ export class PaymentsService {
             metadata,
           );
 
-          return {
-            success: result.success,
-            paymentId: result.paymentIntentId,
-            status: result.status || 'pending',
+          result = {
+            success: stripeResult.success,
+            paymentId: stripeResult.paymentIntentId,
+            status: stripeResult.status || 'pending',
             amount: amount || 0,
             currency,
             gateway: normalizedGateway,
-            clientSecret: result.clientSecret,
-            error: result.error,
-            metadata: result.metadata,
+            clientSecret: stripeResult.clientSecret,
+            error: stripeResult.error,
+            metadata: stripeResult.metadata,
           };
+          break;
         }
 
         case 'paypal': {
-          const result = await this.paypalService.createOrder(
+          const paypalResult = await this.paypalService.createOrder(
             orderId,
             amount,
             currency,
@@ -209,20 +294,21 @@ export class PaymentsService {
             metadata?.description,
           );
 
-          return {
-            success: result.success,
-            transactionId: result.orderId,
-            status: result.status || 'pending',
+          result = {
+            success: paypalResult.success,
+            transactionId: paypalResult.orderId,
+            status: paypalResult.status || 'pending',
             amount: amount || 0,
             currency,
             gateway: normalizedGateway,
-            redirectUrl: result.approvalUrl,
-            error: result.error,
+            redirectUrl: paypalResult.approvalUrl,
+            error: paypalResult.error,
           };
+          break;
         }
 
         case 'oman_net': {
-          const result = await this.omanNetService.initiatePayment(
+          const omanResult = await this.omanNetService.initiatePayment(
             orderId,
             amount,
             currency,
@@ -231,16 +317,17 @@ export class PaymentsService {
             customerName,
           );
 
-          return {
-            success: result.success,
-            transactionId: result.transactionId,
-            status: result.status || 'pending',
+          result = {
+            success: omanResult.success,
+            transactionId: omanResult.transactionId,
+            status: omanResult.status || 'pending',
             amount: amount || 0,
             currency,
             gateway: normalizedGateway,
-            redirectUrl: result.redirectUrl,
-            error: result.error,
+            redirectUrl: omanResult.redirectUrl,
+            error: omanResult.error,
           };
+          break;
         }
 
         case 'thawani': {
@@ -253,7 +340,7 @@ export class PaymentsService {
             },
           ];
 
-          const result = await this.thawaniService.createSession(
+          const thawaniResult = await this.thawaniService.createSession(
             orderId,
             amount,
             products,
@@ -263,20 +350,21 @@ export class PaymentsService {
             metadata,
           );
 
-          return {
-            success: result.success,
-            transactionId: result.sessionId,
-            status: result.status || 'pending',
+          result = {
+            success: thawaniResult.success,
+            transactionId: thawaniResult.sessionId,
+            status: thawaniResult.status || 'pending',
             amount: amount || 0,
             currency,
             gateway: normalizedGateway,
-            redirectUrl: result.paymentUrl,
-            error: result.error,
+            redirectUrl: thawaniResult.paymentUrl,
+            error: thawaniResult.error,
           };
+          break;
         }
 
         case 'telr': {
-          const result = await this.telrService.createPayment(
+          const telrResult = await this.telrService.createPayment(
             orderId,
             amount,
             currency,
@@ -286,20 +374,21 @@ export class PaymentsService {
             returnUrl,
           );
 
-          return {
-            success: result.success,
-            transactionId: result.transactionId,
-            status: result.status || 'pending',
+          result = {
+            success: telrResult.success,
+            transactionId: telrResult.transactionId,
+            status: telrResult.status || 'pending',
             amount: amount || 0,
             currency,
             gateway: normalizedGateway,
-            redirectUrl: result.redirectUrl,
-            error: result.error,
+            redirectUrl: telrResult.redirectUrl,
+            error: telrResult.error,
           };
+          break;
         }
 
         case 'ccavenue': {
-          const result = await this.ccavenueService.initiatePayment(
+          const ccResult = await this.ccavenueService.initiatePayment(
             orderId,
             amount,
             currency,
@@ -311,34 +400,54 @@ export class PaymentsService {
             metadata?.billingAddress,
           );
 
-          return {
-            success: result.success,
-            transactionId: result.orderId,
+          result = {
+            success: ccResult.success,
+            transactionId: ccResult.orderId,
             status: 'pending',
             amount: amount || 0,
             currency,
             gateway: normalizedGateway,
-            error: result.error,
+            error: ccResult.error,
             metadata: {
-              encRequest: result.encRequest,
-              accessCode: result.accessCode,
-              gatewayUrl: result.gatewayUrl,
+              encRequest: ccResult.encRequest,
+              accessCode: ccResult.accessCode,
+              gatewayUrl: ccResult.gatewayUrl,
             },
           };
+          break;
         }
 
         default:
           throw new BadRequestException(`Gateway ${gateway} processing not implemented`);
       }
+
+      await this.persistPaymentAttemptResult(
+        attempt,
+        userId,
+        orderId,
+        normalizedGateway,
+        amount,
+        currency,
+        result,
+        false,
+      );
+      return result;
     } catch (error) {
       if (
         error instanceof BadRequestException ||
+        error instanceof ConflictException ||
         error instanceof ForbiddenException ||
         error instanceof NotFoundException
       ) {
+        attempt.status = PaymentAttemptStatus.FAILED;
+        attempt.lastError = error.message;
+        await this.paymentAttemptRepository.save(attempt);
         throw error;
       }
       this.logger.error(`Payment processing failed for order ${orderId}: ${error.message}`, error.stack);
+      attempt.status = PaymentAttemptStatus.FAILED;
+      attempt.lastError = error.message;
+      await this.paymentAttemptRepository.save(attempt);
       throw new InternalServerErrorException(`Payment processing failed: ${error.message}`);
     }
   }
@@ -570,10 +679,9 @@ export class PaymentsService {
       if (result.success) {
         this.logger.log(`Refund processed successfully for payment ${paymentEntity.id}`);
         const prior = Number(paymentEntity.refundAmount || 0);
-        const cumulative =
-          Math.round((prior + refundAmount) * 1000) / 1000;
-        const fullyRefunded =
-          cumulative >= Number(paymentEntity.amount) - 0.001;
+        const cumulative = addMoney(prior, refundAmount);
+        const fullyRefunded = moneyEquals(cumulative, Number(paymentEntity.amount))
+          || cumulative >= Number(paymentEntity.amount) - 0.001;
         await this.paymentRepository.update(paymentEntity.id, {
           refundAmount: cumulative,
           refundReason: reason || paymentEntity.refundReason,
@@ -662,7 +770,7 @@ export class PaymentsService {
         currency: p.currency,
         gateway: p.gateway,
         status: p.status,
-        transactionId: p.transactionId,
+        transactionId: p.gatewayTransactionId || undefined,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
       })),
@@ -848,7 +956,27 @@ export class PaymentsService {
           throw new BadRequestException(`Webhook handling not implemented for gateway: ${gateway}`);
       }
 
-      await this.applyWebhookToOrder(gateway, result);
+      const inbox = await this.registerWebhookEvent(gateway, payload, result);
+      if (inbox.alreadyProcessed) {
+        return result;
+      }
+
+      try {
+        await this.applyWebhookToOrder(gateway, result);
+        inbox.event.status = WebhookProcessingStatus.PROCESSED;
+        inbox.event.eventType = result.action;
+        inbox.event.orderId = result.orderId || inbox.event.orderId;
+        inbox.event.lastError = null;
+        await this.webhookEventRepository.save(inbox.event);
+      } catch (applyError) {
+        inbox.event.status = WebhookProcessingStatus.FAILED;
+        inbox.event.eventType = result.action;
+        inbox.event.lastError =
+          applyError instanceof Error ? applyError.message : String(applyError);
+        await this.webhookEventRepository.save(inbox.event);
+        throw applyError;
+      }
+
       return result;
     } catch (error) {
       this.logger.error(`Webhook handling failed for ${gateway}: ${error.message}`, error.stack);
@@ -892,27 +1020,35 @@ export class PaymentsService {
           this.logger.error(
             `Webhook amount mismatch for order ${result.orderId}: paid=${result.amount} expected=${existing.total}`,
           );
-          return;
+          throw new BadRequestException(
+            `Webhook amount does not match order total for order ${result.orderId}`,
+          );
         }
+
+        const wasAlreadyPaid = existing.paymentStatus === PaymentStatus.PAID;
 
         const order = await this.ordersService.applyPaymentWebhook(
           result.orderId,
           PaymentStatus.PAID,
           { gateway, action: result.action, amount: result.amount },
         );
-        this.eventEmitter.emit('order.paid', {
-          orderId: order.id,
-          gateway,
-          action: result.action,
-          paymentStatus: PaymentStatus.PAID,
-        });
-        this.eventEmitter.emit('order.status_changed', {
-          orderId: order.id,
-          oldStatus: 'pending',
-          newStatus: order.status,
-        });
-        // Trigger logistics shipment creation (idempotent)
-        this.eventEmitter.emit('order.created', { orderId: order.id });
+
+        // Do not re-emit logistics/order events for already-paid orders
+        if (!wasAlreadyPaid) {
+          this.eventEmitter.emit('order.paid', {
+            orderId: order.id,
+            gateway,
+            action: result.action,
+            paymentStatus: PaymentStatus.PAID,
+          });
+          this.eventEmitter.emit('order.status_changed', {
+            orderId: order.id,
+            oldStatus: 'pending',
+            newStatus: order.status,
+          });
+          // Trigger logistics shipment creation (idempotent)
+          this.eventEmitter.emit('order.created', { orderId: order.id });
+        }
         return;
       }
 
@@ -1014,17 +1150,17 @@ export class PaymentsService {
       ? await this.getStoreCommissionRate(storeId)
       : this.defaultCommissionRate;
 
-    const platformCommission = Math.round(amount * commissionRate * 1000) / 1000;
+    const platformCommission = roundMoney(amount * commissionRate);
 
     // Estimate payment gateway fee (typically 2.5-3% for cards)
     const gatewayFeeRate = 0.025; // 2.5%
-    const paymentGatewayFee = Math.round(amount * gatewayFeeRate * 1000) / 1000;
+    const paymentGatewayFee = roundMoney(amount * gatewayFeeRate);
 
-    const storeAmount = amount - platformCommission;
-    const netStoreAmount = storeAmount - paymentGatewayFee;
+    const storeAmount = roundMoney(amount - platformCommission);
+    const netStoreAmount = roundMoney(storeAmount - paymentGatewayFee);
 
     return {
-      originalAmount: amount,
+      originalAmount: roundMoney(amount),
       platformCommission,
       platformCommissionRate: commissionRate,
       storeAmount,
@@ -1222,7 +1358,11 @@ export class PaymentsService {
 
     const totalPayments = payments.length;
     const totalAmount = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const refunds = payments.filter(p => p.status === 'refunded' || p.status === 'partially_refunded');
+    const refunds = payments.filter(
+      (p) =>
+        p.status === DbPaymentStatus.REFUNDED ||
+        Number(p.refundAmount || 0) > 0,
+    );
     const totalRefunds = refunds.length;
     const totalRefundAmount = refunds.reduce((sum, p) => sum + Number(p.amount), 0);
 
@@ -1436,6 +1576,209 @@ export class PaymentsService {
     return n;
   }
 
+  private mapGatewayToPaymentMethod(gateway: string): PaymentMethod {
+    const code = this.normalizeGatewayCode(gateway);
+    switch (code) {
+      case 'cod':
+        return PaymentMethod.COD;
+      case 'stripe':
+        return PaymentMethod.STRIPE;
+      case 'paypal':
+        return PaymentMethod.PAYPAL;
+      case 'oman_net':
+        return PaymentMethod.OMAN_NET;
+      case 'thawani':
+        return PaymentMethod.THAWANI;
+      case 'telr':
+        return PaymentMethod.TELR;
+      case 'ccavenue':
+        return PaymentMethod.CCAVENUE;
+      default:
+        return PaymentMethod.CREDIT_CARD;
+    }
+  }
+
+  private async persistPaymentAttemptResult(
+    attempt: PaymentAttempt,
+    userId: string,
+    orderId: string,
+    gateway: string,
+    amount: number,
+    currency: string,
+    result: PaymentResult,
+    isCod: boolean,
+  ): Promise<void> {
+    const gatewayReference =
+      result.paymentId || result.transactionId || null;
+    const requiresAction = Boolean(result.clientSecret || result.redirectUrl);
+    const clearlySucceeded =
+      result.success &&
+      !isCod &&
+      !requiresAction &&
+      ['succeeded', 'completed', 'paid'].includes(
+        String(result.status || '').toLowerCase(),
+      );
+
+    let attemptStatus: PaymentAttemptStatus;
+    if (!result.success) {
+      attemptStatus = PaymentAttemptStatus.FAILED;
+    } else if (requiresAction) {
+      attemptStatus = PaymentAttemptStatus.REQUIRES_ACTION;
+    } else if (clearlySucceeded) {
+      attemptStatus = PaymentAttemptStatus.SUCCEEDED;
+    } else {
+      // COD and gateway pending → processing
+      attemptStatus = PaymentAttemptStatus.PROCESSING;
+    }
+
+    const paymentStatus = !result.success
+      ? DbPaymentStatus.FAILED
+      : clearlySucceeded
+        ? DbPaymentStatus.COMPLETED
+        : DbPaymentStatus.PROCESSING;
+
+    let payment = await this.paymentRepository.findOne({ where: { orderId } });
+    if (!payment) {
+      payment = this.paymentRepository.create({
+        orderId,
+        userId,
+        amount,
+        currency,
+        gateway,
+        method: this.mapGatewayToPaymentMethod(gateway),
+        status: paymentStatus,
+        gatewayTransactionId: gatewayReference,
+        metadata: {
+          ...(result.metadata || {}),
+          attemptId: attempt.id,
+          paymentStatus: result.status,
+        },
+        paidAt: clearlySucceeded ? new Date() : null,
+      });
+    } else {
+      payment.amount = amount;
+      payment.currency = currency;
+      payment.gateway = gateway;
+      payment.method = this.mapGatewayToPaymentMethod(gateway);
+      payment.status = paymentStatus;
+      if (gatewayReference) {
+        payment.gatewayTransactionId = gatewayReference;
+      }
+      payment.metadata = {
+        ...(payment.metadata || {}),
+        ...(result.metadata || {}),
+        attemptId: attempt.id,
+        paymentStatus: result.status,
+      };
+      if (clearlySucceeded && !payment.paidAt) {
+        payment.paidAt = new Date();
+      }
+    }
+    await this.paymentRepository.save(payment);
+
+    attempt.gatewayReference = gatewayReference;
+    attempt.status = attemptStatus;
+    attempt.resultPayload = result as unknown as Record<string, unknown>;
+    attempt.lastError = result.success ? null : result.error || 'Payment failed';
+    await this.paymentAttemptRepository.save(attempt);
+  }
+
+  private isUniqueViolation(error: unknown): boolean {
+    const err = error as { code?: string; driverError?: { code?: string } };
+    return err?.code === '23505' || err?.driverError?.code === '23505';
+  }
+
+  private resolveProviderEventId(payload: any): string {
+    const id =
+      payload?.id ||
+      payload?.event_id ||
+      payload?.EventId ||
+      payload?.eventId;
+    if (id != null && String(id).trim()) {
+      return String(id).slice(0, 255);
+    }
+    return createHash('sha256')
+      .update(JSON.stringify(payload || {}))
+      .digest('hex')
+      .slice(0, 64);
+  }
+
+  private sanitizeWebhookPayload(
+    payload: any,
+  ): Record<string, unknown> | null {
+    if (payload == null) return null;
+    try {
+      const str = JSON.stringify(payload);
+      if (str.length > 8000) {
+        return { truncated: true, preview: str.slice(0, 2000) };
+      }
+      return JSON.parse(str) as Record<string, unknown>;
+    } catch {
+      return { note: 'unserializable_payload' };
+    }
+  }
+
+  private async registerWebhookEvent(
+    gateway: string,
+    payload: any,
+    result: { success: boolean; orderId?: string; action: string },
+  ): Promise<{ event: WebhookEvent; alreadyProcessed: boolean }> {
+    const providerEventId = this.resolveProviderEventId(payload);
+    const payloadHash = createHash('sha256')
+      .update(JSON.stringify(payload || {}))
+      .digest('hex');
+    const sanitized = this.sanitizeWebhookPayload(payload);
+
+    try {
+      const created = await this.webhookEventRepository.save(
+        this.webhookEventRepository.create({
+          provider: gateway,
+          providerEventId,
+          eventType: result.action,
+          status: WebhookProcessingStatus.PROCESSING,
+          payloadHash,
+          payload: sanitized,
+          attempts: 1,
+          orderId: result.orderId || null,
+        }),
+      );
+      return { event: created, alreadyProcessed: false };
+    } catch (error) {
+      if (!this.isUniqueViolation(error)) {
+        throw error;
+      }
+
+      const existing = await this.webhookEventRepository.findOne({
+        where: { provider: gateway, providerEventId },
+      });
+      if (!existing) {
+        throw error;
+      }
+
+      if (existing.status === WebhookProcessingStatus.PROCESSED) {
+        this.logger.log(
+          `Webhook ${gateway}/${providerEventId} already processed — skipping`,
+        );
+        return { event: existing, alreadyProcessed: true };
+      }
+
+      // FAILED / RECEIVED / PROCESSING — allow retry
+      existing.attempts = (existing.attempts || 0) + 1;
+      existing.status = WebhookProcessingStatus.PROCESSING;
+      existing.eventType = result.action || existing.eventType;
+      existing.payloadHash = payloadHash;
+      if (sanitized) {
+        existing.payload = sanitized;
+      }
+      if (result.orderId) {
+        existing.orderId = result.orderId;
+      }
+      existing.lastError = null;
+      await this.webhookEventRepository.save(existing);
+      return { event: existing, alreadyProcessed: false };
+    }
+  }
+
   /**
    * Allow only return URLs on known app frontends (blocks open redirect via gateway).
    */
@@ -1598,7 +1941,10 @@ export class PaymentsService {
   }
 
   private async updatePaymentStatus(paymentId: string, status: string): Promise<void> {
-    await this.paymentRepository.update(paymentId, { status, updatedAt: new Date() });
+    await this.paymentRepository.update(paymentId, {
+      status: status as DbPaymentStatus,
+      updatedAt: new Date(),
+    });
     this.logger.debug(`Updated payment ${paymentId} status to ${status}`);
   }
 

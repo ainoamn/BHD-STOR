@@ -3,9 +3,10 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Order, OrderAddress, OrderStatus, PaymentStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
@@ -17,6 +18,7 @@ import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CartService } from './cart.service';
 import { isStaffRole } from '../auth/utils/roles';
 import { evaluateCoupon } from './utils/coupons';
+import { addMoney, mulMoney, roundMoney } from '../common/utils/money.util';
 
 export interface OrderTotals {
   subtotal: number;
@@ -42,6 +44,7 @@ export class OrdersService {
     private readonly storeRepository: Repository<Store>,
     private readonly cartService: CartService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(userId: string, dto: CreateOrderDto): Promise<Order> {
@@ -72,98 +75,138 @@ export class OrdersService {
         };
 
     const productIds = dto.items.map((item) => item.productId);
-    const products = await this.productRepository.find({
-      where: { id: In(productIds) },
-      relations: ['store'],
-    });
-
-    if (products.length !== productIds.length) {
-      throw new NotFoundException('One or more products not found');
-    }
-
-    const orderItems: OrderItem[] = [];
-    for (const item of dto.items) {
-      const product = products.find((p) => p.id === item.productId);
-      if (!product) {
-        throw new NotFoundException(`Product ${item.productId} not found`);
-      }
-
-      const available = Number(product.stock ?? 0);
-      if (available < item.quantity) {
-        throw new BadRequestException(
-          `Insufficient inventory for "${product.name}". Available: ${available}, Requested: ${item.quantity}`,
-        );
-      }
-
-      const unitPrice = Number(product.price);
-      const orderItem = this.orderItemRepository.create({
-        product,
-        productId: product.id,
-        storeId: product.storeId || product.store?.id || null,
-        productName: product.name,
-        productImage: product.images?.[0] || null,
-        quantity: item.quantity,
-        unitPrice,
-        totalPrice: unitPrice * item.quantity,
-        variantAttributes: item.variantAttributes || {},
-      });
-
-      orderItems.push(orderItem);
-      product.stock = available - item.quantity;
-    }
-
-    const totals = this.calculateTotals(orderItems, dto.currency || 'OMR', dto.shippingMethod);
-    let discountAmount = 0;
-    if (dto.couponCode) {
-      const couponResult = evaluateCoupon(dto.couponCode, totals.subtotal);
-      if (!couponResult.valid) {
-        throw new BadRequestException('Invalid coupon code');
-      }
-      discountAmount = couponResult.discountAmount;
-      totals.discount = discountAmount;
-      totals.total = Math.max(0, totals.total - discountAmount);
-      dto.couponCode = couponResult.code;
-    }
-
-    const orderNumber = await this.generateOrderNumber();
-    const storeId = products[0]?.storeId || products[0]?.store?.id || null;
     const paymentMethod = (dto.paymentMethod || 'cod').toLowerCase();
     const isCod = paymentMethod === 'cod' || paymentMethod === 'cash_on_delivery';
 
-    const order = this.orderRepository.create({
-      orderNumber,
-      user,
-      userId,
-      items: orderItems,
-      shippingAddress,
-      billingAddress: shippingAddress,
-      currency: dto.currency || 'OMR',
-      subtotal: totals.subtotal,
-      tax: totals.tax,
-      shipping: totals.shipping,
-      discount: totals.discount,
-      total: totals.total,
-      status: isCod ? OrderStatus.CONFIRMED : OrderStatus.PENDING,
-      paymentStatus: isCod ? PaymentStatus.PENDING : PaymentStatus.PENDING,
-      paymentMethod,
-      notes: dto.notes || null,
-      couponCode: dto.couponCode || null,
-      storeId,
-      store: storeId ? ({ id: storeId } as Store) : null,
-      statusHistory: [
-        {
-          status: isCod ? OrderStatus.CONFIRMED : OrderStatus.PENDING,
-          note: isCod ? 'Order placed with cash on delivery' : 'Order created, awaiting payment',
-          timestamp: new Date().toISOString(),
-        },
-      ],
-      metadata: {
-        shippingMethod: dto.shippingMethod || 'standard',
-      },
-    });
+    const savedOrderId = await this.dataSource.transaction(async (manager) => {
+      const productRepo = manager.getRepository(Product);
+      const orderRepo = manager.getRepository(Order);
 
-    await this.productRepository.save(products);
-    const savedOrder = await this.orderRepository.save(order);
+      // Lock product rows for update to prevent oversell races
+      const products = await productRepo
+        .createQueryBuilder('product')
+        .setLock('pessimistic_write')
+        .where('product.id IN (:...ids)', { ids: productIds })
+        .leftJoinAndSelect('product.store', 'store')
+        .getMany();
+
+      if (products.length !== productIds.length) {
+        throw new NotFoundException('One or more products not found');
+      }
+
+      const orderItems: Partial<OrderItem>[] = [];
+      for (const item of dto.items) {
+        const product = products.find((p) => p.id === item.productId);
+        if (!product) {
+          throw new NotFoundException(`Product ${item.productId} not found`);
+        }
+
+        const qty = Math.trunc(Number(item.quantity));
+        if (!Number.isFinite(qty) || qty <= 0) {
+          throw new BadRequestException(`Invalid quantity for product ${product.id}`);
+        }
+
+        // Conditional stock decrement — fails if concurrent checkout drained stock
+        const dec = await productRepo
+          .createQueryBuilder()
+          .update(Product)
+          .set({ stock: () => 'stock - :qty' })
+          .where('id = :id AND stock >= :qty')
+          .setParameters({ id: product.id, qty })
+          .execute();
+
+        if (!dec.affected) {
+          const available = Number(product.stock ?? 0);
+          throw new BadRequestException(
+            `Insufficient inventory for "${product.name}". Available: ${available}, Requested: ${qty}`,
+          );
+        }
+
+        const unitPrice = roundMoney(Number(product.price));
+        orderItems.push({
+          productId: product.id,
+          storeId: product.storeId || product.store?.id || null,
+          productName: product.name,
+          productImage: product.images?.[0] || null,
+          quantity: qty,
+          unitPrice,
+          totalPrice: mulMoney(unitPrice, qty),
+          variantAttributes: item.variantAttributes || {},
+        });
+      }
+
+      const totals = this.calculateTotals(
+        orderItems as OrderItem[],
+        dto.currency || 'OMR',
+        dto.shippingMethod,
+      );
+      let couponCode = dto.couponCode || null;
+      if (dto.couponCode) {
+        const couponResult = evaluateCoupon(dto.couponCode, totals.subtotal);
+        if (!couponResult.valid) {
+          throw new BadRequestException('Invalid coupon code');
+        }
+        totals.discount = roundMoney(couponResult.discountAmount);
+        totals.total = roundMoney(Math.max(0, totals.total - totals.discount));
+        couponCode = couponResult.code;
+      }
+
+      const storeId = products[0]?.storeId || products[0]?.store?.id || null;
+      let orderNumber = await this.generateOrderNumber();
+      let saved: Order | null = null;
+
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          const order = orderRepo.create({
+            orderNumber,
+            user,
+            userId,
+            items: orderItems.map((oi) => manager.getRepository(OrderItem).create(oi)),
+            shippingAddress,
+            billingAddress: shippingAddress,
+            currency: dto.currency || 'OMR',
+            subtotal: totals.subtotal,
+            tax: totals.tax,
+            shipping: totals.shipping,
+            discount: totals.discount,
+            total: totals.total,
+            status: isCod ? OrderStatus.CONFIRMED : OrderStatus.PENDING,
+            paymentStatus: PaymentStatus.PENDING,
+            paymentMethod,
+            notes: dto.notes || null,
+            couponCode,
+            storeId,
+            store: storeId ? ({ id: storeId } as Store) : null,
+            statusHistory: [
+              {
+                status: isCod ? OrderStatus.CONFIRMED : OrderStatus.PENDING,
+                note: isCod
+                  ? 'Order placed with cash on delivery'
+                  : 'Order created, awaiting payment',
+                timestamp: new Date().toISOString(),
+              },
+            ],
+            metadata: {
+              shippingMethod: dto.shippingMethod || 'standard',
+            },
+          });
+          saved = await orderRepo.save(order);
+          break;
+        } catch (err: any) {
+          // Unique order_number collision — retry
+          if (err?.code === '23505' && attempt < 4) {
+            orderNumber = await this.generateOrderNumber();
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (!saved) {
+        throw new ConflictException('Could not allocate a unique order number');
+      }
+      return saved.id;
+    });
 
     try {
       await this.cartService.clearCart(userId);
@@ -171,9 +214,8 @@ export class OrdersService {
       // Cart may not exist
     }
 
-    const full = await this.findOne(savedOrder.id);
+    const full = await this.findOne(savedOrderId);
 
-    // COD / confirmed orders can queue logistics immediately
     if (isCod) {
       this.eventEmitter.emit('order.created', { orderId: full.id });
       this.eventEmitter.emit('order.status_changed', {
@@ -423,34 +465,53 @@ export class OrdersService {
   async applyPaymentWebhook(
     id: string,
     paymentStatus: PaymentStatus,
-    meta?: { gateway?: string; action?: string },
+    meta?: { gateway?: string; action?: string; amount?: number },
   ): Promise<Order> {
-    const order = await this.findOne(id);
-    order.paymentStatus = paymentStatus;
-    if (paymentStatus === PaymentStatus.PAID && order.status === OrderStatus.PENDING) {
-      order.status = OrderStatus.CONFIRMED;
-    }
-    if (paymentStatus === PaymentStatus.FAILED && order.status === OrderStatus.PENDING) {
-      // keep pending so customer can retry
-    }
-    if (paymentStatus === PaymentStatus.REFUNDED) {
-      order.status = OrderStatus.REFUNDED;
-    }
+    return this.dataSource.transaction(async (manager) => {
+      const orderRepo = manager.getRepository(Order);
+      const order = await orderRepo
+        .createQueryBuilder('order')
+        .setLock('pessimistic_write')
+        .where('order.id = :id', { id })
+        .leftJoinAndSelect('order.items', 'items')
+        .leftJoinAndSelect('order.user', 'user')
+        .getOne();
 
-    const statusHistory = order.statusHistory || [];
-    statusHistory.push({
-      status: order.status,
-      note: `Payment status: ${paymentStatus}${meta?.gateway ? ` via ${meta.gateway}` : ''}${meta?.action ? ` (${meta.action})` : ''}`,
-      timestamp: new Date().toISOString(),
+      if (!order) {
+        throw new NotFoundException(`Order ${id} not found`);
+      }
+
+      // Idempotent: already paid → no duplicate history/events side effects here
+      if (
+        paymentStatus === PaymentStatus.PAID &&
+        order.paymentStatus === PaymentStatus.PAID
+      ) {
+        return order;
+      }
+
+      order.paymentStatus = paymentStatus;
+      if (paymentStatus === PaymentStatus.PAID && order.status === OrderStatus.PENDING) {
+        order.status = OrderStatus.CONFIRMED;
+      }
+      if (paymentStatus === PaymentStatus.REFUNDED) {
+        order.status = OrderStatus.REFUNDED;
+      }
+
+      const statusHistory = order.statusHistory || [];
+      statusHistory.push({
+        status: order.status,
+        note: `Payment status: ${paymentStatus}${meta?.gateway ? ` via ${meta.gateway}` : ''}${meta?.action ? ` (${meta.action})` : ''}`,
+        timestamp: new Date().toISOString(),
+      });
+      order.statusHistory = statusHistory;
+      order.metadata = {
+        ...(order.metadata || {}),
+        lastPaymentWebhook: meta || null,
+        lastPaymentStatusAt: new Date().toISOString(),
+      };
+
+      return orderRepo.save(order);
     });
-    order.statusHistory = statusHistory;
-    order.metadata = {
-      ...(order.metadata || {}),
-      lastPaymentWebhook: meta || null,
-      lastPaymentStatusAt: new Date().toISOString(),
-    };
-
-    return this.orderRepository.save(order);
   }
 
   async updateTracking(id: string, trackingNumber: string): Promise<Order> {
@@ -475,64 +536,87 @@ export class OrdersService {
   }
 
   async cancel(id: string, userId: string, reason?: string): Promise<Order> {
-    const order = await this.findOne(id);
+    const result = await this.dataSource.transaction(async (manager) => {
+      const orderRepo = manager.getRepository(Order);
+      const productRepo = manager.getRepository(Product);
 
-    if (order.userId !== userId && order.user?.id !== userId) {
-      throw new ForbiddenException('You can only cancel your own orders');
-    }
+      const order = await orderRepo
+        .createQueryBuilder('order')
+        .setLock('pessimistic_write')
+        .where('order.id = :id', { id })
+        .leftJoinAndSelect('order.items', 'items')
+        .leftJoinAndSelect('order.user', 'user')
+        .getOne();
 
-    if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.CONFIRMED) {
-      throw new BadRequestException('Only pending or confirmed orders can be cancelled');
-    }
-
-    for (const item of order.items || []) {
-      if (!item.productId) continue;
-      const product = await this.productRepository.findOne({ where: { id: item.productId } });
-      if (product) {
-        product.stock = Number(product.stock || 0) + item.quantity;
-        await this.productRepository.save(product);
+      if (!order) {
+        throw new NotFoundException(`Order ${id} not found`);
       }
-    }
 
-    const oldStatus = order.status;
-    order.status = OrderStatus.CANCELLED;
-    order.statusHistory = [
-      ...(order.statusHistory || []),
-      {
-        status: OrderStatus.CANCELLED,
-        note: reason || 'Cancelled by customer',
-        timestamp: new Date().toISOString(),
-      },
-    ];
+      if (order.userId !== userId && order.user?.id !== userId) {
+        throw new ForbiddenException('You can only cancel your own orders');
+      }
 
-    const saved = await this.orderRepository.save(order);
+      if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.CONFIRMED) {
+        throw new BadRequestException('Only pending or confirmed orders can be cancelled');
+      }
+
+      for (const item of order.items || []) {
+        if (!item.productId) continue;
+        const qty = Math.trunc(Number(item.quantity));
+        if (!Number.isFinite(qty) || qty <= 0) continue;
+        await productRepo
+          .createQueryBuilder()
+          .update(Product)
+          .set({ stock: () => 'stock + :qty' })
+          .where('id = :id')
+          .setParameters({ id: item.productId, qty })
+          .execute();
+      }
+
+      const oldStatus = order.status;
+      order.status = OrderStatus.CANCELLED;
+      order.statusHistory = [
+        ...(order.statusHistory || []),
+        {
+          status: OrderStatus.CANCELLED,
+          note: reason || 'Cancelled by customer',
+          timestamp: new Date().toISOString(),
+        },
+      ];
+
+      const saved = await orderRepo.save(order);
+      return { saved, oldStatus };
+    });
+
     this.eventEmitter.emit('order.cancelled', {
-      orderId: saved.id,
+      orderId: result.saved.id,
       reason: reason || 'Cancelled by customer',
     });
     this.eventEmitter.emit('order.status_changed', {
-      orderId: saved.id,
-      oldStatus,
+      orderId: result.saved.id,
+      oldStatus: result.oldStatus,
       newStatus: OrderStatus.CANCELLED,
     });
-    return saved;
+    return result.saved;
   }
 
   private calculateTotals(
-    items: OrderItem[],
+    items: Array<Pick<OrderItem, 'totalPrice'>>,
     currency: string,
     shippingMethod?: string,
   ): OrderTotals {
-    const subtotal = items.reduce((sum, item) => sum + Number(item.totalPrice), 0);
-    const tax = Math.round(subtotal * 0.05 * 1000) / 1000;
+    const subtotal = roundMoney(
+      items.reduce((sum, item) => addMoney(sum, Number(item.totalPrice)), 0),
+    );
+    const tax = roundMoney(subtotal * 0.05);
     const shipping = this.estimateShippingAmount(shippingMethod, subtotal);
 
     return {
-      subtotal: Math.round(subtotal * 1000) / 1000,
+      subtotal,
       tax,
       shipping,
       discount: 0,
-      total: Math.round((subtotal + tax + shipping) * 1000) / 1000,
+      total: addMoney(subtotal, tax, shipping),
       currency,
     };
   }
@@ -551,17 +635,17 @@ export class OrdersService {
   private estimateShippingAmount(shippingMethod: string | undefined, subtotal: number): number {
     const code = (shippingMethod || 'standard').toLowerCase().replace(/-/g, '_');
     if (code === 'standard' && subtotal >= 10) return 0;
-    if (code === 'express') return 3;
-    if (code === 'same_day' || code === 'sameday') return 5;
-    if (code.includes('local')) return 1.5;
-    if (code.includes('aramex')) return 3.5;
+    if (code === 'express') return roundMoney(3);
+    if (code === 'same_day' || code === 'sameday') return roundMoney(5);
+    if (code.includes('local')) return roundMoney(1.5);
+    if (code.includes('aramex')) return roundMoney(3.5);
     if (code === 'dhl' || code === 'dhl_oman' || code === 'fedex' || code === 'ups') {
-      return 5;
+      return roundMoney(5);
     }
-    if (code === 'oman_post') return 2;
+    if (code === 'oman_post') return roundMoney(2);
     // Legacy / unknown carrier codes
-    if (code === 'standard') return 1.5;
-    return 2;
+    if (code === 'standard') return roundMoney(1.5);
+    return roundMoney(2);
   }
 
   private async generateOrderNumber(): Promise<string> {

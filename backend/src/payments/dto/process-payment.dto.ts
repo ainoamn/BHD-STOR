@@ -87,4 +87,14 @@ export class ProcessPaymentDto {
   })
   @IsOptional()
   metadata?: Record<string, any>;
+
+  @ApiPropertyOptional({
+    description: 'Idempotency key (also accepted via Idempotency-Key header)',
+    example: 'pay_ord_abc_stripe_001',
+    maxLength: 128,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  idempotencyKey?: string;
 }

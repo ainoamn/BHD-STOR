@@ -4,6 +4,8 @@ import { AuthModule } from '../auth/auth.module';
 import { OrdersModule } from '../orders/orders.module';
 import { Payment } from './entities/payment.entity';
 import { PaymentGateway } from './entities/payment-gateway.entity';
+import { PaymentAttempt } from './entities/payment-attempt.entity';
+import { WebhookEvent } from './entities/webhook-event.entity';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './services/payments.service';
 import { PaymentGatewayFactory } from './services/payment-gateway.factory';
@@ -15,7 +17,11 @@ import { TelrService } from './services/telr.service';
 import { CCAvenueService } from './services/ccavenue.service';
 
 @Module({
-  imports: [AuthModule, OrdersModule, TypeOrmModule.forFeature([Payment, PaymentGateway])],
+  imports: [
+    AuthModule,
+    OrdersModule,
+    TypeOrmModule.forFeature([Payment, PaymentGateway, PaymentAttempt, WebhookEvent]),
+  ],
   controllers: [PaymentsController],
   providers: [
     PaymentsService,

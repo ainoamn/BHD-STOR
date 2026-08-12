@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { roundMoney } from '../../common/utils/money.util';
 
 const TOLERANCE = 0.001;
 
@@ -10,13 +11,13 @@ export function resolveCaptureAmount(
   paymentAmount: number,
   requested?: number | null,
 ): number {
-  const authorized = Number(paymentAmount);
+  const authorized = roundMoney(Number(paymentAmount));
   if (!Number.isFinite(authorized) || authorized <= 0) {
     throw new BadRequestException('Payment has an invalid authorized amount');
   }
 
   if (requested === undefined || requested === null) {
-    return Math.round(authorized * 1000) / 1000;
+    return authorized;
   }
 
   const req = Number(requested);
@@ -30,5 +31,5 @@ export function resolveCaptureAmount(
     );
   }
 
-  return Math.round(Math.min(req, authorized) * 1000) / 1000;
+  return roundMoney(Math.min(req, authorized));
 }

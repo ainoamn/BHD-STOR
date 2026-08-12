@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { roundMoney, toMinorUnits, fromMinorUnits } from '../../common/utils/money.util';
 
 const TOLERANCE = 0.001;
 
@@ -11,13 +12,13 @@ export function resolveRefundAmount(
   alreadyRefunded: number | null | undefined,
   requested?: number | null,
 ): number {
-  const total = Number(paymentAmount);
-  const prior = Math.max(0, Number(alreadyRefunded || 0));
+  const total = roundMoney(Number(paymentAmount));
+  const prior = Math.max(0, toMinorUnits(Number(alreadyRefunded || 0)));
   if (!Number.isFinite(total) || total <= 0) {
     throw new BadRequestException('Payment has an invalid amount');
   }
 
-  const remaining = Math.round((total - prior) * 1000) / 1000;
+  const remaining = fromMinorUnits(toMinorUnits(total) - prior);
   if (remaining <= TOLERANCE) {
     throw new BadRequestException('Nothing left to refund on this payment');
   }
@@ -37,7 +38,7 @@ export function resolveRefundAmount(
     );
   }
 
-  return Math.round(Math.min(req, remaining) * 1000) / 1000;
+  return roundMoney(Math.min(req, remaining));
 }
 
 export function isPaymentRefundableStatus(status: string | null | undefined): boolean {

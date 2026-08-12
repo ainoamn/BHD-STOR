@@ -19,5 +19,8 @@ describe('payment-amount', () => {
     expect(
       webhookAmountMatchesOrder(10, undefined, { requireAmount: true }),
     ).toBe(false);
+    // 1 baisa tolerance
+    expect(webhookAmountMatchesOrder(10, 10.001)).toBe(true);
+    expect(webhookAmountMatchesOrder(10, 10.002)).toBe(false);
   });
 });

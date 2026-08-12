@@ -78,6 +78,11 @@ export class PaymentsController {
     const userId = requireRequestUserId(req.user);
     this.logger.log(`Payment process request from user ${userId} for order ${dto.orderId}`);
 
+    dto.idempotencyKey =
+      dto.idempotencyKey ||
+      req.headers['idempotency-key'] ||
+      req.headers['Idempotency-Key'];
+
     const result = await this.paymentsService.processPayment(userId, dto);
 
     if (!result.success && result.error) {
