@@ -49,8 +49,9 @@ import {
   resolveRefundAmount,
 } from '../utils/refund-amount';
 import { resolveCaptureAmount } from '../utils/capture-amount';
-import { escapeHtml } from '../../common/utils/escape-html';
 import { addMoney, moneyEquals, roundMoney } from '../../common/utils/money.util';
+import { buildSimplePdf } from '../utils/simple-pdf';
+import { InvoiceService } from './invoice.service';
 
 export interface PaymentResult {
   success: boolean;
@@ -104,6 +105,7 @@ export class PaymentsService {
     private readonly ccavenueService: CCAvenueService,
     private readonly ordersService: OrdersService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly invoiceService: InvoiceService,
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
     @InjectRepository(PaymentGateway)
@@ -1170,14 +1172,13 @@ export class PaymentsService {
   }
 
   /**
-   * Generate an invoice HTML document for a payment (payer, store owner, or staff).
-   * Returned as a buffer with an .html filename; controller must use text/html.
+   * Issue (or reuse) a sequenced tax invoice and return a PDF buffer.
    */
   async generateInvoice(
     paymentId: string,
     userId: string,
     role?: string,
-  ): Promise<{ htmlBuffer: Buffer; filename: string }> {
+  ): Promise<{ pdfBuffer: Buffer; filename: string; invoiceNumber: string }> {
     this.logger.log(`Generating invoice for payment ${paymentId}`);
 
     const payment = await this.getPaymentRecord(paymentId);
@@ -1187,67 +1188,37 @@ export class PaymentsService {
 
     await this.assertPaymentViewAccess(payment, userId, role);
 
-    const safePaymentId = escapeHtml(paymentId);
-    const safeInvoiceNum = escapeHtml(paymentId.slice(0, 8).toUpperCase());
-    const safeOrderId = escapeHtml(String(payment.orderId ?? ''));
-    const safeId = escapeHtml(String(payment.id ?? ''));
-    const safeTxn = escapeHtml(String(payment.transactionId || 'N/A'));
-    const safeDate = escapeHtml(payment.createdAt.toISOString());
-    const safeGateway = escapeHtml(String(payment.gateway || '').toUpperCase());
-    const safeStatus = escapeHtml(String(payment.status || '').toUpperCase());
-    const safeAmount = escapeHtml(Number(payment.amount).toFixed(3));
-    const safeCurrency = escapeHtml(String(payment.currency || ''));
+    const invoice = await this.invoiceService.issueForPayment({
+      paymentId: payment.id,
+      orderId: payment.orderId,
+      userId: payment.userId,
+      amount: Number(payment.amount),
+      currency: payment.currency || 'OMR',
+      gateway: payment.gateway,
+    });
 
-    const invoiceHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>Invoice #${safePaymentId}</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 40px; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .invoice-title { font-size: 24px; font-weight: bold; color: #333; }
-          .details { margin-bottom: 20px; }
-          .details table { width: 100%; border-collapse: collapse; }
-          .details td { padding: 8px; border-bottom: 1px solid #ddd; }
-          .details td:first-child { font-weight: bold; width: 30%; }
-          .total { font-size: 18px; font-weight: bold; margin-top: 20px; text-align: right; }
-          .footer { margin-top: 40px; font-size: 12px; color: #666; text-align: center; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="invoice-title">BHD Oman Marketplace</div>
-          <div>Tax Invoice</div>
-        </div>
-        <div class="details">
-          <table>
-            <tr><td>Invoice Number:</td><td>INV-${safeInvoiceNum}</td></tr>
-            <tr><td>Order ID:</td><td>${safeOrderId}</td></tr>
-            <tr><td>Payment ID:</td><td>${safeId}</td></tr>
-            <tr><td>Transaction ID:</td><td>${safeTxn}</td></tr>
-            <tr><td>Date:</td><td>${safeDate}</td></tr>
-            <tr><td>Payment Method:</td><td>${safeGateway}</td></tr>
-            <tr><td>Status:</td><td>${safeStatus}</td></tr>
-          </table>
-        </div>
-        <div class="total">
-          Total: ${safeAmount} ${safeCurrency}
-        </div>
-        <div class="footer">
-          BHD Oman Marketplace | Tax Registration: OM12345678<br>
-          Thank you for your business!
-        </div>
-      </body>
-      </html>
-    `;
-
-    const htmlBuffer = Buffer.from(invoiceHtml, 'utf8');
+    const amount = roundMoney(Number(invoice.amount)).toFixed(3);
+    const pdfBuffer = buildSimplePdf(
+      [
+        `Invoice Number: ${invoice.invoiceNumber}`,
+        `Order ID: ${payment.orderId}`,
+        `Payment ID: ${payment.id}`,
+        `Transaction ID: ${payment.transactionId || 'N/A'}`,
+        `Date: ${invoice.issuedAt.toISOString()}`,
+        `Payment Method: ${String(payment.gateway || '').toUpperCase() || 'N/A'}`,
+        `Status: ${String(payment.status || '').toUpperCase()}`,
+        `Total: ${amount} ${invoice.currency}`,
+        '',
+        'BHD Oman Marketplace | Tax Registration: OM12345678',
+        'Thank you for your business.',
+      ],
+      'BHD Oman — Tax Invoice',
+    );
 
     return {
-      htmlBuffer,
-      filename: `invoice-${paymentId.slice(0, 8)}.html`,
+      pdfBuffer,
+      filename: `${invoice.invoiceNumber}.pdf`,
+      invoiceNumber: invoice.invoiceNumber,
     };
   }
 

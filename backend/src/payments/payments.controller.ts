@@ -315,11 +315,12 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Download invoice',
-    description: 'Generate and download an HTML invoice for a payment.',
+    summary: 'Download invoice PDF',
+    description:
+      'Issue (or reuse) a sequenced tax invoice and download it as application/pdf.',
   })
   @ApiParam({ name: 'id', description: 'Payment ID (UUID)', format: 'uuid' })
-  @ApiResponse({ status: 200, description: 'Invoice HTML' })
+  @ApiResponse({ status: 200, description: 'Invoice PDF' })
   @ApiResponse({ status: 404, description: 'Payment not found' })
   async downloadInvoice(
     @Param('id', ParseUUIDPipe) paymentId: string,
@@ -329,15 +330,16 @@ export class PaymentsController {
     const userId = requireRequestUserId(req.user);
     this.logger.log(`Invoice download request for payment ${paymentId} by ${userId}`);
 
-    const { htmlBuffer, filename } = await this.paymentsService.generateInvoice(
+    const { pdfBuffer, filename } = await this.paymentsService.generateInvoice(
       paymentId,
       userId,
       req.user?.role,
     );
 
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(htmlBuffer);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(pdfBuffer);
   }
 
   /**

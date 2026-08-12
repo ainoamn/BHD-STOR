@@ -4,7 +4,7 @@
 **Audit commit:** `feb0e4919f8e85f6138481dec1e5c85c1bc4d8c5`  
 **Documented:** 2026-08-12  
 **Implementation sprint started:** 2026-08-12  
-**Gate:** Production remains **NO-GO** until remaining P0 items (tsc gate, CI E2E, invoices/PDF, dependency audit) close
+**Gate:** Production remains **NO-GO** until remaining P0 items (full tsc green, Playwright E2E, TOTP/API keys, dependency criticals) close
 
 Status values: `pending` · `in progress` · `done` · `blocked`
 
@@ -40,7 +40,7 @@ Status values: `pending` · `in progress` · `done` · `blocked`
 
 | Done | ID | Severity | Item | Status | Owner | Notes |
 |------|----|----------|------|--------|-------|-------|
-| [ ] | P1-01b | P0/P1 | Backend `tsc` gate; ESLint non-interactive; stop growth of 292 errors | pending | — | |
+| [x] | P1-01b | P0/P1 | Backend `tsc` gate; ESLint non-interactive; stop growth of errors | done | agents | `typecheck:gate` budget 287; eslint.config.cjs; lint max-warnings=0 |
 | [x] | P1-02b | P0 | Migrations for webhook_events / payment_attempts (+ unique order_number) | done | agents | `013-payment-attempts-webhook-events.ts` (api_keys/audit still pending) |
 | [x] | P1-03 | P0 | Inventory + order transactions; money helpers on critical paths | done | agents | orders.create/cancel tx + pessimistic lock; money.util; refund/capture helpers |
 | [ ] | P1-07 | P0/P1 | Backend integration + Frontend unit/Playwright setup | pending | — | |
@@ -54,10 +54,10 @@ Status values: `pending` · `in progress` · `done` · `blocked`
 |------|----|----------|------|--------|-------|-------|
 | [x] | P2-01 | P0 | Payment attempt idempotency; Webhook inbox (unique consumers) | done | agents | PaymentAttempt + Idempotency-Key; WebhookEvent inbox; outbox still pending |
 | [x] | P2-02 | P0 | Reconciliation job | done | agents | Hourly PaymentReconciliationService (stale attempts + mismatch logs; no auto-capture) |
-| [ ] | P2-03 | P0 | Invoice entity/sequence; real PDF | pending | — | |
+| [x] | P2-03 | P0 | Invoice entity/sequence; real PDF | done | agents | Invoice + yearly sequence lock; minimal PDF writer; HTML invoice removed |
 | [ ] | P2-04 | P0/P1 | TOTP + API key scopes | pending | — | |
 | [ ] | P2-05 | P0/P1 | Dependency updates critical/high | pending | — | |
-| [ ] | P2-06 | P0 | CI Postgres/Redis + E2E/security regression blocking | pending | — | |
+| [x] | P2-06 | P0 | CI Postgres/Redis + security regression blocking | done | agents | CI services + test:security + tsc gate blocking; full E2E/Playwright still pending |
 
 ---
 

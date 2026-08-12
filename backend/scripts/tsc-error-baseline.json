@@ -1,0 +1,6 @@
+{
+  "maxErrors": 287,
+  "measuredAt": "2026-08-12",
+  "commitNote": "Baseline after payments/CORS remediation. CI fails if tsc error count grows.",
+  "command": "npx tsc --noEmit --pretty false"
+}
