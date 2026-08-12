@@ -48,7 +48,7 @@ interface AuthenticatedWhatsAppSocket extends Socket {
 @WebSocketGateway({
   namespace: '/whatsapp',
   cors: {
-    origin: process.env.FRONTEND_URL || '*',
+    origin: process.env.FRONTEND_URL || process.env.WS_CORS_ORIGIN || 'http://localhost:3000',
     credentials: true,
   },
   transports: ['websocket', 'polling'],

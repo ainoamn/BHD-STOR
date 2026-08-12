@@ -4,7 +4,7 @@
 **Audit commit:** `feb0e4919f8e85f6138481dec1e5c85c1bc4d8c5`  
 **Documented:** 2026-08-12  
 **Implementation sprint started:** 2026-08-12  
-**Gate:** Production remains **NO-GO** until remaining P0 items (CORS/uploads, tsc gate, reconciliation, CI E2E) close
+**Gate:** Production remains **NO-GO** until remaining P0 items (tsc gate, CI E2E, invoices/PDF, dependency audit) close
 
 Status values: `pending` · `in progress` · `done` · `blocked`
 
@@ -17,7 +17,7 @@ Status values: `pending` · `in progress` · `done` · `blocked`
 | [x] | P0-01 | P0 | Document NO-GO gate + remediation tracker | done | agents | docs/ENGINEERING-SECURITY-AUDIT + TRACKER + README |
 | [x] | P0-02 | P0 | Kill-switch live card payments (`PAYMENTS_LIVE_ENABLED`, default false); COD allowed | done | agents | payments.service.ts + .env.example |
 | [x] | P0-03 | P0 | Central recursive redaction; stop token/payload logging | done | agents | redact.util.ts + LoggingInterceptor + whatsapp/notifications |
-| [ ] | P0-04 | P0 | Fix CORS reflection; restrict uploads (SVG/same-origin) | in progress | agents | Partial — nginx/CORS still needs edge allowlist follow-up |
+| [x] | P0-04 | P0 | Fix CORS reflection; restrict uploads (SVG/same-origin) | done | agents | Nest allowlist + nginx no reflect; SVG blocked; Next dangerouslyAllowSVG=false |
 | [x] | P0-05 | P0 | Docker/CD health → `/health`; Frontend `/api/health` | done | agents | compose + cd.yml + route.ts |
 | [x] | P0-06 | P0 | Align `SECURITY.md` with audit reality (NO-GO banner) | done | agents | Honest OWASP table |
 
@@ -44,7 +44,7 @@ Status values: `pending` · `in progress` · `done` · `blocked`
 | [x] | P1-02b | P0 | Migrations for webhook_events / payment_attempts (+ unique order_number) | done | agents | `013-payment-attempts-webhook-events.ts` (api_keys/audit still pending) |
 | [x] | P1-03 | P0 | Inventory + order transactions; money helpers on critical paths | done | agents | orders.create/cancel tx + pessimistic lock; money.util; refund/capture helpers |
 | [ ] | P1-07 | P0/P1 | Backend integration + Frontend unit/Playwright setup | pending | — | |
-| [ ] | P0-04 | P0 | Complete CORS allowlist + upload SVG harden | pending | — | |
+| [x] | P0-04 | P0 | Complete CORS allowlist + upload SVG harden | done | agents | Nest cors.util + nginx; multer/nginx block SVG; docs attachment |
 
 ---
 
@@ -53,7 +53,7 @@ Status values: `pending` · `in progress` · `done` · `blocked`
 | Done | ID | Severity | Item | Status | Owner | Notes |
 |------|----|----------|------|--------|-------|-------|
 | [x] | P2-01 | P0 | Payment attempt idempotency; Webhook inbox (unique consumers) | done | agents | PaymentAttempt + Idempotency-Key; WebhookEvent inbox; outbox still pending |
-| [ ] | P2-02 | P0 | Reconciliation job | pending | — | |
+| [x] | P2-02 | P0 | Reconciliation job | done | agents | Hourly PaymentReconciliationService (stale attempts + mismatch logs; no auto-capture) |
 | [ ] | P2-03 | P0 | Invoice entity/sequence; real PDF | pending | — | |
 | [ ] | P2-04 | P0/P1 | TOTP + API key scopes | pending | — | |
 | [ ] | P2-05 | P0/P1 | Dependency updates critical/high | pending | — | |

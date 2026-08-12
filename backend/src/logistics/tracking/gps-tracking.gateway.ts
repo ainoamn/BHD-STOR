@@ -62,8 +62,9 @@ interface SubscribeVehiclePayload {
 @WebSocketGateway({
   namespace: '/tracking',
   cors: {
-    origin: '*',
+    origin: process.env.FRONTEND_URL || process.env.WS_CORS_ORIGIN || 'http://localhost:3000',
     methods: ['GET', 'POST'],
+    credentials: true,
   },
   transports: ['websocket', 'polling'],
 })
