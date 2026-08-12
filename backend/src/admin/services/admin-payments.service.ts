@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, Between } from 'typeorm';
-import { Payment } from '../../payments/entities/payment.entity';
-import { Payout } from '../../payments/entities/payout.entity';
-import { Order } from '../../orders/entities/order.entity';
+import { Payment, PaymentStatus } from '../../payments/entities/payment.entity';
+import { Payout, PayoutStatus } from '../../payments/entities/payout.entity';
+import {
+  Order,
+  OrderStatus,
+  PaymentStatus as OrderPaymentStatus,
+} from '../../orders/entities/order.entity';
 import { PaymentsService } from '../../payments/services/payments.service';
 
 export interface PaymentQueryDto {
@@ -98,17 +102,17 @@ export class AdminPaymentsService {
       refundedPayments,
     ] = await Promise.all([
       this.paymentRepository.count(),
-      this.paymentRepository.count({ where: { status: 'completed' } }),
-      this.paymentRepository.count({ where: { status: 'pending' } }),
-      this.paymentRepository.count({ where: { status: 'failed' } }),
-      this.paymentRepository.count({ where: { status: 'refunded' } }),
+      this.paymentRepository.count({ where: { status: PaymentStatus.COMPLETED } }),
+      this.paymentRepository.count({ where: { status: PaymentStatus.PENDING } }),
+      this.paymentRepository.count({ where: { status: PaymentStatus.FAILED } }),
+      this.paymentRepository.count({ where: { status: PaymentStatus.REFUNDED } }),
     ]);
 
     // Revenue totals
     const revenueData = await this.paymentRepository
       .createQueryBuilder('payment')
       .select('SUM(payment.amount)', 'total')
-      .where('payment.status = :status', { status: 'completed' })
+      .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
       .getRawOne();
 
     const totalRevenue = Number(revenueData?.total || 0);
@@ -117,7 +121,7 @@ export class AdminPaymentsService {
     const refundData = await this.paymentRepository
       .createQueryBuilder('payment')
       .select('SUM(payment.amount)', 'total')
-      .where('payment.status = :status', { status: 'refunded' })
+      .where('payment.status = :status', { status: PaymentStatus.REFUNDED })
       .getRawOne();
 
     const totalRefunded = Number(refundData?.total || 0);
@@ -128,7 +132,7 @@ export class AdminPaymentsService {
     const todayRevenueData = await this.paymentRepository
       .createQueryBuilder('payment')
       .select('SUM(payment.amount)', 'total')
-      .where('payment.status = :status', { status: 'completed' })
+      .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
       .andWhere('payment.createdAt >= :start', { start: todayStart })
       .getRawOne();
 
@@ -160,7 +164,7 @@ export class AdminPaymentsService {
       });
     }
 
-    if (payment.status !== 'completed') {
+    if (payment.status !== PaymentStatus.COMPLETED) {
       throw new NotFoundException({
         success: false,
         message: 'Only completed payments can be refunded',
@@ -175,16 +179,21 @@ export class AdminPaymentsService {
       });
     }
 
-    // Update payment status
+    const fullyRefunded = amount >= paymentAmount;
+
+    // Update payment status (PaymentStatus has no partially_refunded; keep COMPLETED on partial)
     await this.paymentRepository.update(paymentId, {
-      status: amount >= paymentAmount ? 'refunded' : 'partially_refunded',
-      refundedAmount: amount,
+      status: fullyRefunded ? PaymentStatus.REFUNDED : PaymentStatus.COMPLETED,
+      refundAmount: amount,
     });
 
-    // Update order status
+    // Update order payment/order status
     if (payment.order) {
       await this.orderRepository.update(payment.order.id, {
-        status: amount >= paymentAmount ? 'refunded' : 'partially_refunded',
+        ...(fullyRefunded ? { status: OrderStatus.REFUNDED } : {}),
+        paymentStatus: fullyRefunded
+          ? OrderPaymentStatus.REFUNDED
+          : OrderPaymentStatus.PARTIALLY_REFUNDED,
       });
     }
 
@@ -194,7 +203,9 @@ export class AdminPaymentsService {
       data: {
         paymentId,
         refundAmount: amount,
-        status: amount >= paymentAmount ? 'refunded' : 'partially_refunded',
+        status: fullyRefunded
+          ? OrderPaymentStatus.REFUNDED
+          : OrderPaymentStatus.PARTIALLY_REFUNDED,
       },
     };
   }
@@ -220,7 +231,7 @@ export class AdminPaymentsService {
   async processPayout(storeId: string) {
     // Calculate pending earnings for store
     const pendingPayout = await this.payoutRepository.findOne({
-      where: { storeId, status: 'pending' },
+      where: { storeId, status: PayoutStatus.PENDING },
     });
 
     if (!pendingPayout) {
@@ -231,14 +242,18 @@ export class AdminPaymentsService {
     }
 
     await this.payoutRepository.update(pendingPayout.id, {
-      status: 'processing',
+      status: PayoutStatus.PROCESSING,
       processedAt: new Date(),
     });
 
     return {
       success: true,
       message: 'Payout processed successfully',
-      data: { payoutId: pendingPayout.id, storeId, status: 'processing' },
+      data: {
+        payoutId: pendingPayout.id,
+        storeId,
+        status: PayoutStatus.PROCESSING,
+      },
     };
   }
 }

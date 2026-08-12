@@ -159,15 +159,12 @@ export class CsrfGuard implements CanActivate {
     const cookies = request.headers.cookie;
     if (!cookies) {
       // Check signed cookies if using cookie-parser
-      // @ts-expect-error signedCookies from cookie-parser
-      if (request.signedCookies?.[CSRF_TOKEN_COOKIE]) {
-        // @ts-expect-error
-        return request.signedCookies[CSRF_TOKEN_COOKIE] as string;
+      const reqAny = request as any;
+      if (reqAny.signedCookies?.[CSRF_TOKEN_COOKIE]) {
+        return reqAny.signedCookies[CSRF_TOKEN_COOKIE] as string;
       }
-      // @ts-expect-error cookies from cookie-parser
-      if (request.cookies?.[CSRF_TOKEN_COOKIE]) {
-        // @ts-expect-error
-        return request.cookies[CSRF_TOKEN_COOKIE] as string;
+      if (reqAny.cookies?.[CSRF_TOKEN_COOKIE]) {
+        return reqAny.cookies[CSRF_TOKEN_COOKIE] as string;
       }
       return undefined;
     }

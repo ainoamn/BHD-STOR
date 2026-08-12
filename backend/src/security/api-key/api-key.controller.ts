@@ -61,10 +61,8 @@ export class ApiKeyController {
     @Body() dto: CreateApiKeyDto,
     @Req() req: Request,
   ): Promise<RawApiKey> {
-    // @ts-expect-error user from auth
     const userId = requireRequestUserId(req.user);
-    // @ts-expect-error user from auth
-    const role = req.user?.role as string | undefined;
+    const role = (req.user as any)?.role as string | undefined;
 
     assertApiKeyScopesAllowed(dto.scopes, role);
 
@@ -101,7 +99,6 @@ export class ApiKeyController {
     data: ApiKeyResponse[];
     meta: { total: number; page: number; limit: number };
   }> {
-    // @ts-expect-error user from auth
     const userId = requireRequestUserId(req.user);
 
     const keys = await this.apiKeyService.listKeys(userId);
@@ -131,7 +128,6 @@ export class ApiKeyController {
     @Req() req: Request,
     @Body() body?: { reason?: string },
   ): Promise<void> {
-    // @ts-expect-error user from auth
     const userId = requireRequestUserId(req.user);
 
     await this.apiKeyService.revokeKey(keyId, userId, body?.reason);
@@ -147,7 +143,6 @@ export class ApiKeyController {
     @Param('id') keyId: string,
     @Req() req: Request,
   ): Promise<RawApiKey> {
-    // @ts-expect-error user from auth
     const userId = requireRequestUserId(req.user);
 
     this.logger.log(`API key regeneration requested for ${keyId} by user ${userId}`);
@@ -164,8 +159,7 @@ export class ApiKeyController {
   getAvailableScopes(
     @Req() req: Request,
   ): { scope: ApiKeyScope; description: string }[] {
-    // @ts-expect-error user from auth
-    const role = req.user?.role as string | undefined;
+    const role = (req.user as any)?.role as string | undefined;
     return scopesAllowedForRole(role).map((scope) => ({
       scope,
       description: this.getScopeDescription(scope),
