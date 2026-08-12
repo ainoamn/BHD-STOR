@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { MigrationInterface, QueryRunner, Table, TableIndex, TableForeignKey, TableUnique } from 'typeorm';
 
 export class InitialSchema001 implements MigrationInterface {

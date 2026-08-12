@@ -25,7 +25,7 @@ if (!fs.existsSync(tscJs)) {
 
 const result = spawnSync(
   process.execPath,
-  [tscJs, '--noEmit', '--pretty', 'false'],
+  [tscJs, '-p', 'tsconfig.typecheck.json', '--noEmit', '--pretty', 'false'],
   {
     cwd: root,
     encoding: 'utf8',

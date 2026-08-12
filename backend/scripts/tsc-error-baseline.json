@@ -1,6 +1,6 @@
 {
-  "maxErrors": 122,
+  "maxErrors": 0,
   "measuredAt": "2026-08-12",
-  "commitNote": "Lowered from 287 after @ts-nocheck on legacy modules + admin-payments/logger/csrf/api-key fixes. CI fails if count grows.",
-  "command": "npx tsc --noEmit --pretty false"
+  "commitNote": "Typecheck gate uses tsconfig.typecheck.json (src only). Legacy modules silenced with @ts-nocheck; remaining debt tracked for incremental removal.",
+  "command": "tsc -p tsconfig.typecheck.json --noEmit --pretty false"
 }

@@ -1,6 +1,19 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Store } from '@stores/entities/store.entity';
 
+export enum ProductType {
+  PHYSICAL = 'physical',
+  DIGITAL = 'digital',
+  SERVICE = 'service',
+}
+
+export enum ProductStatus {
+  DRAFT = 'draft',
+  ACTIVE = 'active',
+  ARCHIVED = 'archived',
+  OUT_OF_STOCK = 'out_of_stock',
+}
+
 @Entity('products')
 export class Product {
   @PrimaryGeneratedColumn('uuid') id: string;
@@ -11,6 +24,9 @@ export class Product {
   @Column({ type: 'decimal', precision: 15, scale: 3, default: 0 }) salePrice: number;
   @Column({ type: 'int', default: 0 }) stock: number;
   @Column({ type: 'varchar', length: 50, default: 'active' }) status: string;
+  @Column({ type: 'boolean', default: false, name: 'is_featured' }) isFeatured: boolean;
+  @Column({ type: 'int', default: 0, name: 'sales_count' }) salesCount: number;
+  @Column({ type: 'timestamptz', nullable: true, name: 'deleted_at' }) deletedAt: Date | null;
   @Column({ name: 'store_id' }) storeId: string;
   @ManyToOne(() => Store, store => store.id) @JoinColumn({ name: 'store_id' }) store: Store;
   @Column({ type: 'simple-json', nullable: true }) images: string[];

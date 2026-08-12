@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, Between } from 'typeorm';
-import { Order } from '../../orders/entities/order.entity';
+import { Order, OrderStatus } from '../../orders/entities/order.entity';
 
 export interface OrderQueryDto {
   page?: number;
@@ -91,7 +91,7 @@ export class AdminOrdersService {
       });
     }
 
-    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
+    const validStatuses = Object.values(OrderStatus) as string[];
     if (!validStatuses.includes(status)) {
       throw new NotFoundException({
         success: false,
@@ -99,7 +99,7 @@ export class AdminOrdersService {
       });
     }
 
-    await this.orderRepository.update(id, { status });
+    await this.orderRepository.update(id, { status: status as OrderStatus });
 
     return {
       success: true,
@@ -119,12 +119,12 @@ export class AdminOrdersService {
       refundedOrders,
     ] = await Promise.all([
       this.orderRepository.count(),
-      this.orderRepository.count({ where: { status: 'pending' } }),
-      this.orderRepository.count({ where: { status: 'processing' } }),
-      this.orderRepository.count({ where: { status: 'shipped' } }),
-      this.orderRepository.count({ where: { status: 'delivered' } }),
-      this.orderRepository.count({ where: { status: 'cancelled' } }),
-      this.orderRepository.count({ where: { status: 'refunded' } }),
+      this.orderRepository.count({ where: { status: OrderStatus.PENDING } }),
+      this.orderRepository.count({ where: { status: OrderStatus.PROCESSING } }),
+      this.orderRepository.count({ where: { status: OrderStatus.SHIPPED } }),
+      this.orderRepository.count({ where: { status: OrderStatus.DELIVERED } }),
+      this.orderRepository.count({ where: { status: OrderStatus.CANCELLED } }),
+      this.orderRepository.count({ where: { status: OrderStatus.REFUNDED } }),
     ]);
 
     // Orders this month
@@ -139,7 +139,7 @@ export class AdminOrdersService {
       .createQueryBuilder('order')
       .select('SUM(order.totalAmount)', 'total')
       .where('order.status IN (:...statuses)', {
-        statuses: ['delivered', 'shipped'],
+        statuses: [OrderStatus.DELIVERED, OrderStatus.SHIPPED],
       })
       .getRawOne();
 

@@ -1,6 +1,26 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { User } from '@users/entities/user.entity';
 
+export enum BusinessType {
+  INDIVIDUAL = 'individual',
+  COMPANY = 'company',
+  INSTITUTION = 'institution',
+}
+
+export enum StoreStatus {
+  PENDING = 'pending',
+  ACTIVE = 'active',
+  SUSPENDED = 'suspended',
+  CLOSED = 'closed',
+}
+
+export enum StoreSubscriptionPlan {
+  FREE = 'free',
+  BASIC = 'basic',
+  PRO = 'pro',
+  ENTERPRISE = 'enterprise',
+}
+
 @Entity('stores')
 export class Store {
   @PrimaryGeneratedColumn('uuid') id: string;
