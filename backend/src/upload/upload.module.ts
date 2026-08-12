@@ -23,16 +23,22 @@ import { UploadController } from './upload.controller';
           fileSize: configService.get<number>('MAX_FILE_SIZE', 10) * 1024 * 1024, // 10MB default
         },
         fileFilter: (req, file, callback) => {
+          // SVG deliberately excluded — XSS when served on cookie-bearing origin
           const allowedMimeTypes = [
             'image/jpeg',
             'image/png',
             'image/gif',
             'image/webp',
-            'image/svg+xml',
             'application/pdf',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           ];
+          const ext = extname(file.originalname || '').toLowerCase();
+          const blockedExt = ['.svg', '.svgz', '.html', '.htm', '.js', '.mjs', '.xml'];
+          if (blockedExt.includes(ext)) {
+            callback(new Error(`File extension not allowed: ${ext}`), false);
+            return;
+          }
           if (allowedMimeTypes.includes(file.mimetype)) {
             callback(null, true);
           } else {

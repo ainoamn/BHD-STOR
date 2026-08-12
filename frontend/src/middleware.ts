@@ -181,11 +181,18 @@ export default function middleware(request: NextRequest) {
   // Add security headers to all responses
   response.headers.set('X-Request-Id', crypto.randomUUID());
 
-  // Add CORS headers for API routes
+  // CORS for Next API routes — never fall back to wildcard with credentials paths
   if (pathname.startsWith('/api')) {
-    response.headers.set('Access-Control-Allow-Origin', process.env.NEXT_PUBLIC_APP_URL || '*');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    const allowed = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '');
+    if (allowed) {
+      response.headers.set('Access-Control-Allow-Origin', allowed);
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      response.headers.set(
+        'Access-Control-Allow-Headers',
+        'Content-Type, Authorization, Idempotency-Key, X-XSRF-TOKEN',
+      );
+      response.headers.set('Vary', 'Origin');
+    }
   }
 
   // Check authentication for protected paths.

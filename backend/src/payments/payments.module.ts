@@ -15,12 +15,20 @@ import { OmanNetService } from './services/oman-net.service';
 import { ThawaniService } from './services/thawani.service';
 import { TelrService } from './services/telr.service';
 import { CCAvenueService } from './services/ccavenue.service';
+import { PaymentReconciliationService } from './services/payment-reconciliation.service';
+import { Order } from '../orders/entities/order.entity';
 
 @Module({
   imports: [
     AuthModule,
     OrdersModule,
-    TypeOrmModule.forFeature([Payment, PaymentGateway, PaymentAttempt, WebhookEvent]),
+    TypeOrmModule.forFeature([
+      Payment,
+      PaymentGateway,
+      PaymentAttempt,
+      WebhookEvent,
+      Order,
+    ]),
   ],
   controllers: [PaymentsController],
   providers: [
@@ -32,7 +40,8 @@ import { CCAvenueService } from './services/ccavenue.service';
     ThawaniService,
     TelrService,
     CCAvenueService,
+    PaymentReconciliationService,
   ],
-  exports: [PaymentsService, PaymentGatewayFactory],
+  exports: [PaymentsService, PaymentGatewayFactory, PaymentReconciliationService],
 })
 export class PaymentsModule {}

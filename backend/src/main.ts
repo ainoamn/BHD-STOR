@@ -13,6 +13,10 @@ import { TransformInterceptor } from '@common/interceptors/transform.interceptor
 import { LoggingInterceptor } from '@common/interceptors/logging.interceptor';
 import { WinstonLoggerService } from '@common/services/logger.service';
 import { assertProductionSecrets } from './config/assert-production-secrets';
+import {
+  createCorsOriginChecker,
+  resolveCorsAllowlist,
+} from './common/utils/cors.util';
 
 async function bootstrap() {
   const logger = new WinstonLoggerService();
@@ -52,11 +56,17 @@ async function bootstrap() {
   app.use(compression());
   app.use(cookieParser());
 
-  // CORS
+  // CORS — explicit allowlist only (never reflect Origin)
+  const corsAllowlist = resolveCorsAllowlist({
+    nodeEnv,
+    frontendUrl,
+    trustedOrigins: configService.get<string>('TRUSTED_ORIGINS'),
+    corsOrigin: configService.get<string>('CORS_ORIGIN'),
+    appUrl: configService.get<string>('APP_URL'),
+    publicAppUrl: configService.get<string>('PUBLIC_APP_URL'),
+  });
   app.enableCors({
-    origin: nodeEnv === 'production' 
-      ? [frontendUrl, /\.bhdoman\.com$/] 
-      : [frontendUrl, 'http://localhost:3000', 'http://localhost:3002'],
+    origin: createCorsOriginChecker(corsAllowlist),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
@@ -68,6 +78,8 @@ async function bootstrap() {
       'X-Client-Version',
       'X-XSRF-TOKEN',
       'X-CSRF-TOKEN',
+      'Idempotency-Key',
+      'idempotency-key',
     ],
     exposedHeaders: ['X-Request-ID', 'X-Total-Count', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
     maxAge: 86400,
