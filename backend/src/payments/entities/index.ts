@@ -9,3 +9,4 @@ export {
   WebhookEvent,
   WebhookProcessingStatus,
 } from './webhook-event.entity';
+export { Invoice, InvoiceStatus } from './invoice.entity';

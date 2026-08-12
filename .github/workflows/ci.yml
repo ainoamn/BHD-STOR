@@ -1,6 +1,8 @@
 # =============================================================================
-# BHD-STOR — Continuous Integration (pragmatic)
-# Build-first gates; heavy lint/e2e kept non-blocking until suites stabilize.
+# BHD-STOR — Continuous Integration
+# Blocking: Backend build, Frontend build+typecheck, Backend tsc error budget,
+#           Backend security unit tests (with Postgres/Redis services).
+# Informational: full unit suite, npm audit, ESLint.
 # =============================================================================
 
 name: CI
@@ -36,6 +38,66 @@ jobs:
       - name: Build (SWC)
         working-directory: ./backend
         run: npm run build
+      - name: TypeScript error budget (blocking)
+        working-directory: ./backend
+        run: npm run typecheck:gate
+      - name: ESLint (non-interactive)
+        working-directory: ./backend
+        env:
+          CI: "true"
+        run: npm run lint
+        continue-on-error: true
+
+  backend-security:
+    name: Backend security tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bhd
+          POSTGRES_PASSWORD: bhd
+          POSTGRES_DB: bhd_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bhd -d bhd_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      CI: "true"
+      DATABASE_HOST: localhost
+      DATABASE_PORT: "5432"
+      DATABASE_USER: bhd
+      DATABASE_PASSWORD: bhd
+      DATABASE_NAME: bhd_test
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install
+        working-directory: ./backend
+        run: npm ci
+      - name: Security unit tests (blocking)
+        working-directory: ./backend
+        run: npm run test:security
 
   build-frontend:
     name: Frontend build
@@ -78,7 +140,7 @@ jobs:
         run: npx tsc --noEmit
 
   unit-tests:
-    name: Unit tests (non-blocking)
+    name: Unit tests (informational)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     continue-on-error: true
