@@ -69,17 +69,19 @@
 | البند | الواقع |
 |-------|--------|
 | **حكم الجاهزية للإنتاج (أحدث)** | **NO-GO** — [`docs/ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./docs/ENGINEERING-SECURITY-AUDIT-2026-08-11.md) (commit `feb0e491…`) · متتبع الإصلاح: [`docs/AUDIT-REMEDIATION-TRACKER-2026-08.md`](./docs/AUDIT-REMEDIATION-TRACKER-2026-08.md) |
+| **نقطة التوقف / نقل جهاز** | [`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md) — HEAD الحالي `bdd414e` على `main` |
 | المستودع | [ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR) |
 | ما هو هذا؟ | منصة سوق عمانية متعددة البائعين (B2B/B2C/…) — **هيكل احترافي واسع** وليس منتج إنتاج مكتمل |
-| التشغيل المعتمد على Windows | `C:\dev\bhd-app` فقط (مسارات عربية تكسر Webpack لـ Next.js) |
+| التشغيل المعتمد على Windows | `C:\dev\BHD-STOR` (أو `C:\dev\bhd-app`) — مسارات عربية تكسر Webpack لـ Next.js |
+| Node | **24.x** (engines + CI) |
 | الخطة والنواقص | **[`ROADMAP.md`](./ROADMAP.md)** — المصدر الوحيد؛ لا تكرر الخطط في ملفات أخرى |
-| **تقرير الحالة (تم / تبقّى / خطة التطوير)** | **[`docs/STATUS-REPORT-2026-07-25.md`](./docs/STATUS-REPORT-2026-07-25.md)** |
-| مراجعة أمنية/هندسية كاملة | **[`docs/FULL_AUDIT.md`](./docs/FULL_AUDIT.md)** |
+| **تقرير الحالة (تم / تبقّى / خطة التطوير)** | **[`docs/STATUS-REPORT-2026-07-25.md`](./docs/STATUS-REPORT-2026-07-25.md)** + متتبع آب 2026 أعلاه |
+| مراجعة أمنية/هندسية كاملة | **[`docs/FULL_AUDIT.md`](./docs/FULL_AUDIT.md)** + تدقيق آب 2026 |
 | أرشيف تقارير خارجية (ChatGPT/DeepSeek/جيميني/كيمي) | **[`docs/external-reviews/`](./docs/external-reviews/)** |
 | لقطة حالة GitHub (2026-07-21) | **[`docs/external-reviews/STATUS-2026-07-21.md`](./docs/external-reviews/STATUS-2026-07-21.md)** |
 | سجل جلسة 2026-07-21 (سياق أجهزة متعددة) | **[`docs/SESSION-2026-07-21.md`](./docs/SESSION-2026-07-21.md)** |
 | أرشيف الخطط القديمة | `docs/plans/` (مرجع تاريخي فقط) |
-| الأمان | طبقات متعددة في الكود (JWT، RBAC، bcrypt، AES-256-GCM، rate limit، CSRF/XSS/CSP، audit) — راجع [`SECURITY.md`](./SECURITY.md) وقسم الأمان في `ROADMAP.md` |
+| الأمان | طبقات متعددة في الكود (JWT، RBAC، bcrypt، AES-256-GCM، rate limit، CSRF/XSS/CSP، audit، TOTP، idempotency) — راجع [`SECURITY.md`](./SECURITY.md) وقسم الأمان في `ROADMAP.md` |
 
 ---
 

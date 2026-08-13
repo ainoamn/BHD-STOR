@@ -1,152 +1,253 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
-**آخر مزامنة من Git:** 2026-07-25  
-**HEAD على `main`:** 2ac070d — تقرير حالة مفصّل؛ آخر ميزة `ff25a60`  
+**آخر مزامنة من Git:** 2026-08-13  
+**HEAD على `main`:** `bdd414e` — `Merge branch 'fix/p2-nocheck-burn-deps'`  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 
-> اقرأ أولاً: [`STATUS-REPORT-2026-07-25.md`](./STATUS-REPORT-2026-07-25.md) ثم هذا الملف + `ROADMAP.md` و`SESSION-2026-07-21.md`.
+> **اقرأ بهذا الترتيب على الجهاز الجديد:**  
+> 1) هذا الملف  
+> 2) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md)  
+> 3) [`ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./ENGINEERING-SECURITY-AUDIT-2026-08-11.md)
 
 ---
 
-## 1) حقيقة المشروع
+## 0) قاعدة منع التعارض (مهم جداً)
 
-- **BHD-STOR** = متجر إلكتروني عماني متعدد البائعين (B2B/B2C/C2C) — **ليس** عقارات.
-- المسار المعتمد على Windows: **`C:\dev\bhd-app` فقط** (مسارات عربية في Downloads تكسر Next.js).
-- Stack: Next.js 14 + NestJS + TypeORM + PostgreSQL + Redis + Bull.
+كل العمل الأخير **مرفوع ومتزامن** على `origin/main`. لا توجد تغييرات محلية غير مُلتزَمة على جهاز المصدر.
 
----
-
-## 2) استنساخ وتشغيل (Checklist)
+على الجهاز الآخر افعل **فقط**:
 
 ```bat
-git clone https://github.com/ainoamn/BHD-STOR.git C:\dev\bhd-app
-cd /d C:\dev\bhd-app
-git pull origin main
-git log -5 --oneline
+cd /d C:\dev\BHD-STOR
+git fetch origin
+git checkout main
+git pull --ff-only origin main
+git log -1 --oneline
 ```
 
-يجب أن ترى أحدث commit تقريباً: `2ac070d` أو أحدث (تقرير الحالة).
+يجب أن ترى:
+
+```text
+bdd414e Merge branch 'fix/p2-nocheck-burn-deps'
+```
+
+| افعل | لا تفعل |
+|------|---------|
+| اعمل من `main` بعد `pull --ff-only` | لا تدمج فروع `fix/p0-*` أو `fix/p1-*` أو `fix/p2-*` يدوياً (مدموجة مسبقاً) |
+| فرع جديد لكل مهمة: `git checkout -b fix/...` | لا تعدّل على commit قديم ثم تدفع بـ force |
+| انسخ `.env` من الجهاز الأول يدوياً (لا يُرفع إلى Git) | لا ترفع `.env` / أسرار |
+| شغّل migrations حتى **016** | لا تفترض أن DB القديم محدّثة |
+
+إذا ظهر divergence:
+
+```bat
+git status
+git log --oneline --graph --decorate -15
+```
+
+فضّل دائماً `main` من GitHub كمصدر حقيقة.
+
+---
+
+## 1) استنساخ نظيف (إن لم يكن المجلد موجوداً)
+
+المسار الموصى به على Windows: **`C:\dev\BHD-STOR`** (تجنب مسارات عربية).
+
+```bat
+git clone https://github.com/ainoamn/BHD-STOR.git C:\dev\BHD-STOR
+cd /d C:\dev\BHD-STOR
+git checkout main
+git pull --ff-only origin main
+```
 
 ### متطلبات
 
 | أداة | ملاحظة |
 |------|--------|
-| Node **20+** (مستحسن 20 LTS؛ الجهاز السابق كان v22) | `.nvmrc` إن وُجد |
-| Docker Desktop | لـ Postgres 16 + Redis 7 |
-| Git | فرع `main` فقط للعمل اليومي |
+| Node **24.x** | موحّد في engines/Docker/CI |
+| npm ≥ 10 | |
+| Docker Desktop | Postgres 16 + Redis 7 |
+| Git | العمل اليومي على `main` |
 
-### بيئة محلية (إلزامي قبل smoke)
+### تشغيل محلي
 
 ```bat
-cd /d C:\dev\bhd-app
+cd /d C:\dev\BHD-STOR
 docker compose -f docker-compose.infra.yml up -d
-setup-env.bat
-node scripts\check-env.mjs
+REM انسخ backend/.env و frontend/.env من الجهاز السابق (لا من Git)
 cd backend
-npm install
+npm ci
 npm run migration:run
-npm run seed
 npm run start:dev
 ```
 
-في نافذة أخرى:
+نافذة أخرى:
 
 ```bat
-cd /d C:\dev\bhd-app\frontend
-npm install
+cd /d C:\dev\BHD-STOR\frontend
+npm ci
 npm run dev
 ```
 
 | عنوان | استخدام |
 |--------|---------|
 | http://localhost:3000/ar | الواجهة |
-| http://localhost:3001/health | حياة الـ API |
-| http://localhost:3001/health/ready | جاهزية Postgres+Redis |
-| http://localhost:3001/api/v1 | API (أو عبر proxy `/api/v1` من Next) |
+| http://localhost:3001/health | حياة API |
+| http://localhost:3001/api/v1 | API |
 
-Smoke بعد جاهزية ready:
+فحوصات سريعة:
 
 ```bat
-cd /d C:\dev\bhd-app
-npm run smoke
+cd /d C:\dev\BHD-STOR\backend
+npm run typecheck:gate
+npm run test:security
 ```
 
-حسابات الـ seed (بعد `npm run seed`): راجع `setup-env.bat` / seeds — غالباً `customer@bhdoman.com` / كما في السكربت.
-
----
-
-## 3) حالة الجهاز السابق (عند آخر فحص)
-
-| فحص | نتيجة |
-|------|--------|
-| `main` vs `origin/main` | متزامن · شجرة نظيفة |
-| `backend/.env` | **غير موجود** على ذلك الجهاز |
-| Postgres `:5432` | مغلق |
-| Redis `:6379` | مغلق |
-| Docker على PATH | غير متوفر |
-| Node | v22.17.1 |
-
-→ كل العمل الأخير كان **كوداً خالصاً** (بناء/أمان/واجهة) بدون smoke حي.
-
----
-
-## 4) ما اكتمل مؤخراً على `main` (ملخص سريع)
-
-| Commit | ماذا |
-|--------|------|
-| `ff25a60` | سقف capture · واتساب `/order` بملكية · حد منتجات الباقة |
-| `db99bcf` | خطط مدفوعة مغلقة · COD من الطلب · سقف استرداد |
-| `d4aa41f` | مبلغ الدفع من الطلب · كوبونات whitelist |
-| `2af0611` / `634b0f3` / … | ملكية شحن/دفع · JWT لـ WS · سلسلة P0 أمان |
-| أقدم | CSRF · Telr · طلبات/مفضلة · باركود متجر · مسار بيع API |
-
-تقرير مجمّع: [`STATUS-REPORT-2026-07-25.md`](./STATUS-REPORT-2026-07-25.md)  
-تفاصيل الجلسة: [`SESSION-2026-07-21.md`](./SESSION-2026-07-21.md)  
-حماية: [`SECURITY-AUDIT-2026-07-23.md`](./SECURITY-AUDIT-2026-07-23.md)  
-خطة حية: [`../ROADMAP.md`](../ROADMAP.md)
-
----
-
-## 5) التالي على أي جهاز (أولوية)
-
-1. Docker → infra → `.env` → migrations **حتى 012** → seed → `health/ready` → `npm run smoke`
-2. مسار شراء يدوي كامل على DB حقيقي
-3. مفاتيح sandbox Stripe/Thawani + اختبار webhook
-4. فوترة اشتراك حقيقية بعد اختيار الخطة المدفوعة
-5. تنظيف `tsc` backend (البناء الحالي SWC ناجح)
-
-التفاصيل: [`STATUS-REPORT-2026-07-25.md`](./STATUS-REPORT-2026-07-25.md)
-
-**لا تبدأ** HR/CRM/Blockchain/Drone قبل إثبات مسار البيع على DB حقيقي.
-
----
-
-## 6) أوامر سريعة يومية
-
 ```bat
-cd /d C:\dev\bhd-app
-git pull origin main
-npm run build:backend
-npm run build:frontend
-npm run test:backend
-```
-
-اختبارات أمنية مركّزة:
-
-```bat
-cd backend
-npx jest --testPathPattern="(request-user|assert-production-secrets|roles.guard|csrf.service|telr.service)"
+cd /d C:\dev\BHD-STOR\frontend
+npm run test:e2e:smoke
 ```
 
 ---
 
-## 7) قواعد لا تنسَها
+## 2) ماذا أنجزنا (سبتمبر إصلاح التدقيق — آب 2026)
 
-- لا تشغّل Next من مجلد عربي.
-- لا ترفع `.env` إلى Git.
-- `NEXT_PUBLIC_DEMO_MODE=false` عند الاختبار الحقيقي.
-- عبارة المستخدم «اكمل وارفع» = نفّذ شريحة P0/P1 تالية + حدّث docs + commit + push `main`.
+المصدر: تدقيق NO-GO في `ENGINEERING-SECURITY-AUDIT-2026-08-11.md` (حول commit `feb0e49`).
+
+### Phase 0 / أمان إطلاق
+
+| بند | الحالة |
+|-----|--------|
+| توثيق NO-GO + متتبع إصلاح | تم |
+| `PAYMENTS_LIVE_ENABLED` (افتراضي false؛ COD مسموح) | تم |
+| تنقيح سجلات متكرر (redaction) | تم |
+| CORS allowlist (Nest) + إيقاف عكس Origin في nginx | تم |
+| منع رفع/خدمة SVG على origin بجلسات | تم |
+| `/health` Docker/CD + Frontend `/api/health` | تم |
+| `SECURITY.md` صادق (NO-GO) | تم |
+
+### مسار المال / الطلبات
+
+| بند | الحالة |
+|-----|--------|
+| إنشاء/إلغاء طلب داخل transaction + قفل مخزون | تم |
+| `money.util` (OMR 3dp) على الإجماليات/استرداد/التقاط | تم |
+| `PaymentAttempt` + `Idempotency-Key` | تم |
+| `WebhookEvent` inbox فريد + mismatch يرمي خطأ | تم |
+| Reconciliation ساعية (محاولات قديمة + drift) | تم |
+| فواتير: كيان + تسلسل سنوي + PDF | تم (`014`) |
+| جداول `api_keys` / `audit_logs` + أعمدة TOTP | تم (`015`) |
+| أعمدة منتج featured/sales/deleted | تم (`016`) |
+
+### مصادقة
+
+| بند | الحالة |
+|-----|--------|
+| Password reset selector+verifier + Redis revoke | تم |
+| TOTP setup/enable/disable + تحدّي login | تم |
+| API key scopes assert عند الإنشاء | تم (الجداول عبر 015) |
+
+### CI / جودة
+
+| بند | الحالة |
+|-----|--------|
+| Node 24 موحّد | تم |
+| `typecheck:gate` ميزانية **0** عبر `tsconfig.typecheck.json` | تم |
+| ESLint غير تفاعلي | تم |
+| `test:security` حاجز + Postgres/Redis في CI | تم |
+| Playwright smoke **حاجز** | تم |
+| `migration-smoke` على Postgres فارغ | تم (إصلاح UUID في seed `006`) |
+
+### Commits رئيسية على `main` (الأحدث أولاً)
+
+| Commit | الموضوع |
+|--------|---------|
+| `bdd414e` | دمج: typecheck مسار المال + اختبارات idempotency + migration smoke |
+| `201560b` | إزالة nocheck عن مسار التجارة؛ hash/مخزون/webhook tests؛ seed logistics UUIDs |
+| `6c800ec` / `a259944` | بوابة tsc@0 + Playwright smoke حاجز |
+| `18b1b85` | خفض دين tsc 287→122؛ إزالة xlsx؛ swiper 14.1 |
+| `1375c97` | TOTP + migration 015 + Playwright scaffolding |
+| `374209c` | tsc budget + فواتير PDF + CI أمني |
+| `a69cccb` | CORS/SVG + reconciliation |
+| `aee766b` | طلبات transaction + PaymentAttempt + WebhookEvent |
+| `c7fd271` | Phase 0 أمان أولي (health/Node/auth/XSS/SSRF/…) |
 
 ---
 
-*ملف مخصّص للنقل بين الأجهزة — حدّث التاريخ ورقم الـ HEAD عند كل انتقال جديد.*
+## 3) Migrations يجب تشغيلها على DB الجهاز الجديد
+
+من مجلد `backend` بعد ضبط `DB_*` في `.env`:
+
+```bat
+npm run migration:run
+```
+
+تأكد من وجود (على الأقل):
+
+| # | ملف | الغرض |
+|---|-----|--------|
+| 013 | `013-payment-attempts-webhook-events.ts` | payment_attempts + webhook_events + unique order_number |
+| 014 | `014-invoices.ts` | invoices + invoice_sequences |
+| 015 | `015-api-keys-audit-logs-totp.ts` | api_keys + audit_logs + أعمدة 2FA |
+| 016 | `016-product-featured-sales.ts` | is_featured / sales_count / deleted_at |
+
+متغيرات DataSource (`backend/src/data-source.ts`):  
+`DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`  
+(وليست `DATABASE_*`).
+
+---
+
+## 4) من أين نكمل (الأولوية التالية)
+
+الحكم ما زال **NO-GO للإنتاج**. التالي المنطقي:
+
+1. **حرق `@ts-nocheck` المتبقي** خارج مسار المال (admin/logistics/ai/chat/…) — ابحث: `^// @ts-nocheck`
+2. **اعتماديات عالية بلا إصلاح آمن:** `sharp` / `postcss` عبر Next / `webpack` عبر CLI — إما قبول مخاطر موثّق أو ترقية Next كبرى بحذر
+3. **Sandbox مدفوعات حقيقي:** webhook replay + reconciliation على بيئة staging مع `PAYMENTS_LIVE_ENABLED` مضبوط بحذر
+4. **Frontend:** typecheck/lint/unit خضراء بالكامل (smoke موجود وحاجز)
+5. **Load test / backup drill / مراجعة قانونية** — من checklist التدقيق §11
+
+**لا تبدأ** ميزات HR/CRM/Blockchain/Drone قبل إثبات مسار شراء على DB حقيقي.
+
+عبارة العمل المعتادة: «اكمل وارفع» = نفّذ الشريحة التالية + حدّث المتتبع + commit + push `main`.
+
+---
+
+## 5) فروع قديمة على remote (لا تعد دمجها)
+
+مدموجة مسبقاً في `main` — اتركها أو احذفها لاحقاً لتفادي اللبس:
+
+- `fix/p0-cors-uploads-recon`
+- `fix/p1-tsc-ci-invoice`
+- `fix/p1-tsc-smoke-blocking`
+- `fix/p2-deps-tsc-debt`
+- `fix/p2-totp-apikeys-playwright`
+- `fix/p2-nocheck-burn-deps`
+
+---
+
+## 6) ملفات توثيق مرتبطة
+
+| ملف | دور |
+|-----|-----|
+| [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md) | حالة كل بند إصلاح |
+| [`ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./ENGINEERING-SECURITY-AUDIT-2026-08-11.md) | تقرير NO-GO الأصلي |
+| [`../SECURITY.md`](../SECURITY.md) | سياسة أمان + لافتة NO-GO |
+| [`../README.md`](../README.md) | نظرة عامة + صف حالة الجاهزية |
+
+---
+
+## 7) Checklist بدء العمل على الجهاز الآخر
+
+- [ ] `git pull --ff-only origin main` → HEAD = `bdd414e`
+- [ ] `backend/.env` و `frontend/.env` منسوخان يدوياً
+- [ ] Docker: Postgres + Redis يعملان
+- [ ] `npm ci` في backend و frontend
+- [ ] `npm run migration:run` ناجح حتى 016
+- [ ] `npm run typecheck:gate` → 0 أخطاء
+- [ ] `npm run test:security` أخضر
+- [ ] فرع جديد للمهمة التالية قبل أي تعديل
+
+---
+
+*حدّث التاريخ ورقم HEAD في أعلى هذا الملف عند كل انتقال جهاز جديد.*
