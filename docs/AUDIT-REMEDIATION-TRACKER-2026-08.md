@@ -4,7 +4,7 @@
 **Audit commit:** `feb0e4919f8e85f6138481dec1e5c85c1bc4d8c5`  
 **Documented:** 2026-08-12  
 **Implementation sprint started:** 2026-08-12  
-**Last handoff sync:** 2026-08-13 · HEAD `bdd414e` · see [`HANDOFF-SECOND-PC.md`](./HANDOFF-SECOND-PC.md)  
+**Last handoff sync:** 2026-08-13 · HEAD `52d602c` · see [`HANDOFF-SECOND-PC.md`](./HANDOFF-SECOND-PC.md)  
 **Gate:** Production remains **NO-GO** until remaining dependency highs without safe fix (sharp/postcss-via-next/webpack-cli) are accepted or Next major upgraded; continue burning `@ts-nocheck` on non-commerce modules
 
 Status values: `pending` · `in progress` · `done` · `blocked`

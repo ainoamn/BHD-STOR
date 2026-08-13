@@ -1,7 +1,8 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-08-13  
-**HEAD على `main`:** `bdd414e` — `Merge branch 'fix/p2-nocheck-burn-deps'`  
+**HEAD على `main`:** `52d602c` — `docs: handoff for second PC at bdd414e audit remediation stop`  
+**نقطة كود الإصلاح السابقة:** `bdd414e` — `Merge branch 'fix/p2-nocheck-burn-deps'`  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 
 > **اقرأ بهذا الترتيب على الجهاز الجديد:**  
@@ -28,8 +29,11 @@ git log -1 --oneline
 يجب أن ترى:
 
 ```text
-bdd414e Merge branch 'fix/p2-nocheck-burn-deps'
+52d602c docs: handoff for second PC at bdd414e audit remediation stop
 ```
+
+(أو أحدث من `main` إن وُجدت commits لاحقة)  
+نقطة كود الإصلاح الثقيلة: `bdd414e`.
 
 | افعل | لا تفعل |
 |------|---------|
@@ -239,7 +243,7 @@ npm run migration:run
 
 ## 7) Checklist بدء العمل على الجهاز الآخر
 
-- [ ] `git pull --ff-only origin main` → HEAD = `bdd414e`
+- [ ] `git pull --ff-only origin main` → HEAD = `52d602c` (أو أحدث)
 - [ ] `backend/.env` و `frontend/.env` منسوخان يدوياً
 - [ ] Docker: Postgres + Redis يعملان
 - [ ] `npm ci` في backend و frontend

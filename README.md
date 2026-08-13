@@ -69,7 +69,7 @@
 | البند | الواقع |
 |-------|--------|
 | **حكم الجاهزية للإنتاج (أحدث)** | **NO-GO** — [`docs/ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./docs/ENGINEERING-SECURITY-AUDIT-2026-08-11.md) (commit `feb0e491…`) · متتبع الإصلاح: [`docs/AUDIT-REMEDIATION-TRACKER-2026-08.md`](./docs/AUDIT-REMEDIATION-TRACKER-2026-08.md) |
-| **نقطة التوقف / نقل جهاز** | [`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md) — HEAD الحالي `bdd414e` على `main` |
+| **نقطة التوقف / نقل جهاز** | [`docs/HANDOFF-SECOND-PC.md`](./docs/HANDOFF-SECOND-PC.md) — HEAD الحالي `52d602c` على `main` |
 | المستودع | [ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR) |
 | ما هو هذا؟ | منصة سوق عمانية متعددة البائعين (B2B/B2C/…) — **هيكل احترافي واسع** وليس منتج إنتاج مكتمل |
 | التشغيل المعتمد على Windows | `C:\dev\BHD-STOR` (أو `C:\dev\bhd-app`) — مسارات عربية تكسر Webpack لـ Next.js |
