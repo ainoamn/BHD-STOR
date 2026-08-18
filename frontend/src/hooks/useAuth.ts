@@ -59,19 +59,9 @@ export function useUser(): UseQueryResult<User | null, Error> {
   return useQuery({
     queryKey: authKeys.user(),
     queryFn: async () => {
-      const token =
-        typeof window !== 'undefined'
-          ? localStorage.getItem(ACCESS_TOKEN_KEY)
-          : null;
-      if (!token) return null;
-
       try {
         const user = await authService.getMe();
-        const refresh =
-          typeof window !== 'undefined'
-            ? localStorage.getItem(REFRESH_TOKEN_KEY) || ''
-            : '';
-        persistAuthSession(token, refresh, user);
+        persistAuthSession(null, null, user);
         return user;
       } catch {
         return getPersistedUser();

@@ -291,6 +291,7 @@
     "login": {
       "title": "Login",
       "subtitle": "Welcome back! Sign in to continue",
+      "ssoSubtitle": "One BHD account — the identity gateway for every group site",
       "email": "Email",
       "emailPlaceholder": "Enter your email",
       "password": "Password",
@@ -321,6 +322,8 @@
       "verifyEmail": "Please verify your email first",
       "welcomeBack": "Welcome back, {name}!",
       "loginWithBhd": "Sign in with BHD",
+      "loginWithBhdHint": "The same identity gateway used by every Bin Hamood site",
+      "orEmailPassword": "Or use local email and password",
       "ssoError": "BHD Identity sign-in failed",
       "ssoErrorDesc": "Try again, or sign in with email and password",
       "ssoBackendError": "The store cannot reach the API server. Set BACKEND_URL to the public Nest URL and redeploy.",

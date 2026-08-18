@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     issuer: identityIssuer(),
     clientId: oauthClientId(),
     hasClientSecret: Boolean(oauthClientSecret()),
+    pkceOnlyAllowed: true,
     backend: backendOrigin(request.url),
     completeUrl: api,
   });

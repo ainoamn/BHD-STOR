@@ -174,7 +174,7 @@ export default function LoginPage() {
               <Lock className="h-6 w-6 text-primary" />
             </div>
             <CardTitle className="text-2xl font-bold">{t("title")}</CardTitle>
-            <CardDescription>{t("description")}</CardDescription>
+            <CardDescription>{t("ssoSubtitle")}</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
@@ -189,6 +189,32 @@ export default function LoginPage() {
                       : t("ssoErrorDesc")}
                 </AlertDescription>
               </Alert>
+            )}
+
+            {bhdIdentityEnabled && (
+              <div className="space-y-3">
+                <Button
+                  type="button"
+                  className="w-full"
+                  disabled={isSubmitting}
+                  onClick={() => {
+                    window.location.assign(
+                      `/api/auth/bhd/start?returnTo=${encodeURIComponent(returnUrl)}`,
+                    );
+                  }}
+                >
+                  {t("loginWithBhd")}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+                <p className="text-center text-xs text-muted-foreground">{t("loginWithBhdHint")}</p>
+              </div>
+            )}
+
+            {bhdIdentityEnabled && (
+              <>
+                <Separator />
+                <p className="text-center text-sm text-muted-foreground">{t("orEmailPassword")}</p>
+              </>
             )}
 
             {loginMutation.isError && (
@@ -294,34 +320,13 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
-
-            <Separator />
-
-            {bhdIdentityEnabled && (
-              <div className="space-y-2">
-                <p className="text-center text-sm text-muted-foreground">{t("orContinueWith")}</p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  disabled={isSubmitting}
-                  onClick={() => {
-                    window.location.assign(
-                      `/api/auth/bhd/start?returnTo=${encodeURIComponent(returnUrl)}`,
-                    );
-                  }}
-                >
-                  {t("loginWithBhd")}
-                </Button>
-              </div>
-            )}
           </CardContent>
 
           <CardFooter className="justify-center">
             <p className="text-sm text-muted-foreground">
               {t("noAccount")}{" "}
               <Link
-                href={`/${locale}/auth/register${returnUrl !== `/${locale}` ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ""}`}
+                href="https://id.bhd-om.com/login"
                 className="text-primary hover:underline font-medium"
               >
                 {t("signUp")}

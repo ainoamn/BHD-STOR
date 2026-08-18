@@ -88,7 +88,7 @@ BHD_OAUTH_CLIENT_SECRET=<نفس BHD_OAUTH_CLIENT_SECRET_STORE على one-bhd>
 BACKEND_URL=https://<خادم-Nest-العام>
 ```
 
-بدون `BACKEND_URL` عام، مسار `/api/v1/*` يعيد 404 بعد العودة من الهوية. تشخيص: `https://bhdstor.bhd-om.com/api/auth/bhd/status`
+الهوية تقبل عملاء الطرف الأول بـ PKCE حتى بدون `client_secret` (`resolveOAuthClient`). المتجر يبادل الرمز من Next دائماً، ثم يحاول Nest، وإن تعذّر يصدر جلسة منتج على أصل المتجر (مثل وازن/البوابة).
 
 تحقق: `GET /api/auth/bhd/status` (لا يسرّب السر، يعرض هل هو مضبوط).
 

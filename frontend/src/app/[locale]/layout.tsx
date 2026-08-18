@@ -4,6 +4,7 @@ import { Tajawal } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { LocaleProviders } from "./providers";
+import { SsoSessionHydrate } from "@/components/auth/SsoSessionHydrate";
 import "@/styles/globals.css";
 
 const tajawal = Tajawal({
@@ -104,6 +105,7 @@ export default async function RootLayout({ children, params: { locale } }: RootL
         className={`${tajawal.className} antialiased bg-[#F8F5F0] dark:bg-gray-950 text-[#1a1a1a] dark:text-white min-h-screen`}
       >
         <NextIntlClientProvider locale={locale} messages={messages}>
+          <SsoSessionHydrate />
           <LocaleProviders>{children}</LocaleProviders>
         </NextIntlClientProvider>
       </body>
