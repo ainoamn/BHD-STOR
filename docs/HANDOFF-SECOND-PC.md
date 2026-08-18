@@ -1,7 +1,7 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-08-18  
-**HEAD على `main`:** بعد دمج `feat/bhd-identity-sso` (SSO عميل `bhd-store`) — راجع `git log -1 --oneline`  
+**HEAD على `main`:** يشمل `cb0d635` — `feat(auth): connect the store to BHD Identity SSO as bhd-store`  
 **نقطة كود الإصلاح السابقة:** `bdd414e` — `Merge branch 'fix/p2-nocheck-burn-deps'`  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 
@@ -27,8 +27,11 @@ git pull --ff-only origin main
 git log -1 --oneline
 ```
 
-يجب أن ترى أحدث commit على `main` (بعد 2026-08-18 يتضمن BHD Identity SSO).  
-نقطة كود الإصلاح الثقيلة تبقى: `bdd414e`.
+يجب أن ترى في `git log -1 --oneline` أحدث `main`، ومن ضمن التاريخ:
+
+```text
+cb0d635 feat(auth): connect the store to BHD Identity SSO as bhd-store
+```
 
 | افعل | لا تفعل |
 |------|---------|
