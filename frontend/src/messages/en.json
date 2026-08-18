@@ -322,7 +322,9 @@
       "welcomeBack": "Welcome back, {name}!",
       "loginWithBhd": "Sign in with BHD",
       "ssoError": "BHD Identity sign-in failed",
-      "ssoErrorDesc": "Try again, or sign in with email and password"
+      "ssoErrorDesc": "Try again, or sign in with email and password",
+      "ssoBackendError": "The store cannot reach the API server. Set BACKEND_URL to the public Nest URL and redeploy.",
+      "ssoIdentityError": "Could not finish sign-in with BHD Identity. Check BHD_OAUTH_CLIENT_SECRET."
     },
     "register": {
       "title": "Create Account",

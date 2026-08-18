@@ -35,6 +35,16 @@ export function normalizeIssuer(value: string): string {
   return (value || '').trim().replace(/\/$/, '');
 }
 
+export const IDENTITY_ISSUER_ALIASES = [
+  'https://id.bhd-om.com',
+  'https://one-bhd.vercel.app',
+];
+
+export function allowedIssuers(configured: string): string[] {
+  const values = new Set<string>([normalizeIssuer(configured), ...IDENTITY_ISSUER_ALIASES.map(normalizeIssuer)]);
+  return [...values];
+}
+
 export function decodeJwtPayload(token: string): Record<string, unknown> | null {
   const parts = (token || '').split('.');
   if (parts.length !== 3) return null;
@@ -54,14 +64,16 @@ export function isEmailVerifiedClaim(value: unknown): boolean {
 
 export function assertOidcClaims(
   payload: Record<string, unknown> | null,
-  input: { issuer: string; audience: string; nonce: string; nowSec?: number },
+  input: { issuer: string | string[]; audience: string; nonce: string; nowSec?: number },
 ): BhdOidcClaims {
   if (!payload) {
     throw new Error('invalid_id_token');
   }
-  const issuer = normalizeIssuer(input.issuer);
+  const allowedIssuers = (Array.isArray(input.issuer) ? input.issuer : [input.issuer])
+    .map(normalizeIssuer)
+    .filter(Boolean);
   const iss = typeof payload.iss === 'string' ? normalizeIssuer(payload.iss) : '';
-  if (!iss || iss !== issuer) {
+  if (!iss || !allowedIssuers.includes(iss)) {
     throw new Error('invalid_issuer');
   }
 

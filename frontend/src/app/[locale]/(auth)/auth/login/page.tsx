@@ -46,6 +46,7 @@ export default function LoginPage() {
   })();
   const registered = searchParams.get("registered");
   const ssoError = searchParams.get("error") === "sso";
+  const ssoReason = searchParams.get("reason") || "";
   const bhdIdentityEnabled = process.env.NEXT_PUBLIC_BHD_IDENTITY_ENABLED !== "false";
 
   const [formData, setFormData] = useState<LoginFormData>({
@@ -177,6 +178,19 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent className="space-y-4">
+            {ssoError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {ssoReason === "backend"
+                    ? t("ssoBackendError")
+                    : ssoReason === "identity"
+                      ? t("ssoIdentityError")
+                      : t("ssoErrorDesc")}
+                </AlertDescription>
+              </Alert>
+            )}
+
             {loginMutation.isError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -292,7 +306,9 @@ export default function LoginPage() {
                   className="w-full"
                   disabled={isSubmitting}
                   onClick={() => {
-                    window.location.href = `/api/auth/bhd/start?returnTo=${encodeURIComponent(returnUrl)}`;
+                    window.location.assign(
+                      `/api/auth/bhd/start?returnTo=${encodeURIComponent(returnUrl)}`,
+                    );
                   }}
                 >
                   {t("loginWithBhd")}

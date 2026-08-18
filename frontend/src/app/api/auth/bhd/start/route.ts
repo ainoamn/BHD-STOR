@@ -16,8 +16,7 @@ export async function GET(request: NextRequest) {
   const origin = url.origin;
   const issuer = identityIssuer();
   const clientId = oauthClientId();
-  const redirectUri =
-    process.env.BHD_OAUTH_REDIRECT_URI?.trim() || `${origin}/api/auth/bhd/callback`;
+  const redirectUri = `${origin}/api/auth/bhd/callback`;
 
   const state = randomUrlToken();
   const nonce = randomUrlToken();

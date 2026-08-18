@@ -79,7 +79,18 @@ NEXT_PUBLIC_BHD_IDENTITY_ENABLED=true
 BACKEND_URL=http://localhost:3001
 ```
 
-إنتاج Vercel للمتجر: اضبط `BHD_OAUTH_REDIRECT_URI` و`BACKEND_URL` على أصل النشر الفعلي.
+إنتاج `https://bhdstor.bhd-om.com` على Vercel **يجب** ضبط:
+
+```
+BHD_IDENTITY_ISSUER=https://id.bhd-om.com
+BHD_OAUTH_CLIENT_ID=bhd-store
+BHD_OAUTH_CLIENT_SECRET=<نفس BHD_OAUTH_CLIENT_SECRET_STORE على one-bhd>
+BACKEND_URL=https://<خادم-Nest-العام>
+```
+
+بدون `BACKEND_URL` عام، مسار `/api/v1/*` يعيد 404 بعد العودة من الهوية. تشخيص: `https://bhdstor.bhd-om.com/api/auth/bhd/status`
+
+تحقق: `GET /api/auth/bhd/status` (لا يسرّب السر، يعرض هل هو مضبوط).
 
 **Backend (Nest):**
 

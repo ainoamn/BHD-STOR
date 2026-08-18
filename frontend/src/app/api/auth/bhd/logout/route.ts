@@ -18,7 +18,7 @@ function clearStoreCookies(response: NextResponse) {
 export async function GET(request: NextRequest) {
   const origin = new URL(request.url).origin;
   try {
-    await fetch(`${backendOrigin()}/api/v1/auth/logout`, {
+    await fetch(`${backendOrigin(request.url)}/api/v1/auth/logout`, {
       method: 'POST',
       headers: {
         cookie: request.headers.get('cookie') || '',

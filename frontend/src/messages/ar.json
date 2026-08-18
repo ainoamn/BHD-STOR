@@ -322,7 +322,9 @@
       "welcomeBack": "أهلاً بعودتك، {name}!",
       "loginWithBhd": "الدخول بحساب BHD",
       "ssoError": "تعذر الدخول بحساب BHD",
-      "ssoErrorDesc": "حاول مرة أخرى أو سجّل الدخول بالبريد وكلمة المرور"
+      "ssoErrorDesc": "حاول مرة أخرى أو سجّل الدخول بالبريد وكلمة المرور",
+      "ssoBackendError": "المتجر لا يصل إلى خادم API. اضبط BACKEND_URL على عنوان Nest العام ثم أعد النشر.",
+      "ssoIdentityError": "تعذر إكمال الدخول مع هوية BHD. تأكد من سر العميل BHD_OAUTH_CLIENT_SECRET."
     },
     "register": {
       "title": "إنشاء حساب جديد",

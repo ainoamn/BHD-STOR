@@ -46,6 +46,14 @@ describe('bhd-identity.util', () => {
       }),
     ).toThrow('invalid_issuer');
 
+    expect(
+      assertOidcClaims(payload({ iss: 'https://id.bhd-om.com' }), {
+        issuer: [issuer, 'https://id.bhd-om.com'],
+        audience: 'bhd-store',
+        nonce,
+      }).sub,
+    ).toBe(sub);
+
     expect(() =>
       assertOidcClaims(payload({ aud: 'bhd-portal' }), {
         issuer,

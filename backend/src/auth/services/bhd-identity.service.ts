@@ -11,6 +11,7 @@ import { CompleteBhdOidcDto } from '../dto/complete-bhd-oidc.dto';
 import {
   BHD_STORE_CLIENT_ID,
   DEFAULT_BHD_IDENTITY_ISSUER,
+  allowedIssuers,
   assertOidcClaims,
   decodeJwtPayload,
   normalizeIssuer,
@@ -49,49 +50,58 @@ export class BhdIdentityService {
   }
 
   async completeLogin(dto: CompleteBhdOidcDto): Promise<AuthResponse> {
-    const secret = this.clientSecret();
-    if (!secret) {
-      throw new ServiceUnavailableException('BHD Identity client secret is not configured');
-    }
-
     const issuer = this.issuer();
     const clientId = this.clientId();
     const discovery = await this.loadDiscovery(issuer);
 
-    const tokenRes = await fetch(discovery.token_endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: dto.code,
-        redirect_uri: dto.redirectUri,
-        client_id: clientId,
-        client_secret: secret,
-        code_verifier: dto.codeVerifier,
-      }),
-    });
-    if (!tokenRes.ok) {
-      this.logger.warn(`Identity token exchange failed: ${tokenRes.status}`);
-      throw new UnauthorizedException('BHD Identity token exchange failed');
+    let idToken = dto.idToken?.trim() || '';
+    let accessToken = dto.accessToken?.trim() || '';
+
+    if (!idToken || !accessToken) {
+      const secret = this.clientSecret();
+      if (!secret) {
+        throw new ServiceUnavailableException('BHD Identity client secret is not configured');
+      }
+      if (!dto.code || !dto.redirectUri || !dto.codeVerifier) {
+        throw new UnauthorizedException('BHD Identity authorization code is missing');
+      }
+      const tokenRes = await fetch(discovery.token_endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: dto.code,
+          redirect_uri: dto.redirectUri,
+          client_id: clientId,
+          client_secret: secret,
+          code_verifier: dto.codeVerifier,
+        }),
+      });
+      if (!tokenRes.ok) {
+        this.logger.warn(`Identity token exchange failed: ${tokenRes.status}`);
+        throw new UnauthorizedException('BHD Identity token exchange failed');
+      }
+      const tokens = (await tokenRes.json()) as {
+        id_token?: string;
+        access_token?: string;
+      };
+      idToken = tokens.id_token || '';
+      accessToken = tokens.access_token || '';
     }
 
-    const tokens = (await tokenRes.json()) as {
-      id_token?: string;
-      access_token?: string;
-    };
-    if (!tokens.id_token || !tokens.access_token) {
+    if (!idToken || !accessToken) {
       throw new UnauthorizedException('BHD Identity did not return id_token');
     }
 
-    this.verifyIdTokenIfPossible(tokens.id_token, issuer, clientId);
+    this.verifyIdTokenIfPossible(idToken, issuer, clientId);
 
-    const claims = assertOidcClaims(decodeJwtPayload(tokens.id_token), {
-      issuer,
+    const claims = assertOidcClaims(decodeJwtPayload(idToken), {
+      issuer: allowedIssuers(issuer),
       audience: clientId,
       nonce: dto.nonce,
     });
 
-    const userinfo = await this.fetchUserinfo(discovery.userinfo_endpoint, tokens.access_token);
+    const userinfo = await this.fetchUserinfo(discovery.userinfo_endpoint, accessToken);
     if (userinfo.sub !== claims.sub || userinfo.email !== claims.email) {
       throw new UnauthorizedException('BHD Identity userinfo did not match id_token');
     }
@@ -152,7 +162,7 @@ export class BhdIdentityService {
     try {
       jwt.verify(idToken, hsSecret, {
         algorithms: ['HS256'],
-        issuer,
+        issuer: allowedIssuers(issuer),
         audience,
       });
     } catch {
