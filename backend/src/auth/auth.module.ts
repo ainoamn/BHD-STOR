@@ -14,6 +14,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { ThrottlerGuard } from './guards/throttler.guard';
 import { TotpService } from './services/totp.service';
+import { BhdIdentityService } from './services/bhd-identity.service';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { TotpService } from './services/totp.service';
   providers: [
     AuthService,
     TotpService,
+    BhdIdentityService,
     JwtStrategy,
     LocalStrategy,
     RefreshTokenStrategy,

@@ -26,7 +26,7 @@
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/data-source.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/data-source.ts",
     "seed": "ts-node src/seeds/run-seeder.ts",
-    "test:security": "jest --testPathPattern=\"(request-user|assert-production-secrets|throttler\\.guard|roles|oman-net\\.service|return-access|return-eligibility|shipping-provider\\.util|ws-auth|public-tracking|self-or-staff|store-analytics-access|shipment-access|upload-access|webhook-signature|product-access|api-key-scopes|coupons|payment-amount|payment-request-hash|plan-access|shipment-cod|refund-amount|capture-amount|order-access|plan-limits|cors\\.util|simple-pdf|stock-decrement|webhook-inbox)\" --passWithNoTests",
+    "test:security": "jest --testPathPattern=\"(request-user|assert-production-secrets|throttler\\.guard|roles|oman-net\\.service|return-access|return-eligibility|shipping-provider\\.util|ws-auth|public-tracking|self-or-staff|store-analytics-access|shipment-access|upload-access|webhook-signature|product-access|api-key-scopes|coupons|payment-amount|payment-request-hash|plan-access|shipment-cod|refund-amount|capture-amount|order-access|plan-limits|cors\\.util|simple-pdf|stock-decrement|webhook-inbox|bhd-identity|csrf\\.service)\" --passWithNoTests",
     "check:env": "node ../scripts/check-env.mjs",
     "smoke": "node ../scripts/smoke-buy-path.mjs"
   },

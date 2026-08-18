@@ -297,6 +297,9 @@ export class CsrfService {
     const exemptPatterns = [
       /^\/webhooks\//,
       /^\/api\/v\d+\/auth\/callback/,
+      /^\/api\/v\d+\/auth\/bhd\//,
+      /^\/v\d+\/auth\/bhd\//,
+      /^\/auth\/bhd\//,
       /^\/api\/v\d+\/oauth/,
       /^\/v\d+\/auth\/callback/,
       /^\/health/,

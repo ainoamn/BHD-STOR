@@ -151,13 +151,13 @@ export function useLogout(): UseMutationResult<void, Error, void> {
     onSuccess: () => {
       clearTokens();
       queryClient.clear();
-      window.location.href = '/';
+      window.location.href = '/api/auth/bhd/logout';
     },
     onError: () => {
       // Even if the server logout fails, clear local state
       clearTokens();
       queryClient.clear();
-      window.location.href = '/';
+      window.location.href = '/api/auth/bhd/logout';
     },
   });
 }

@@ -45,6 +45,8 @@ export default function LoginPage() {
     return rawReturn;
   })();
   const registered = searchParams.get("registered");
+  const ssoError = searchParams.get("error") === "sso";
+  const bhdIdentityEnabled = process.env.NEXT_PUBLIC_BHD_IDENTITY_ENABLED !== "false";
 
   const [formData, setFormData] = useState<LoginFormData>({
     email: "",
@@ -55,6 +57,14 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
 
   const loginMutation = useLogin();
+
+  useEffect(() => {
+    if (ssoError) {
+      toast.error(t("ssoError"), {
+        description: t("ssoErrorDesc"),
+      });
+    }
+  }, [ssoError, t]);
 
   useEffect(() => {
     if (registered === "true") {
@@ -273,18 +283,22 @@ export default function LoginPage() {
 
             <Separator />
 
-            {/* Social Login */}
-            <div className="space-y-2">
-              <p className="text-center text-sm text-muted-foreground">{t("orContinueWith")}</p>
-              <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline" disabled={isSubmitting}>
-                  Google
-                </Button>
-                <Button variant="outline" disabled={isSubmitting}>
-                  Apple
+            {bhdIdentityEnabled && (
+              <div className="space-y-2">
+                <p className="text-center text-sm text-muted-foreground">{t("orContinueWith")}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={isSubmitting}
+                  onClick={() => {
+                    window.location.href = `/api/auth/bhd/start?returnTo=${encodeURIComponent(returnUrl)}`;
+                  }}
+                >
+                  {t("loginWithBhd")}
                 </Button>
               </div>
-            </div>
+            )}
           </CardContent>
 
           <CardFooter className="justify-center">

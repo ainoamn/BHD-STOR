@@ -20,4 +20,9 @@ describe('CsrfService.isExemptPath', () => {
     expect(service.isExemptPath('/api/v1/cart/items')).toBe(false);
     expect(service.isExemptPath('/api/v1/auth/login')).toBe(false);
   });
+
+  it('exempts BHD Identity complete callback', () => {
+    expect(service.isExemptPath('/api/v1/auth/bhd/complete')).toBe(true);
+    expect(service.isExemptPath('/v1/auth/bhd/complete')).toBe(true);
+  });
 });

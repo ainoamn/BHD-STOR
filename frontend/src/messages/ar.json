@@ -319,7 +319,10 @@
       "registerSuccessDesc": "يمكنك الآن تسجيل الدخول",
       "accountLocked": "تم قفل حسابك. يرجى التواصل مع الدعم",
       "verifyEmail": "يرجى تأكيد بريدك الإلكتروني أولاً",
-      "welcomeBack": "أهلاً بعودتك، {name}!"
+      "welcomeBack": "أهلاً بعودتك، {name}!",
+      "loginWithBhd": "الدخول بحساب BHD",
+      "ssoError": "تعذر الدخول بحساب BHD",
+      "ssoErrorDesc": "حاول مرة أخرى أو سجّل الدخول بالبريد وكلمة المرور"
     },
     "register": {
       "title": "إنشاء حساب جديد",

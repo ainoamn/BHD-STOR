@@ -15,11 +15,16 @@ import Redis from 'ioredis';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UsersService } from '@users/users.service';
+import { UserRole, UserStatus } from '@users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { TotpService } from './services/totp.service';
+import {
+  decideBhdUserMatch,
+  splitDisplayName,
+} from './utils/bhd-identity.util';
 
 export interface TokenPayload {
   sub: string;
@@ -127,6 +132,116 @@ export class AuthService {
       this.logger.error(`Registration failed: ${error.message}`, error.stack, 'AuthService');
       throw new InternalServerErrorException('Failed to register user');
     }
+  }
+
+  /**
+   * Upsert a marketplace customer from verified BHD Identity claims.
+   * Does not grant seller/admin roles and does not import identity passwords.
+   */
+  async loginWithBhdIdentity(claims: {
+    sub: string;
+    email: string;
+    name: string;
+    picture: string | null;
+    phone: string | null;
+  }): Promise<AuthResponse> {
+    const email = claims.email.trim().toLowerCase();
+    const bySub = await this.usersService.findByBhdSub(claims.sub);
+    const byEmail = bySub ? null : await this.usersService.findByEmail(email);
+    const match = decideBhdUserMatch({
+      sub: claims.sub,
+      emailVerified: true,
+      bySub: bySub
+        ? {
+            id: bySub.id,
+            email: bySub.email,
+            bhdSub: bySub.bhdSub,
+            emailVerified: bySub.emailVerified,
+          }
+        : null,
+      byEmail: byEmail
+        ? {
+            id: byEmail.id,
+            email: byEmail.email,
+            bhdSub: byEmail.bhdSub,
+            emailVerified: byEmail.emailVerified,
+          }
+        : null,
+    });
+
+    if (match.action === 'reject') {
+      if (match.reason === 'unverified-email-collision') {
+        throw new ConflictException(
+          'An account with this email exists. Sign in locally and verify email, then use BHD Identity.',
+        );
+      }
+      throw new UnauthorizedException('Unable to link BHD Identity account');
+    }
+
+    const { firstName, lastName } = splitDisplayName(claims.name, email);
+    let user =
+      match.action === 'create'
+        ? await this.usersService.create({
+            email,
+            password: await this.hashPassword(crypto.randomBytes(32).toString('hex')),
+            firstName,
+            lastName,
+            avatar: claims.picture,
+            phone: claims.phone,
+            role: UserRole.CUSTOMER,
+            status: UserStatus.ACTIVE,
+            emailVerified: true,
+            bhdSub: claims.sub,
+          })
+        : await this.usersService.findOne(match.userId);
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is deactivated. Please contact support.');
+    }
+
+    const patch: Partial<typeof user> = {
+      firstName,
+      lastName,
+      emailVerified: true,
+      bhdSub: claims.sub,
+    };
+    if (claims.picture) {
+      patch.avatar = claims.picture;
+    }
+    if (claims.phone && !user.phone) {
+      patch.phone = claims.phone;
+    }
+    if (user.status === UserStatus.PENDING_VERIFICATION) {
+      patch.status = UserStatus.ACTIVE;
+    }
+    if (user.email !== email) {
+      const taken = await this.usersService.findByEmail(email);
+      if (!taken || taken.id === user.id) {
+        patch.email = email;
+      }
+    }
+    if (match.action !== 'create') {
+      user = await this.usersService.update(user.id, patch);
+    }
+
+    await this.usersService.updateLastLogin(user.id);
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    this.logger.log(`BHD Identity login: ${user.email}`, 'AuthService');
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        avatar: user.avatar,
+      },
+      tokens,
+    };
   }
 
   /**

@@ -4,7 +4,7 @@
 **Audit commit:** `feb0e4919f8e85f6138481dec1e5c85c1bc4d8c5`  
 **Documented:** 2026-08-12  
 **Implementation sprint started:** 2026-08-12  
-**Last handoff sync:** 2026-08-13 · HEAD `52d602c` · see [`HANDOFF-SECOND-PC.md`](./HANDOFF-SECOND-PC.md)  
+**Last handoff sync:** 2026-08-18 · BHD Identity SSO (`bhd-store`) · see [`HANDOFF-SECOND-PC.md`](./HANDOFF-SECOND-PC.md) and [`BHD-STORE-IDENTITY.md`](./BHD-STORE-IDENTITY.md)  
 **Gate:** Production remains **NO-GO** until remaining dependency highs without safe fix (sharp/postcss-via-next/webpack-cli) are accepted or Next major upgraded; continue burning `@ts-nocheck` on non-commerce modules
 
 Status values: `pending` · `in progress` · `done` · `blocked`
@@ -75,6 +75,7 @@ Do not lift NO-GO until all are true:
 - [x] XSS invoice/barcode/JSON-LD hardened (regression suite still needed)
 - [x] SSRF B2B webhook URL policy (full suite still needed)
 - [x] Webhook replay skip proven (unit); payment reconciliation job present (sandbox E2E still pending)
+- [x] BHD Identity SSO for store (`bhd-store` / `users.bhd_sub`) without sharing identity DB or passwords
 - [ ] Load test vs p75/p95
 - [ ] Backup restore drill; monitoring/runbooks
 - [ ] Legal review; no false PCI/SOC2/ISO claims

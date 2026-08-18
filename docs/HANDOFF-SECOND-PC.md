@@ -1,14 +1,15 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
-**آخر مزامنة من Git:** 2026-08-13  
-**HEAD على `main`:** `52d602c` — `docs: handoff for second PC at bdd414e audit remediation stop`  
+**آخر مزامنة من Git:** 2026-08-18  
+**HEAD على `main`:** بعد دمج `feat/bhd-identity-sso` (SSO عميل `bhd-store`) — راجع `git log -1 --oneline`  
 **نقطة كود الإصلاح السابقة:** `bdd414e` — `Merge branch 'fix/p2-nocheck-burn-deps'`  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 
 > **اقرأ بهذا الترتيب على الجهاز الجديد:**  
 > 1) هذا الملف  
-> 2) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md)  
-> 3) [`ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./ENGINEERING-SECURITY-AUDIT-2026-08-11.md)
+> 2) [`BHD-STORE-IDENTITY.md`](./BHD-STORE-IDENTITY.md) إن كان العمل على SSO  
+> 3) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md)  
+> 4) [`ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./ENGINEERING-SECURITY-AUDIT-2026-08-11.md)
 
 ---
 
@@ -26,21 +27,15 @@ git pull --ff-only origin main
 git log -1 --oneline
 ```
 
-يجب أن ترى:
-
-```text
-52d602c docs: handoff for second PC at bdd414e audit remediation stop
-```
-
-(أو أحدث من `main` إن وُجدت commits لاحقة)  
-نقطة كود الإصلاح الثقيلة: `bdd414e`.
+يجب أن ترى أحدث commit على `main` (بعد 2026-08-18 يتضمن BHD Identity SSO).  
+نقطة كود الإصلاح الثقيلة تبقى: `bdd414e`.
 
 | افعل | لا تفعل |
 |------|---------|
 | اعمل من `main` بعد `pull --ff-only` | لا تدمج فروع `fix/p0-*` أو `fix/p1-*` أو `fix/p2-*` يدوياً (مدموجة مسبقاً) |
 | فرع جديد لكل مهمة: `git checkout -b fix/...` | لا تعدّل على commit قديم ثم تدفع بـ force |
 | انسخ `.env` من الجهاز الأول يدوياً (لا يُرفع إلى Git) | لا ترفع `.env` / أسرار |
-| شغّل migrations حتى **016** | لا تفترض أن DB القديم محدّثة |
+| شغّل migrations حتى **017** | لا تفترض أن DB القديم محدّثة |
 
 إذا ظهر divergence:
 
@@ -142,6 +137,7 @@ npm run test:e2e:smoke
 | فواتير: كيان + تسلسل سنوي + PDF | تم (`014`) |
 | جداول `api_keys` / `audit_logs` + أعمدة TOTP | تم (`015`) |
 | أعمدة منتج featured/sales/deleted | تم (`016`) |
+| عمود `users.bhd_sub` لربط BHD Identity | تم (`017`) — لا يمس الطلبات/المحافظ/كلمات المرور |
 
 ### مصادقة
 
@@ -149,6 +145,7 @@ npm run test:e2e:smoke
 |-----|--------|
 | Password reset selector+verifier + Redis revoke | تم |
 | TOTP setup/enable/disable + تحدّي login | تم |
+| BHD Identity SSO (`client_id=bhd-store`) + بقاء الدخول المحلي | تم — [`BHD-IDENTITY-SSO.md`](./BHD-IDENTITY-SSO.md) |
 | API key scopes assert عند الإنشاء | تم (الجداول عبر 015) |
 
 ### CI / جودة
@@ -194,10 +191,26 @@ npm run migration:run
 | 014 | `014-invoices.ts` | invoices + invoice_sequences |
 | 015 | `015-api-keys-audit-logs-totp.ts` | api_keys + audit_logs + أعمدة 2FA |
 | 016 | `016-product-featured-sales.ts` | is_featured / sales_count / deleted_at |
+| 017 | `017-user-bhd-sub.ts` | `users.bhd_sub` — ربط BHD Identity فقط |
 
 متغيرات DataSource (`backend/src/data-source.ts`):  
 `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`  
 (وليست `DATABASE_*`).
+
+---
+
+## 3.1) BHD Identity SSO (المتجر)
+
+التفاصيل التشغيلية: [`BHD-STORE-IDENTITY.md`](./BHD-STORE-IDENTITY.md)  
+المواصفة المجمّدة: [`BHD-IDENTITY-SSO.md`](./BHD-IDENTITY-SSO.md)
+
+على الجهاز الجديد بعد `migration:run`:
+
+1. انسخ متغيرات `BHD_IDENTITY_*` / `BHD_OAUTH_*` من `backend/.env.example` و`frontend/.env.example` إلى `.env` المحلي (السر من Vercel `one-bhd`: `BHD_OAUTH_CLIENT_SECRET_STORE`).
+2. لا تنسخ `AUTH_SECRET` أو قاعدة الهوية.
+3. `NEXT_PUBLIC_BHD_IDENTITY_ENABLED=true` يظهر زر «الدخول بحساب BHD». الدخول بالبريد المحلي يبقى.
+
+سجل العميل على هوية ONE-BHD (`main`) يشمل localhost و`bhd-stor-x7dc.vercel.app` و`store.bhd-om.com`.
 
 ---
 
@@ -235,6 +248,8 @@ npm run migration:run
 | ملف | دور |
 |-----|-----|
 | [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md) | حالة كل بند إصلاح |
+| [`BHD-STORE-IDENTITY.md`](./BHD-STORE-IDENTITY.md) | تنفيذ SSO للمتجر (`bhd-store`) |
+| [`BHD-IDENTITY-SSO.md`](./BHD-IDENTITY-SSO.md) | مواصفة الهوية المجمّدة (نسخة من ONE-BHD) |
 | [`ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./ENGINEERING-SECURITY-AUDIT-2026-08-11.md) | تقرير NO-GO الأصلي |
 | [`../SECURITY.md`](../SECURITY.md) | سياسة أمان + لافتة NO-GO |
 | [`../README.md`](../README.md) | نظرة عامة + صف حالة الجاهزية |
@@ -243,11 +258,11 @@ npm run migration:run
 
 ## 7) Checklist بدء العمل على الجهاز الآخر
 
-- [ ] `git pull --ff-only origin main` → HEAD = `52d602c` (أو أحدث)
+- [ ] `git pull --ff-only origin main` → أحدث `main` (SSO = عمود `bhd_sub` / docs/BHD-STORE-IDENTITY.md)
 - [ ] `backend/.env` و `frontend/.env` منسوخان يدوياً
 - [ ] Docker: Postgres + Redis يعملان
 - [ ] `npm ci` في backend و frontend
-- [ ] `npm run migration:run` ناجح حتى 016
+- [ ] `npm run migration:run` ناجح حتى **017**
 - [ ] `npm run typecheck:gate` → 0 أخطاء
 - [ ] `npm run test:security` أخضر
 - [ ] فرع جديد للمهمة التالية قبل أي تعديل

@@ -319,7 +319,10 @@
       "registerSuccessDesc": "You can now sign in",
       "accountLocked": "Your account is locked. Please contact support",
       "verifyEmail": "Please verify your email first",
-      "welcomeBack": "Welcome back, {name}!"
+      "welcomeBack": "Welcome back, {name}!",
+      "loginWithBhd": "Sign in with BHD",
+      "ssoError": "BHD Identity sign-in failed",
+      "ssoErrorDesc": "Try again, or sign in with email and password"
     },
     "register": {
       "title": "Create Account",

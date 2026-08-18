@@ -34,6 +34,8 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { VerifyTwoFactorDto } from './dto/verify-two-factor.dto';
 import { EnableTwoFactorDto } from './dto/enable-two-factor.dto';
 import { DisableTwoFactorDto } from './dto/disable-two-factor.dto';
+import { CompleteBhdOidcDto } from './dto/complete-bhd-oidc.dto';
+import { BhdIdentityService } from './services/bhd-identity.service';
 import { clearAuthCookies, setAuthCookies } from './utils/auth-cookies';
 
 @ApiTags('Authentication')
@@ -42,6 +44,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
+    private readonly bhdIdentityService: BhdIdentityService,
   ) {}
 
   /**
@@ -107,6 +110,32 @@ export class AuthController {
     if (result?.requiresTwoFactor) {
       return result;
     }
+    if (result?.tokens) {
+      setAuthCookies(res, result.tokens, this.configService);
+    }
+    return result;
+  }
+
+  /**
+   * Finish BHD Identity OIDC after the Next.js PKCE callback.
+   * Issues store JWTs/cookies. Does not copy the identity `bhd_id` cookie.
+   */
+  @Public()
+  @Post('bhd/complete')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Complete BHD Identity login',
+    description:
+      'Exchange an authorization code for BHD Identity tokens, upsert the local customer by bhd_sub, and set store session cookies.',
+  })
+  @ApiBody({ type: CompleteBhdOidcDto })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Store session issued' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Identity verification failed' })
+  async completeBhdOidc(
+    @Body() dto: CompleteBhdOidcDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.bhdIdentityService.completeLogin(dto);
     if (result?.tokens) {
       setAuthCookies(res, result.tokens, this.configService);
     }

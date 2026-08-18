@@ -171,6 +171,18 @@ export class UsersService {
   }
 
   /**
+   * Find marketplace user by BHD Identity subject (`users.bhd_sub`).
+   */
+  async findByBhdSub(bhdSub: string): Promise<User | null> {
+    if (!bhdSub) {
+      return null;
+    }
+    return this.userRepository.findOne({
+      where: { bhdSub, deletedAt: null },
+    });
+  }
+
+  /**
    * Get user by email (includes password for auth)
    */
   async findByEmail(email: string): Promise<User | null> {

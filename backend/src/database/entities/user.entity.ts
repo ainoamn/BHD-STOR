@@ -68,6 +68,10 @@ export class User {
   @Index()
   email: string;
 
+  /** BHD Identity subject (`id_token.sub` = identity `bhd_users.id`). Additive; local passwords stay. */
+  @Column({ type: 'uuid', nullable: true, unique: true, name: 'bhd_sub' })
+  bhdSub: string | null;
+
   @Column({ type: 'varchar', length: 255, select: false })
   password: string;
 
