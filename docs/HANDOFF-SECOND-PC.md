@@ -1,7 +1,8 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-08-18  
-**HEAD على `main`:** يشمل `cb0d635` — `feat(auth): connect the store to BHD Identity SSO as bhd-store`  
+**HEAD على `main`:** يشمل `98c401f` — تحويل دخول المتجر إلى شاشة الهوية الموحّدة  
+**SSO على `main`:** `cb0d635` → `51088ab` → `683d68d` → `98c401f` (+ توثيق لاحق)  
 **نقطة كود الإصلاح السابقة:** `bdd414e` — `Merge branch 'fix/p2-nocheck-burn-deps'`  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 
@@ -30,6 +31,8 @@ git log -1 --oneline
 يجب أن ترى في `git log -1 --oneline` أحدث `main`، ومن ضمن التاريخ:
 
 ```text
+98c401f fix(auth): send store login to the shared BHD Identity screen
+683d68d fix(auth): complete store SSO on Next like other BHD relying parties
 cb0d635 feat(auth): connect the store to BHD Identity SSO as bhd-store
 ```
 
@@ -148,7 +151,7 @@ npm run test:e2e:smoke
 |-----|--------|
 | Password reset selector+verifier + Redis revoke | تم |
 | TOTP setup/enable/disable + تحدّي login | تم |
-| BHD Identity SSO (`client_id=bhd-store`) + بقاء الدخول المحلي | تم — [`BHD-IDENTITY-SSO.md`](./BHD-IDENTITY-SSO.md) |
+| BHD Identity SSO (`client_id=bhd-store`) + شاشة `id.bhd-om.com`؛ المحلي `?local=1` | تم — [`BHD-STORE-IDENTITY.md`](./BHD-STORE-IDENTITY.md) |
 | API key scopes assert عند الإنشاء | تم (الجداول عبر 015) |
 
 ### CI / جودة
@@ -166,6 +169,10 @@ npm run test:e2e:smoke
 
 | Commit | الموضوع |
 |--------|---------|
+| `98c401f` | دخول المتجر → شاشة الهوية الموحّدة (`id.bhd-om.com`) |
+| `683d68d` | إكمال SSO على Next إن تعذّر Nest |
+| `51088ab` | SSO على `bhdstor.bhd-om.com` دون rewrite لـ localhost |
+| `cb0d635` | ربط المتجر كعميل `bhd-store` + migration 017 |
 | `bdd414e` | دمج: typecheck مسار المال + اختبارات idempotency + migration smoke |
 | `201560b` | إزالة nocheck عن مسار التجارة؛ hash/مخزون/webhook tests؛ seed logistics UUIDs |
 | `6c800ec` / `a259944` | بوابة tsc@0 + Playwright smoke حاجز |
@@ -211,9 +218,9 @@ npm run migration:run
 
 1. انسخ متغيرات `BHD_IDENTITY_*` / `BHD_OAUTH_*` من `backend/.env.example` و`frontend/.env.example` إلى `.env` المحلي (السر من Vercel `one-bhd`: `BHD_OAUTH_CLIENT_SECRET_STORE`).
 2. لا تنسخ `AUTH_SECRET` أو قاعدة الهوية.
-3. `NEXT_PUBLIC_BHD_IDENTITY_ENABLED=true` يظهر زر «الدخول بحساب BHD». الدخول بالبريد المحلي يبقى.
+3. افتح `/ar/auth/login` → تحويل إلى `id.bhd-om.com` (نفس شاشة وازن). البريد المحلي: `?local=1`.
 
-سجل العميل على هوية ONE-BHD (`main`) يشمل localhost و`bhd-stor-x7dc.vercel.app` و`store.bhd-om.com`.
+سجل العميل على هوية ONE-BHD (`main`) يشمل localhost و`bhd-stor-x7dc.vercel.app` و**`bhdstor.bhd-om.com`** (ليس `store.bhd-om.com`).
 
 ---
 
@@ -243,6 +250,7 @@ npm run migration:run
 - `fix/p2-deps-tsc-debt`
 - `fix/p2-totp-apikeys-playwright`
 - `fix/p2-nocheck-burn-deps`
+- `feat/bhd-identity-sso` (محتواه على `main` منذ `cb0d635`)
 
 ---
 
@@ -261,7 +269,7 @@ npm run migration:run
 
 ## 7) Checklist بدء العمل على الجهاز الآخر
 
-- [ ] `git pull --ff-only origin main` → أحدث `main` (SSO = عمود `bhd_sub` / docs/BHD-STORE-IDENTITY.md)
+- [ ] `git pull --ff-only origin main` → أحدث `main` (SSO = تحويل `/auth/login` إلى الهوية / docs/BHD-STORE-IDENTITY.md)
 - [ ] `backend/.env` و `frontend/.env` منسوخان يدوياً
 - [ ] Docker: Postgres + Redis يعملان
 - [ ] `npm ci` في backend و frontend
