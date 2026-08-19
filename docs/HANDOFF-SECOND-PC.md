@@ -8,7 +8,7 @@
 
 > **اقرأ بهذا الترتيب على الجهاز الجديد:**  
 > 1) هذا الملف  
-> 2) [`BHD-STORE-INTEGRATION.md`](./BHD-STORE-INTEGRATION.md) و[`BHD-STORE-IDENTITY.md`](./BHD-STORE-IDENTITY.md) إن كان العمل على SSO / مشغّل التطبيقات  
+> 2) [`BHD-UNIFIED-LOGIN-AND-APPS.md`](./BHD-UNIFIED-LOGIN-AND-APPS.md) ثم [`BHD-STORE-INTEGRATION.md`](./BHD-STORE-INTEGRATION.md) إن كان العمل على SSO / مشغّل التطبيقات  
 > 3) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md)  
 > 4) [`ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./ENGINEERING-SECURITY-AUDIT-2026-08-11.md)
 

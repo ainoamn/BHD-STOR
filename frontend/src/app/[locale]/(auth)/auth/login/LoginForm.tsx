@@ -326,7 +326,7 @@ export default function LoginForm() {
             <p className="text-sm text-muted-foreground">
               {t("noAccount")}{" "}
               <Link
-                href="https://id.bhd-om.com/login"
+                href="/auth/register"
                 className="text-primary hover:underline font-medium"
               >
                 {t("signUp")}

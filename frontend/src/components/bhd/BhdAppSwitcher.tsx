@@ -34,7 +34,7 @@ function isCurrentApp(app: BhdApp, pageOrigin: string) {
 }
 
 function accountPageUrl(pageOrigin: string) {
-  if (!pageOrigin) return "/account";
+  if (!pageOrigin) return `${DEFAULT_IDENTITY_ISSUER}/account`;
   const accountApp = BHD_APPS.find((app) => app.id === "account");
   const portalApp = BHD_APPS.find((app) => app.id === "portal");
   if (
