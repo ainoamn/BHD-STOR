@@ -11,6 +11,7 @@ import {
   readVerifiedIdentityProfile,
   sessionSigningSecret,
 } from '@/lib/bhd-identity';
+import { SESSION_IDLE_MAX_AGE_SEC } from '@/lib/bhd/session';
 
 export const runtime = 'nodejs';
 
@@ -26,18 +27,18 @@ function applyProductCookies(
   response: NextResponse,
   tokens: { accessToken: string; refreshToken: string },
 ) {
-  response.cookies.set('accessToken', tokens.accessToken, productSessionCookieOptions(60 * 60 * 8));
+  response.cookies.set('accessToken', tokens.accessToken, productSessionCookieOptions(SESSION_IDLE_MAX_AGE_SEC));
   response.cookies.set(
     'refreshToken',
     tokens.refreshToken,
-    productSessionCookieOptions(60 * 60 * 24 * 7),
+    productSessionCookieOptions(SESSION_IDLE_MAX_AGE_SEC),
   );
   response.cookies.set('bhd_session', '1', {
     httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_IDLE_MAX_AGE_SEC,
   });
 }
 

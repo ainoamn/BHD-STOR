@@ -1,16 +1,17 @@
 import React from "react";
 import type { Metadata } from "next";
-import { Tajawal } from "next/font/google";
+import { IBM_Plex_Sans_Arabic } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { LocaleProviders } from "./providers";
 import { SsoSessionHydrate } from "@/components/auth/SsoSessionHydrate";
+import { SessionKeepAlive } from "@/components/auth/SessionKeepAlive";
 import "@/styles/globals.css";
 
-const tajawal = Tajawal({
-  subsets: ["arabic", "latin"],
-  weight: ["200", "300", "400", "500", "700", "800", "900"],
-  variable: "--font-tajawal",
+const ibmPlexArabic = IBM_Plex_Sans_Arabic({
+  subsets: ["arabic"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-ibm-plex-arabic",
   display: "swap",
 });
 
@@ -76,8 +77,8 @@ export const metadata: Metadata = {
     google: "your-google-verification-code",
   },
   other: {
-    "theme-color": "#006400",
-    "msapplication-TileColor": "#006400",
+    "theme-color": "#075c45",
+    "msapplication-TileColor": "#075c45",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "default",
     "apple-mobile-web-app-title": "BHD Market",
@@ -95,17 +96,18 @@ export default async function RootLayout({ children, params: { locale } }: RootL
   const lang = locale === "ar" ? "ar" : "en";
 
   return (
-    <html lang={lang} dir={dir} className={tajawal.variable} suppressHydrationWarning>
+    <html lang={lang} dir={dir} className={ibmPlexArabic.variable} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://images.unsplash.com" />
       </head>
       <body
-        className={`${tajawal.className} antialiased bg-[#F8F5F0] dark:bg-gray-950 text-[#1a1a1a] dark:text-white min-h-screen`}
+        className={`${ibmPlexArabic.className} antialiased bg-[#fbfaf7] dark:bg-gray-950 text-[#092d24] dark:text-white min-h-screen`}
       >
         <NextIntlClientProvider locale={locale} messages={messages}>
           <SsoSessionHydrate />
+          <SessionKeepAlive />
           <LocaleProviders>{children}</LocaleProviders>
         </NextIntlClientProvider>
       </body>

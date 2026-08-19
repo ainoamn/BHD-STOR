@@ -27,6 +27,10 @@
       "description": "Oman's first smart e-commerce marketplace",
       "copyright": "© {year} BHD Oman. All rights reserved.",
       "madeWith": "Made with ❤️ in Oman",
+      "programs": "Our apps",
+      "allApps": "All apps and how they work",
+      "brandIdentity": "Brand identity",
+      "security": "Security",
       "links": {
         "shop": {
           "title": "Shop",

@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes } from 'crypto';
+import { SESSION_IDLE_MAX_AGE_SEC } from '@/lib/bhd/session';
 
 export const BHD_OAUTH_STATE_COOKIE = 'bhd_oauth_state';
 export const DEFAULT_BHD_IDENTITY_ISSUER = 'https://id.bhd-om.com';
@@ -200,6 +201,8 @@ export function mintStoreSessionTokens(profile: IdentityProfile): {
   const base = {
     sub: profile.sub,
     email: profile.email,
+    name: profile.name,
+    picture: profile.picture,
     role: 'customer',
     iss: process.env.JWT_ISSUER || 'bhd-oman-marketplace',
     aud: process.env.JWT_AUDIENCE || 'bhd-oman-api',
@@ -209,8 +212,8 @@ export function mintStoreSessionTokens(profile: IdentityProfile): {
     throw new Error('missing_session_secret');
   }
   return {
-    accessToken: signHs256({ ...base, type: 'access', exp: now + 60 * 60 * 8 }, secret),
-    refreshToken: signHs256({ ...base, type: 'refresh', exp: now + 60 * 60 * 24 * 7 }, secret),
+    accessToken: signHs256({ ...base, type: 'access', exp: now + SESSION_IDLE_MAX_AGE_SEC }, secret),
+    refreshToken: signHs256({ ...base, type: 'refresh', exp: now + SESSION_IDLE_MAX_AGE_SEC }, secret),
   };
 }
 
@@ -222,4 +225,30 @@ export function productSessionCookieOptions(maxAge: number) {
     path: '/',
     maxAge,
   };
+}
+
+export function readStoreAccessProfile(accessToken: string): IdentityProfile | null {
+  const secret = sessionSigningSecret();
+  if (!secret) return null;
+  const parts = accessToken.split('.');
+  if (parts.length !== 3) return null;
+  const [header, body, sig] = parts;
+  const expected = createHmac('sha256', secret).update(`${header}.${body}`).digest('base64url');
+  if (expected !== sig) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as Record<string, unknown>;
+    const now = Math.floor(Date.now() / 1000);
+    if (typeof payload.exp === 'number' && payload.exp < now) return null;
+    const sub = typeof payload.sub === 'string' ? payload.sub : '';
+    const email = typeof payload.email === 'string' ? payload.email : '';
+    if (!sub || !email) return null;
+    return {
+      sub,
+      email,
+      name: typeof payload.name === 'string' ? payload.name : email,
+      picture: typeof payload.picture === 'string' ? payload.picture : null,
+    };
+  } catch {
+    return null;
+  }
 }

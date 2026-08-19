@@ -9,7 +9,7 @@
 > - [`BHD-APP-SWITCHER.md`](BHD-APP-SWITCHER.md) — `bhd-appswitcher.v1`  
 > **الناشر:** بوابة BHD — مشروع Vercel `one-bhd` — المُصدِر `https://id.bhd-om.com`
 
-انسخ هذا الملف إلى مستودع كل منتج تحت `docs/BHD-UNIFIED-LOGIN-AND-APPS.md`. بعد تثبيت الدخول والمشغّل **املأ القسم 12 الخاص بموقعك**: كيف ثبّتت، كيف يعمل، والتقنيات الكاملة لبناء ذلك الموقع. لا تحذف أقسام المواقع الأخرى.
+انسخ هذا الملف إلى مستودع كل منتج تحت `docs/BHD-UNIFIED-LOGIN-AND-APPS.md`. بعد تثبيت الدخول والمشغّل **املأ القسم 12 الخاص بموقعك**: كيف ثبّتت، كيف يعمل، والتقنيات الكاملة لبناء ذلك الموقع. لا تحذف أقسام المواقع الأخرى. المرجع الحي لهذه القواعد هو البوابة `BHD-Complete-Brand-and-Portal-v1.1.0`.
 
 ---
 
@@ -27,13 +27,73 @@
 
 ---
 
+## 0.1 الهوية البصرية والتصميم — إلزامي لكل موقع
+
+كل مواقع المجموعة (الحالية والمستقبلية) تستخدم **نفس الهوية البصرية وطريقة التصميم** كما في البوابة الحية ودليل [`BHD-BRAND-IDENTITY`](../BHD-Complete-Brand-and-Portal-v1.1.0/docs/BHD-BRAND-IDENTITY.md) وصفحة `/brand`.
+
+| الرمز | القيمة على البوابة |
+|---|---|
+| الحبر | `#092d24` (`--ink`) |
+| الأخضر | `#075c45` (`--emerald`) |
+| الرمل/الخلفية | `#fbfaf7` / `#f4f0e8` |
+| الخط العربي | IBM Plex Sans Arabic |
+| الاتجاه | RTL للعربية |
+| الشعار | ملفات `/brand/bhd-logo.svg` و`bhd-mark.svg` الرسمية — لا شعار بديل |
+| الزوايا والهدوء | بطاقات بحدود `#d7e2dc` وظل خفيف كما في البوابة |
+
+لا يُبتكر نظام ألوان محلي لكل منتج. لون تمييز المنتج (وازن، نَسَب…) يُستخدم داخل أيقونة البرنامج فقط، لا لإعادة طلاء الموقع كله.
+
+كل موقع يعرض نبذة الشركة ورابط **عن الشركة** و**هوية الشركة** (على البوابة: `/about` و`/brand`). المواقع الأخرى تنسخ المحتوى أو تربط صفحتي البوابة إن لم تُبنَ محلياً بعد.
+
+---
+
+## 0.2 الجلسة: خمول 48 ساعة، حساب واحد، الإدارة
+
+**الخمول.** بعد **48 ساعة بلا استخدام** يُسجَّل الخروج تلقائياً. أي استخدام (نقرة، لوحة مفاتيح، إعادة إظهار التبويب، طلب `/api/auth/me`) يجدّد النافذة 48 ساعة أخرى. المرجع في البوابة: `SESSION_IDLE_MAX_AGE_SEC` و`SessionKeepAlive` وتجديد الكوكي في `GET /api/auth/me`. المنتج يطبّق النافذة نفسها على **جلسته المحلية**، وتبقى جلسة الهوية على `id` بنفس القاعدة حتى يبقى التنقل الصامت متسقاً.
+
+**حساب واحد لكل متصفح.** لا يُسمح بجلستين لحسابين في نفس المتصفح (نفس الملف الشخصي). الدخول الجديد يستبدل الكوكي فوراً. لا قائمة تبديل حسابات. لا «إضافة حساب». Google على الهوية يستبدل الجلسة السابقة.
+
+**الإدارة.** صفحات إعدادات الأدمن (`/admin` على الهوية، ولوحات الأدمن داخل كل منتج) **للمدير فقط**. على البوابة: `BHD_PLATFORM_ADMIN_EMAILS` و`requirePlatformAdmin` — غير المدرج يرى منعاً صريحاً. أدوار منتج (مشرف شركة في حسابي، إلخ) تبقى جداول ذلك المنتج ولا تُفتح من الهوية.
+
+---
+
+## 0.3 التحميل المسبق والتنقل السلس
+
+عند أول تحميل يُسخَّن التطبيق في الخلفية: `NavigationWarmup` يستدعي `router.prefetch` لكل الصفحات العامة (`/`, المنتجات، `/apps`, `/about`, `/brand`, `/login`, `/account`…). الروابط `InstantLink` مع `prefetch`. النتيجة: الانتقال الداخلي يبدو كأنه محمّل مسبقاً. كل موقع ينفّذ التسخين لصفحاته هو، لا لصفحات منتج آخر.
+
+---
+
+## 0.4 المزامنة الفورية — ماذا ينعكس وما لا
+
+| ينعكس فوراً عبر الهوية (حاسوب ↔ هاتف) | لا ينعكس بين المواقع |
+|---|---|
+| الاسم، البريد، الهاتف، العنوان، الصورة في `/account` | فواتير حسابي، محافظ وازن، طلبات المتجر، شجرة نَسَب، عقارات بيتك |
+| قائمة المواقع المرتبطة بالحساب | اشتراكات ذلك المنتج وخططه |
+| حالة الدخول على الهوية (بعد SSO) | أدوار المشرف داخل المنتج |
+
+المصدر: Neon `bhd-identity` بلا كاش على `/api/account` و`/oauth/userinfo`. تعديل على الهاتف يظهر على الكمبيوتر في الطلب التالي لنفس واجهات الهوية. بيانات التشغيل تُزامَن داخل **قاعدة ذلك المنتج** فقط (آليات المنتج: ويب سوكت/استعلام حي — ليست مسؤولية الهوية).
+
+---
+
+## 0.5 الفوتر: برامجنا وشرح التطبيقات
+
+في أسفل **كل** موقع (مرجع البوابة: `SiteFooter`):
+
+1. صف **برامجنا** بشعار واسم كل تطبيق.
+2. رابط «كل التطبيقات وشرحها» إلى صفحة `/apps` (أو المكافئ).
+3. روابط: عن الشركة، هوية الشركة، الخصوصية، الشروط، الأمان.
+
+صفحة `/apps` على البوابة تشرح لكل برنامج: الشعار، الاسم، الفئة، الفوائد، كيف يعمل، ورابط الفتح. المواقع الأخرى تنسخ المكوّن والصفحة أو تربط `https://www.bhd-om.com/apps` إلى أن تُبنَى الصفحة محلياً بنفس المحتوى.
+
+---
+
 ## 1. لماذا يعمل التنقل دون إعادة تسجيل (بدون مخاطرة)
 
 الكوكي **لا يُشارك** عبر النطاقات. لا `Domain=.bhd-om.com`. لا `iframe`. لا قاعدة بيانات مشتركة.
 
 ما يحدث فعلياً:
 
-1. عند أول دخول ناجح على `id.bhd-om.com` تُضبط كوكي هوية اسمها `bhd_id`، **Host-only** على مضيف الهوية فقط، مدة 7 أيام، `HttpOnly` + `Secure` + `SameSite=Lax`.
+1. عند أول دخول ناجح على `id.bhd-om.com` تُضبط كوكي هوية اسمها `bhd_id`، **Host-only** على مضيف الهوية فقط، **48 ساعة خمول منزلق**، `HttpOnly` + `Secure` + `SameSite=Lax`.
 2. عندما يفتح المستخدم منتجاً آخر (مثلاً وازن) يذهب المتصفح إلى `{origin}/api/auth/bhd/start` ثم إلى  
    `https://id.bhd-om.com/oauth/authorize?...`
 3. الهوية ترى كوكي `bhd_id` لأنها على **نفس المضيف** الذي ضبطها. لا تحتاج كلمة مرور.
@@ -84,7 +144,7 @@ sequenceDiagram
 | صلاحية الكود | 60 ثانية، استخدام واحد |
 | صلاحية ID/Access Token | 10 دقائق |
 | صلاحية Refresh | 30 يوماً مع تدوير |
-| صلاحية `bhd_id` | 7 أيام |
+| صلاحية `bhd_id` | 48 ساعة خمول منزلق (أي استخدام يجدّد) |
 | DNS للنطاقات الفرعية | CNAME → `cname.vercel-dns.com` (**ليس** `vercel-dns-017`) |
 
 ### 2.1 `client_id` و`redirect_uri` الإنتاج
@@ -312,6 +372,10 @@ CREATE INDEX IF NOT EXISTS users_bhd_sub_idx ON <users>(bhd_sub);
 | `app/api/auth/bhd/start/route.ts` | SSO البوابة (يحوّل إلى origin لأنها الهوية) |
 | `app/lib/bhd/apps.ts` | الكتالوج المجمد |
 | `app/lib/identity/clients.ts` | تسجيل `redirect_uri` |
+| `app/components/SiteFooter.tsx` | فوتر برامجنا + عن الشركة + الهوية |
+| `app/apps/page.tsx` | شرح كل برنامج وفوائده وكيف يعمل |
+| `app/components/auth/SessionKeepAlive.tsx` | تجديد الجلسة عند الاستخدام |
+| `app/lib/auth/config.ts` | `SESSION_IDLE_MAX_AGE_SEC` = 48 ساعة |
 | `db/schema.ts` | جداول Neon للهوية فقط |
 
 ---
@@ -324,6 +388,9 @@ CREATE INDEX IF NOT EXISTS users_bhd_sub_idx ON <users>(bhd_sub);
 4. `state`/`nonce` خاطئ → رفض.
 5. كود مستخدم مرتين → الثانية `invalid_grant`.
 6. خروج المنتج ثم فتحه → يطلب دخولاً. خروج الهوية ثم منتج آخر → يطلب دخولاً.
+6ب. خمول 48 ساعة بلا استخدام → خروج. استخدام خلال النافذة يجدّد.
+6ج. لا يمكن جلستان لحسابين في نفس المتصفح.
+6د. غير المدير لا يدخل `/admin` ولا إعدادات أدمن المنتج.
 7. من عُمان: `id.bhd-om.com` يفتح.
 8. بلا جلسة منتج: لا تسع نقاط.
 9. «الحساب» من المنتج يفتح `https://id.bhd-om.com/account`.
@@ -338,7 +405,7 @@ CREATE INDEX IF NOT EXISTS users_bhd_sub_idx ON <users>(bhd_sub);
 | الهوية / البوابة | نعم (هي المُصدِر) | نعم | portal `sso` | القسم 6 أعلاه + 12.1 |
 | وازن | قيد التنفيذ | بعد OIDC | `browse` حتى إشعار ONE-BHD | 12.2 |
 | حسابي | لم يُربط | — | `browse` | 12.3 |
-| نَسَب | لم يُربط | — | `browse` | 12.4 |
+| نَسَب | نعم | نعم | `sso` | 12.4 |
 | بيتك | لم يُربط | — | `browse` | 12.5 |
 | المتجر | نعم | نعم | `sso` | 12.6 |
 | المكتب | معطّل في المشغّل | — | `enabled: false` | 12.7 |
@@ -431,10 +498,21 @@ authorize وtoken دائماً على https://id.bhd-om.com وليس أصل ال
 
 | البند | التوثيق |
 |---|---|
+| تاريخ التثبيت الحي | 18–19 أغسطس 2026 — OIDC ثم المشغّل (`e1231cd` وما بعده) |
 | `client_id` | `bhd-nasab` |
-| الأصل | `https://nasab.bhd-om.com` |
-| التقنيات الكاملة | _يملأها فريق نَسَب_ |
-| ما لم يُوحَّد | الأشجار، الدعوات، القصص |
+| الأصل | `https://nasab.bhd-om.com` (نسخة Vercel: `https://nasab-mu.vercel.app`) |
+| `redirect_uri` | `https://nasab.bhd-om.com/api/auth/bhd/callback` + `https://nasab-mu.vercel.app/api/auth/bhd/callback` + `http://localhost:5173/api/auth/bhd/callback` |
+| كيف ثُبّت | القسم 6 من SSO ثم نسخ الكتالوج والمشغّل من `v1.1.0`. الخطة في مستودع نَسَب: `docs/BHD-NASAB-INTEGRATION.md` |
+| كيف يعمل الدخول | زر «تسجيل الدخول» → `GET /api/auth/bhd/start` → `https://id.bhd-om.com/oauth/authorize` (ليس أصل نَسَب) → `callback` يستبدل `code` على الخادم → كوكي `kimi_sid` + عمود `bhd_sub` |
+| كيف يعمل التنقل الصامت | كوكي `bhd_id` على مضيف الهوية فقط؛ نَسَب لا يقرأ كوكي البوابة |
+| المشغّل | `AppHeader` بعد جلسة نَسَب فقط. «الحساب» → `https://id.bhd-om.com/account`. إعدادات الشجرة/الفوترة تبقى `/account` داخل نَسَب |
+| ملفات `start` / `callback` | `app/server/bhd/auth.ts` — `/api/auth/bhd/start` و`/callback` و`/logout` |
+| عمود `bhd_sub` | جدول `users` (Neon PostgreSQL) |
+| قلب `mode` إلى `sso` | 19 أغسطس 2026 في `lib/bhd/apps.ts` داخل ONE-BHD |
+| أسرار (أسماء فقط) | `BHD_IDENTITY_ISSUER`, `BHD_OAUTH_CLIENT_ID`, `BHD_OAUTH_CLIENT_SECRET`, `BHD_OAUTH_REDIRECT_URI`, `BHD_IDENTITY_TOKEN_SECRET`, `APP_SECRET`, `DATABASE_URL` |
+| التقنيات الكاملة لبناء هذا الموقع وكيف يعمل | SPA: Vite + React + TypeScript + Tailwind + tRPC من المتصفح. الخادم: Hono داخل `app/server` يُنشر دالة Vercel واحدة (`Root Directory = app`، مشروع `nasab`). البيانات: Neon PostgreSQL (eu-west-2) عبر Drizzle ومسار Neon HTTP sidecar. الجلسة: JWT HS256 في كوكي Host-only اسمها `kimi_sid` موقَّعة بـ `APP_SECRET`. الواجهة عربية/إنجليزية. المدفوعات (تحويل بنكي / ثواني / Stripe) والكوبونات محلية في نَسَب. الاختبار: Vitest. |
+| ما لم يُوحَّد | الأشجار، الأعضاء، الدعوات، القصص، GEDCOM، فواتير نَسَب، الخطط، أدوار الشجرة |
+| فريق الصيانة | مستودع `ainoamn/Nasab` |
 
 ### 12.5 بيتك — `ainoamn/ainoamn-ain-oman-web`
 
@@ -451,17 +529,19 @@ authorize وtoken دائماً على https://id.bhd-om.com وليس أصل ال
 |---|---|
 | `client_id` | `bhd-store` |
 | الأصل | `https://bhdstor.bhd-om.com` |
-| تاريخ التثبيت | 18–19 أغسطس 2026 — OIDC + مشغّل على `main` (`cb0d635` … `1451c06`) |
-| خطة التنفيذ | [BHD-STORE-INTEGRATION.md](BHD-STORE-INTEGRATION.md) · التشغيل: [BHD-STORE-IDENTITY.md](BHD-STORE-IDENTITY.md) |
-| كيف ثُبّت | عمود `users.bhd_sub` (migration 017). مسارات Next: `/api/auth/bhd/start` · `callback` · `logout` · `status`. Nest: `POST /api/v1/auth/bhd/complete`. `/auth/login` و`/auth/register` غلاف يحوّل إلى `start` إلا `?local=1`. |
-| كيف يعمل الدخول | المتجر يحوّل إلى `https://id.bhd-om.com/oauth/authorize?client_id=bhd-store` (ليس أصل المتجر). تبادل الرمز على خادم Next. إن تعذّر Nest على أصل Vercel تُصدر جلسة منتج على Next. |
-| كيف يعمل التنقل الصامت | جلسة `bhd_id` على الهوية فقط؛ المتجر لا يقرأ كوكي البوابة. من المشغّل `mode=sso` → `https://bhdstor.bhd-om.com/api/auth/bhd/start?returnTo=/` |
-| المشغّل | `frontend/src/components/bhd/BhdAppSwitcher.tsx` في شريط `(main)/layout` بعد الجلسة فقط. الحساب → `https://id.bhd-om.com/account`. الخروج → `/api/auth/bhd/logout` ثم `end-session`. |
-| تاريخ قلب `mode` إلى `sso` | 19 أغسطس 2026 في ONE-BHD (`cb3067f`) |
-| أسرار (أسماء فقط) | `BHD_IDENTITY_ISSUER`, `BHD_OAUTH_CLIENT_ID`, `BHD_OAUTH_CLIENT_SECRET`, `BACKEND_URL` + سر جلسة المتجر (`JWT_SECRET` / ما يوقّع كوكي `accessToken`) |
-| **التقنيات الكاملة** | **واجهة:** Next.js 14 App Router · next-intl (ar/en RTL) · Tailwind · React Query · Zustand · Vercel مشروع `bhdstor` (نطاق `bhdstor.bhd-om.com`). **API:** NestJS · TypeORM · PostgreSQL 16 · Redis 7 · Bull. **مال:** PaymentAttempt + WebhookEvent · `PAYMENTS_LIVE_ENABLED` افتراضي false · COD مسموح. **نشر الواجهة** منفصل عن Nest؛ إن لم يُضبط `BACKEND_URL` العام يبقى `/api/v1` 404 ومسار SSO يكتمل على Next. **حكم إنتاج:** NO-GO (تدقيق آب 2026) — SSO لا يرفعه. |
-| ما لم يُوحَّد | المتاجر، الطلبات، المحافظ، المدفوعات، الشحن، أدوار بائع/مشرف (الحساب الجديد من الهوية دائماً `customer`) |
-| فريق الصيانة | مستودع [ainoamn/BHD-STOR](https://github.com/ainoamn/BHD-STOR) |
+| تاريخ التثبيت | 18–19 أغسطس 2026 — OIDC + مشغّل على `main` |
+| خطة التنفيذ | [BHD-STORE-INTEGRATION.md](BHD-STORE-INTEGRATION.md) |
+| كيف ثُبّت | `users.bhd_sub` · `/api/auth/bhd/start`+`callback`+`logout` · غلاف `/auth/login` و`/auth/register` → الهوية إلا `?local=1` · مشغّل بعد الجلسة |
+| كيف يعمل الدخول | authorize/token على `id.bhd-om.com` بـ `client_id=bhd-store` لا أصل المتجر |
+| التنقل الصامت | كوكي `bhd_id` على الهوية؛ الكتالوج `mode=sso` للمتجر |
+| المشغّل | تسع نقاط في شريط المتجر؛ الحساب `https://id.bhd-om.com/account` |
+| جلسة المنتج | خمول منزلق 48 ساعة (`SESSION_IDLE_MAX_AGE_SEC` + `SessionKeepAlive` → `/api/auth/session/keepalive`) |
+| الفوتر | صف «برامجنا» من `apps.ts` + روابط البوابة `/apps` `/about` `/brand` `/security` |
+| الخط | IBM Plex Sans Arabic |
+| تاريخ قلب `mode` إلى `sso` | 19 أغسطس 2026 |
+| أسرار (أسماء فقط) | `BHD_IDENTITY_ISSUER`, `BHD_OAUTH_CLIENT_ID`, `BHD_OAUTH_CLIENT_SECRET`, `BACKEND_URL` |
+| **التقنيات الكاملة** | Next.js 14 · NestJS · TypeORM · PostgreSQL · Redis · Vercel `bhdstor` · حكم NO-GO للإنتاج |
+| ما لم يُوحَّد | المتاجر، الطلبات، المحافظ، المدفوعات، الشحن، أدوار البائع/المشرف |
 
 ### 12.7 المكتب — `ainoamn/bhd-om`
 

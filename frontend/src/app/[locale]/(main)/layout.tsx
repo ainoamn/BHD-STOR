@@ -15,6 +15,9 @@ import { CurrencyProvider } from "@/providers/CurrencyProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { BrandLogo } from "@/components/BrandLogo";
 import { BhdAppSwitcher } from "@/components/bhd/BhdAppSwitcher";
+import { BhdAppIcon } from "@/components/bhd/BhdAppIcon";
+import { NavigationWarmup } from "@/components/NavigationWarmup";
+import { BHD_APPS } from "@/lib/bhd/apps";
 
 import { isAdminRole } from "@/lib/auth-helpers";
 import { useAuth } from "@/hooks/useAuth";
@@ -289,10 +292,31 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
 
 function Footer() {
   const t = useTranslations("layout.footer");
+  const programs = BHD_APPS.filter((app) => app.enabled && app.id !== "account");
 
   return (
     <footer className="border-t bg-muted/30">
       <div className="container mx-auto px-4 py-12">
+        <div className="store-footer-programs">
+          <div className="store-footer-programs-head">
+            <p>{t("programs")}</p>
+            <a href="https://www.bhd-om.com/apps">{t("allApps")}</a>
+          </div>
+          <div className="store-footer-programs-grid">
+            {programs.map((app) => (
+              <a
+                key={app.id}
+                href={app.mode === "sso" && app.startUrl ? app.startUrl : `${app.origin}/`}
+                className="store-footer-program"
+                title={app.nameAr}
+              >
+                <BhdAppIcon id={app.id} title={app.nameAr} />
+                <span>{app.nameAr}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="space-y-4">
@@ -359,14 +383,19 @@ function Footer() {
             <h4 className="font-semibold mb-4">{t("links.company.title")}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link href="/about" className="hover:text-foreground transition-colors">
+                <a href="https://www.bhd-om.com/about" className="hover:text-foreground transition-colors">
                   {t("links.company.about")}
-                </Link>
+                </a>
               </li>
               <li>
-                <Link href="/careers" className="hover:text-foreground transition-colors">
-                  {t("links.company.careers")}
-                </Link>
+                <a href="https://www.bhd-om.com/brand" className="hover:text-foreground transition-colors">
+                  {t("brandIdentity")}
+                </a>
+              </li>
+              <li>
+                <a href="https://www.bhd-om.com/security" className="hover:text-foreground transition-colors">
+                  {t("security")}
+                </a>
               </li>
               <li>
                 <Link href="/terms" className="hover:text-foreground transition-colors">
@@ -406,6 +435,7 @@ export default function MainLayout({
     <CurrencyProvider>
       <ThemeProvider defaultTheme="light" storageKey="bhd-theme">
         <div className="flex min-h-screen flex-col">
+              <NavigationWarmup />
               <Navbar onCartOpen={() => setCartOpen(true)} />
 
               <main className="flex-1">{children}</main>
