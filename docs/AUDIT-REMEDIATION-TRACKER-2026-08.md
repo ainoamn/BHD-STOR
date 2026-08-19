@@ -4,7 +4,7 @@
 **Audit commit:** `feb0e4919f8e85f6138481dec1e5c85c1bc4d8c5`  
 **Documented:** 2026-08-12  
 **Implementation sprint started:** 2026-08-12  
-**Last handoff sync:** 2026-08-18 · BHD Identity SSO (`bhd-store`) · login redirects to `id.bhd-om.com` · see [`HANDOFF-SECOND-PC.md`](./HANDOFF-SECOND-PC.md) and [`BHD-STORE-IDENTITY.md`](./BHD-STORE-IDENTITY.md)  
+**Last handoff sync:** 2026-08-19 · BHD Identity SSO + app switcher (`bhd-store` mode sso) · see [`BHD-STORE-INTEGRATION.md`](./BHD-STORE-INTEGRATION.md)  
 **Gate:** Production remains **NO-GO** until remaining dependency highs without safe fix (sharp/postcss-via-next/webpack-cli) are accepted or Next major upgraded; continue burning `@ts-nocheck` on non-commerce modules
 
 Status values: `pending` · `in progress` · `done` · `blocked`

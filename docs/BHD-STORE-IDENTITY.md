@@ -147,6 +147,8 @@ BHD_OAUTH_CLIENT_SECRET=<نفس قيمة BHD_OAUTH_CLIENT_SECRET_STORE على م
 | `backend/src/auth/services/bhd-identity.service.ts` | تبادل الرمز + userinfo |
 | `backend/src/auth/auth.service.ts` `loginWithBhdIdentity` | upsert محلي |
 | `POST /api/v1/auth/bhd/complete` | إصدار كوكيز المتجر (مسار معفى من CSRF) |
+| `frontend/src/components/bhd/BhdAppSwitcher.tsx` | تسع النقاط بعد الجلسة |
+| `frontend/src/lib/bhd/apps.ts` | كتالوج التطبيقات المجمّد |
 
 الهوية تقبل عملاء الطرف الأول بـ PKCE حتى بدون `client_secret` (`resolveOAuthClient`) ما دام السجل كذلك. المتجر يبادل الرمز من Next دائماً، ثم يحاول Nest، وإن تعذّر يصدر جلسة منتج على أصل المتجر.
 

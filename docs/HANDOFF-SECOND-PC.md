@@ -8,7 +8,7 @@
 
 > **اقرأ بهذا الترتيب على الجهاز الجديد:**  
 > 1) هذا الملف  
-> 2) [`BHD-STORE-IDENTITY.md`](./BHD-STORE-IDENTITY.md) إن كان العمل على SSO  
+> 2) [`BHD-STORE-INTEGRATION.md`](./BHD-STORE-INTEGRATION.md) و[`BHD-STORE-IDENTITY.md`](./BHD-STORE-IDENTITY.md) إن كان العمل على SSO / مشغّل التطبيقات  
 > 3) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md)  
 > 4) [`ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./ENGINEERING-SECURITY-AUDIT-2026-08-11.md)
 
@@ -259,7 +259,9 @@ npm run migration:run
 | ملف | دور |
 |-----|-----|
 | [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md) | حالة كل بند إصلاح |
+| [`BHD-STORE-INTEGRATION.md`](./BHD-STORE-INTEGRATION.md) | خطة الدخول الموحّد + مشغّل التطبيقات (نمط وازن) |
 | [`BHD-STORE-IDENTITY.md`](./BHD-STORE-IDENTITY.md) | تنفيذ SSO للمتجر (`bhd-store`) |
+| [`BHD-APP-SWITCHER.md`](./BHD-APP-SWITCHER.md) | مواصفة تسع النقاط (نسخة مجمّدة) |
 | [`BHD-IDENTITY-SSO.md`](./BHD-IDENTITY-SSO.md) | مواصفة الهوية المجمّدة (نسخة من ONE-BHD) |
 | [`ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./ENGINEERING-SECURITY-AUDIT-2026-08-11.md) | تقرير NO-GO الأصلي |
 | [`../SECURITY.md`](../SECURITY.md) | سياسة أمان + لافتة NO-GO |

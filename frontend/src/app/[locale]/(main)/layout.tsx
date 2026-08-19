@@ -3,18 +3,10 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import Image from "next/image";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/sonner";
@@ -22,6 +14,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { CurrencyProvider } from "@/providers/CurrencyProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { BrandLogo } from "@/components/BrandLogo";
+import { BhdAppSwitcher } from "@/components/bhd/BhdAppSwitcher";
 
 import { isAdminRole } from "@/lib/auth-helpers";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,16 +30,10 @@ import {
   User,
   Store,
   LogOut,
-  Settings,
   Shield,
   Heart,
   Package,
-  ChevronDown,
-  Moon,
-  Sun,
-  Globe,
   Home,
-  TrendingUp,
   Tag,
 } from "lucide-react";
 
@@ -261,68 +248,28 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
               )}
             </Button>
 
-            {/* User Menu */}
+            {/* User Menu — 9-dot BHD switcher after session only */}
             {showAuthLoading ? (
               <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
             ) : user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="gap-2 hidden sm:flex">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
-                      {user.avatar ? (
-                        <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <User className="h-4 w-4 text-primary" />
-                      )}
-                    </div>
-                    <span className="text-sm font-medium max-w-[80px] truncate">{user.fullName || user.email}</span>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <div className="px-3 py-2">
-                    <p className="text-sm font-medium">{user.fullName || user.email}</p>
-                    <p className="text-xs text-muted-foreground">{user.email}</p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => (window.location.href = "/dashboard")}>
-                    <User className="mr-2 h-4 w-4" />
-                    {t("nav.dashboard")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => (window.location.href = "/orders")}>
-                    <Package className="mr-2 h-4 w-4" />
-                    {t("nav.orders")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => (window.location.href = "/wishlist")}>
-                    <Heart className="mr-2 h-4 w-4" />
-                    {t("nav.wishlist")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => (window.location.href = "/settings")}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    {t("nav.settings")}
-                  </DropdownMenuItem>
-                  {isAdminRole(user.role) && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => (window.location.href = "/dashboard/admin")}>
-                        <Shield className="mr-2 h-4 w-4" />
-                        {t("nav.admin")}
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {user.role === "seller" && (
-                    <DropdownMenuItem onClick={() => (window.location.href = "/dashboard/store")}>
-                      <Store className="mr-2 h-4 w-4" />
-                      {t("nav.store")}
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    {t("nav.logout")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden lg:flex"
+                  onClick={() => (window.location.href = "/dashboard")}
+                >
+                  {t("nav.dashboard")}
+                </Button>
+                <BhdAppSwitcher
+                  user={{
+                    name: user.fullName || user.name || user.email,
+                    email: user.email,
+                    picture: user.avatar || null,
+                  }}
+                  onSignOut={handleLogout}
+                />
+              </>
             ) : (
               <div className="hidden sm:flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={() => (window.location.href = "/auth/login")}>

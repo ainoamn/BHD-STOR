@@ -181,10 +181,14 @@ sequenceDiagram
 | POST | `/oauth/revoke` | إلغاء refresh |
 | GET | `/oauth/end-session` | خروج موحّد (RP-initiated logout) |
 | GET | `/login` | واجهة الدخول (بريد/اسم مستخدم + Google) |
+| GET | `/account` | صفحة ملف الحساب: البيانات، المواقع المرتبطة، الاشتراكات |
+| GET / PATCH | `/api/account` | قراءة/تعديل الملف الشخصي (جلسة هوية مطلوبة) |
 | POST | `/api/auth/login` | دخول محلي للهوية |
 | POST | `/api/auth/register` | إنشاء حساب هوية |
 | POST | `/api/auth/google` | تحقق ID Token من Google على خادم الهوية |
 | POST | `/api/auth/logout` | مسح `bhd_id` ثم إن وُجد `post_logout_redirect_uri` يُحوَّل إليه |
+
+تعديل الاسم/الهاتف/العنوان على `/account` يكتب في `bhd_users` و`bhd_contacts` (SELF). `/oauth/userinfo` وID Token التالي يقرآن القيم الجديدة. المنتج يحدّث نسخته المحلية عند الدخول التالي (قسم 6.4). الاشتراكات تظهر في `/account` عندما يبلّغ المنتج عنها؛ حتى ذلك الحين القائمة فارغة عمدًا.
 
 ### 4.1 اكتشاف OIDC (شكل ثابت)
 
@@ -356,7 +360,7 @@ CREATE INDEX IF NOT EXISTS users_bhd_sub_idx ON <users>(bhd_sub);
 6. `upsert` المستخدم المحلي:
 
 ```
-إن وُجد صف bhd_sub = sub → حدّث الاسم/البريد/الصورة من التوكن، last_login
+إن وُجد صف bhd_sub = sub → حدّث الاسم/البريد/الهاتف/الصورة من التوكن، last_login
 وإلا إن وُجد صف google_id = (اختياري: لا تعتمد عليه بعد النقل) أو بريد موثّق مطابق email
     → اكتب bhd_sub إن كان فارغاً
 وإلا → أنشئ مستخدم منتج جديد مرتبطاً بـ bhd_sub
