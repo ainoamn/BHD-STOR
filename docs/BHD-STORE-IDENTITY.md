@@ -24,6 +24,7 @@
 | مشاركة قاعدة الهوية | **لا** |
 | نسخ كلمات مرور الهوية | **لا** — مستخدم SSO-only يحصل على hash عشوائي محلي غير قابل للاستخدام |
 | حكم الإنتاج العام | ما زال **NO-GO** (تدقيق آب 2026) — SSO لا يرفع الحكم |
+| تحقق حي 19 أغسطس 2026 | GitHub `main` = `4b5a8d3` · `/ar/auth/login` → شاشة الهوية · `?local=1` بطاقة المتجر · `GET /api/auth/bhd/status` يعمل · Nest `/api/v1` على أصل المتجر **404** |
 
 المُصدِر المجمّد: `https://id.bhd-om.com`.  
 اكتشاف OIDC: `https://id.bhd-om.com/.well-known/openid-configuration`  
@@ -161,7 +162,7 @@ BHD_OAUTH_CLIENT_SECRET=<نفس قيمة BHD_OAUTH_CLIENT_SECRET_STORE على م
 4. أتمم الدخول على الهوية ثم عد للمتجر وجلسة المتجر مضبوطة.
 5. `http://localhost:3000/ar/auth/login?local=1` ما زال يعمل للبريد المحلي.
 6. الخروج يعود عبر end-session ثم أصل المتجر.
-7. إنتاج: بعد نشر Vercel لـ `98c401f` أو أحدث، نفس السلوك على `https://bhdstor.bhd-om.com/ar/auth/login`.
+7. إنتاج: `https://bhdstor.bhd-om.com/ar/auth/login` يفتح شاشة `id.bhd-om.com` (تُحقّق 19 أغسطس 2026).
 
 اختبارات وحدة:  
 `backend` — `bhd-identity.util.spec.ts` + `auth.service.bhd-identity.spec.ts` + إعفاء CSRF.
