@@ -17,9 +17,10 @@
 | بروتوكول | OAuth 2.0 Authorization Code + PKCE S256 + OIDC |
 | `client_id` | `bhd-store` |
 | شاشة الدخول الافتراضية | تحويل فوري إلى بوابة الهوية `id.bhd-om.com/login` (نفس شكل وازن والبوابة) — المواصفة §6.6 |
-| نموذج البريد المحلي | **باقٍ** على `/ar/auth/login?local=1` فقط (موظفون / طوارئ) |
+| نموذج البريد المحلي | **باقٍ** على `/ar/auth/login?local=1` للطوارئ فقط — **ليس** لدخول `/dashboard/admin` |
+| دخول الإدارة | `GET /api/auth/admin-entry` → SSO ثم `/dashboard/admin` |
 | جلسة المتجر | كوكيز موجودة: `accessToken` / `refreshToken` / `bhd_session` — **ليست** `bhd_id` |
-| أدوار بائع/مشرف من الهوية | **ممنوعة** — الحساب الجديد دائماً `customer` |
+| أدوار بائع/مشرف من الهوية | **ممنوعة** — عند الربط بالبريد يُبقى الدور المحلي؛ الحساب الجديد دائماً `customer` |
 | زر Google على المتجر | **غير موجود** (جوجل على موقع الهوية فقط) |
 | مشاركة قاعدة الهوية | **لا** |
 | نسخ كلمات مرور الهوية | **لا** — مستخدم SSO-only يحصل على hash عشوائي محلي غير قابل للاستخدام |
@@ -48,7 +49,8 @@
   → كوكيز المتجر على منشأ المتجر + كوكي قصيرة bhd_sso_profile
 ```
 
-الاستثناء: `/ar/auth/login?local=1` يعرض نموذج البريد وكلمة المرور المحلية دون تحويل.
+الاستثناء: `/ar/auth/login?local=1` يعرض نموذج البريد المحلي للطوارئ فقط.
+دخول الإدارة: `/api/auth/admin-entry` (وليس `?local=1`).
 
 الخروج: `useLogout` → `/api/auth/bhd/logout` → مسح كوكيز المتجر ثم  
 `{ISSUER}/oauth/end-session?client_id=bhd-store&post_logout_redirect_uri={origin}/`
@@ -137,7 +139,8 @@ BHD_OAUTH_CLIENT_SECRET=<نفس قيمة BHD_OAUTH_CLIENT_SECRET_STORE على م
 
 | ملف | دور |
 |-----|-----|
-| `frontend/src/app/[locale]/(auth)/auth/login/page.tsx` | غلاف خادم: تحويل إلى `/api/auth/bhd/start` إلا `?local=1` |
+| `frontend/src/app/[locale]/(auth)/auth/login/page.tsx` | غلاف خادم: تحويل إلى `/api/auth/bhd/start` إلا `?local=1`؛ إن `local=1` نحو الإدارة → `admin-entry` |
+| `frontend/src/app/api/auth/admin-entry/route.ts` | دخول الإدارة → `start?returnTo=/dashboard/admin` |
 | `frontend/src/app/[locale]/(auth)/auth/login/LoginForm.tsx` | نموذج البريد المحلي (طوارئ) |
 | `frontend/src/app/api/auth/bhd/start/route.ts` | PKCE + تحويل authorize |
 | `frontend/src/app/api/auth/bhd/callback/route.ts` | تبادل الكود → Nest complete أو جلسة Next |

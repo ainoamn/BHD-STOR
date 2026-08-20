@@ -115,6 +115,21 @@ describe('bhd-identity.util', () => {
         byEmail: { id: 'u2', email: 'ada@example.com', bhdSub: null, emailVerified: false },
       }),
     ).toEqual({ action: 'reject', reason: 'unverified-email-collision' });
+
+    expect(
+      decideBhdUserMatch({
+        sub,
+        emailVerified: true,
+        bySub: null,
+        byEmail: {
+          id: 'admin-1',
+          email: 'admin@example.com',
+          bhdSub: null,
+          emailVerified: false,
+          role: 'admin',
+        },
+      }),
+    ).toEqual({ action: 'link', userId: 'admin-1' });
   });
 
   it('keeps returnTo relative and splits display names', () => {

@@ -9,7 +9,15 @@ export type LocalIdentityUser = {
   email: string;
   bhdSub: string | null;
   emailVerified: boolean;
+  /** Product-local role; staff may link without local emailVerified (§0.7). */
+  role?: string | null;
 };
+
+const STAFF_ROLES = new Set(['admin', 'super_admin', 'moderator']);
+
+export function isProductStaffRole(role: string | null | undefined): boolean {
+  return Boolean(role && STAFF_ROLES.has(role));
+}
 
 export type BhdUserMatch =
   | { action: 'use'; userId: string }
@@ -140,7 +148,9 @@ export function decideBhdUserMatch(input: {
     return { action: 'use', userId: input.bySub.id };
   }
   if (input.byEmail) {
-    if (!input.byEmail.emailVerified) {
+    const mayLink =
+      input.byEmail.emailVerified || isProductStaffRole(input.byEmail.role);
+    if (!mayLink) {
       return { action: 'reject', reason: 'unverified-email-collision' };
     }
     if (input.byEmail.bhdSub && input.byEmail.bhdSub !== input.sub) {

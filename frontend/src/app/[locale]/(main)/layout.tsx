@@ -398,6 +398,11 @@ function Footer() {
                 </a>
               </li>
               <li>
+                <a href="/api/auth/admin-entry" className="hover:text-foreground transition-colors">
+                  {t("adminEntry")}
+                </a>
+              </li>
+              <li>
                 <Link href="/terms" className="hover:text-foreground transition-colors">
                   {t("links.company.terms")}
                 </Link>

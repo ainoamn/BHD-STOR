@@ -190,7 +190,7 @@ export function BhdAppSwitcher({
             الحساب
           </a>
           {platformAdmin ? (
-            <a className="bhd-switcher-account-link" href="/admin">
+            <a className="bhd-switcher-account-link" href="/api/auth/admin-entry">
               الإدارة
             </a>
           ) : null}

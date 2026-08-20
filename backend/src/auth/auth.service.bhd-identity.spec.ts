@@ -106,6 +106,26 @@ describe('AuthService.loginWithBhdIdentity', () => {
     );
   });
 
+  it('links a local admin and preserves the product role', async () => {
+    const admin = {
+      ...existing,
+      role: UserRole.ADMIN,
+      emailVerified: false,
+    };
+    usersService.findByEmail.mockResolvedValue(admin);
+    usersService.findOne.mockResolvedValue(admin);
+    usersService.update.mockResolvedValue({ ...admin, bhdSub: identity.sub, emailVerified: true });
+
+    const result = await service.loginWithBhdIdentity(identity);
+
+    expect(usersService.create).not.toHaveBeenCalled();
+    expect(usersService.update).toHaveBeenCalledWith(
+      admin.id,
+      expect.not.objectContaining({ role: expect.anything() }),
+    );
+    expect(result.user?.role).toBe(UserRole.ADMIN);
+  });
+
   it('refuses to link an unverified local email', async () => {
     usersService.findByEmail.mockResolvedValue({
       ...existing,

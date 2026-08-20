@@ -259,6 +259,7 @@ npm run migration:run
 | ملف | دور |
 |-----|-----|
 | [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md) | حالة كل بند إصلاح |
+| [`BHD-PRODUCT-SSO-ADMIN.md`](./BHD-PRODUCT-SSO-ADMIN.md) | Checklist SSO صامت + أدمن محلي (§0.7 / §4.9) |
 | [`BHD-STORE-INTEGRATION.md`](./BHD-STORE-INTEGRATION.md) | خطة الدخول الموحّد + مشغّل التطبيقات (نمط وازن) |
 | [`BHD-STORE-IDENTITY.md`](./BHD-STORE-IDENTITY.md) | تنفيذ SSO للمتجر (`bhd-store`) |
 | [`BHD-APP-SWITCHER.md`](./BHD-APP-SWITCHER.md) | مواصفة تسع النقاط (نسخة مجمّدة) |

@@ -135,8 +135,9 @@ export class AuthService {
   }
 
   /**
-   * Upsert a marketplace customer from verified BHD Identity claims.
-   * Does not grant seller/admin roles and does not import identity passwords.
+   * Upsert marketplace user from verified BHD Identity claims.
+   * Never grants admin/seller from identity. When linking an existing local row
+   * (including staff), preserve the product-local role (§0.7).
    */
   async loginWithBhdIdentity(claims: {
     sub: string;
@@ -157,6 +158,7 @@ export class AuthService {
             email: bySub.email,
             bhdSub: bySub.bhdSub,
             emailVerified: bySub.emailVerified,
+            role: bySub.role,
           }
         : null,
       byEmail: byEmail
@@ -165,6 +167,7 @@ export class AuthService {
             email: byEmail.email,
             bhdSub: byEmail.bhdSub,
             emailVerified: byEmail.emailVerified,
+            role: byEmail.role,
           }
         : null,
     });

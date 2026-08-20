@@ -9,23 +9,41 @@ function safeReturnTo(raw: string | undefined, locale: string): string {
   return raw;
 }
 
+function isAdminPath(path: string): boolean {
+  return (
+    path === '/admin' ||
+    path.startsWith('/admin/') ||
+    path.includes('/dashboard/admin')
+  );
+}
+
 /**
- * Default: send the shopper to the shared BHD Identity screen at id.bhd-om.com
- * (same UI as Wazen / HISAB / the portal). Local email/password remains at ?local=1.
+ * Default: identity SSO. Local password only at ?local=1 (non-admin).
+ * Admin must use /api/auth/admin-entry — never local password (§4.9 / §0.7).
  */
 export default function LoginPage({
   params,
   searchParams,
 }: {
   params: { locale: string };
-  searchParams: { returnUrl?: string; redirect?: string; local?: string };
+  searchParams: {
+    returnUrl?: string;
+    redirect?: string;
+    next?: string;
+    local?: string;
+  };
 }) {
   const locale = params.locale || 'ar';
+  const returnTo = safeReturnTo(
+    searchParams.returnUrl || searchParams.redirect || searchParams.next,
+    locale,
+  );
+
+  if (searchParams.local === '1' && isAdminPath(returnTo)) {
+    redirect(`/api/auth/admin-entry?next=${encodeURIComponent(returnTo)}`);
+  }
+
   if (searchParams.local !== '1') {
-    const returnTo = safeReturnTo(
-      searchParams.returnUrl || searchParams.redirect,
-      locale,
-    );
     redirect(`/api/auth/bhd/start?returnTo=${encodeURIComponent(returnTo)}`);
   }
 

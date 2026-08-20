@@ -19,14 +19,36 @@ function loginError(origin: string, reason: string) {
   const response = NextResponse.redirect(
     new URL(`/auth/login?error=sso&reason=${encodeURIComponent(reason)}`, origin),
   );
+  clearProductSession(response);
   response.cookies.set(BHD_OAUTH_STATE_COOKIE, '', { ...oauthStateCookieOptions(), maxAge: 0 });
   return response;
+}
+
+/** §0.7 step 4 — wipe any prior product session before issuing the new one. */
+function clearProductSession(response: NextResponse) {
+  response.cookies.set('accessToken', '', { ...productSessionCookieOptions(0), maxAge: 0 });
+  response.cookies.set('refreshToken', '', { ...productSessionCookieOptions(0), maxAge: 0 });
+  response.cookies.set('bhd_session', '', {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+  });
+  response.cookies.set('bhd_sso_profile', '', {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+  });
 }
 
 function applyProductCookies(
   response: NextResponse,
   tokens: { accessToken: string; refreshToken: string },
 ) {
+  clearProductSession(response);
   response.cookies.set('accessToken', tokens.accessToken, productSessionCookieOptions(SESSION_IDLE_MAX_AGE_SEC));
   response.cookies.set(
     'refreshToken',
@@ -79,17 +101,21 @@ export async function GET(request: NextRequest) {
   }
 
   const dest = isSafeNextPath(saved.returnTo) ? saved.returnTo : '/';
-  const finish = (response: NextResponse) => {
+  const finish = (
+    response: NextResponse,
+    role: string = 'customer',
+    userId: string = profile.sub,
+  ) => {
     response.cookies.set(BHD_OAUTH_STATE_COOKIE, '', { ...oauthStateCookieOptions(), maxAge: 0 });
     const [firstName, ...rest] = profile.name.trim().split(/\s+/);
     const user = {
-      id: profile.sub,
+      id: userId,
       email: profile.email,
       firstName: firstName || profile.email,
       lastName: rest.join(' ') || firstName || 'BHD',
       fullName: profile.name,
       avatar: profile.picture || undefined,
-      role: 'customer',
+      role,
       status: 'active',
       isEmailVerified: true,
       isPhoneVerified: false,
@@ -119,6 +145,7 @@ export async function GET(request: NextRequest) {
     });
     if (completeRes.ok) {
       const response = NextResponse.redirect(new URL(dest, origin));
+      clearProductSession(response);
       const setCookies =
         typeof completeRes.headers.getSetCookie === 'function'
           ? completeRes.headers.getSetCookie()
@@ -126,10 +153,21 @@ export async function GET(request: NextRequest) {
       for (const cookie of setCookies) {
         response.headers.append('set-cookie', cookie);
       }
-      return finish(response);
+      let role = 'customer';
+      let userId = profile.sub;
+      try {
+        const body = (await completeRes.json()) as {
+          user?: { id?: string; role?: string };
+        };
+        if (body?.user?.role) role = body.user.role;
+        if (body?.user?.id) userId = body.user.id;
+      } catch {
+        /* cookies alone are enough */
+      }
+      return finish(response, role, userId);
     }
   } catch {
-    // Fall through to product session issued on Next, same as other BHD relying parties.
+    // Fall through to product session issued on Next when Nest is unreachable.
   }
 
   const response = NextResponse.redirect(new URL(dest, origin));
@@ -138,5 +176,5 @@ export async function GET(request: NextRequest) {
   } else {
     applyProductCookies(response, { accessToken: idToken, refreshToken: accessToken });
   }
-  return finish(response);
+  return finish(response, 'customer');
 }
