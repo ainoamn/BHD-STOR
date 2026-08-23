@@ -202,6 +202,19 @@ export default function middleware(request: NextRequest) {
     const refreshToken = request.cookies.get('refreshToken')?.value;
 
     if (!authToken && !refreshToken) {
+      const pathWithoutLocale = locales.reduce((path, locale) => {
+        return path.replace(new RegExp(`^/${locale}`), '');
+      }, pathname);
+      // §4.9 — admin console gate uses admin-entry, never local password login.
+      if (
+        pathWithoutLocale === '/admin' ||
+        pathWithoutLocale.startsWith('/admin/') ||
+        pathWithoutLocale.includes('/dashboard/admin')
+      ) {
+        const adminEntry = new URL('/api/auth/admin-entry', request.url);
+        adminEntry.searchParams.set('next', pathWithoutLocale || '/dashboard/admin');
+        return NextResponse.redirect(adminEntry);
+      }
       const locale = locales.find((l) => pathname.startsWith(`/${l}`)) || defaultLocale;
       const loginUrl = new URL(`/${locale}/auth/login`, request.url);
       loginUrl.searchParams.set('redirect', pathname);

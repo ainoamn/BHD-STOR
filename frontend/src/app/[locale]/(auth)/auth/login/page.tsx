@@ -19,7 +19,7 @@ function isAdminPath(path: string): boolean {
 
 /**
  * Default: identity SSO. Local password only at ?local=1 (non-admin).
- * Admin must use /api/auth/admin-entry — never local password (§4.9 / §0.7).
+ * Any path toward the admin console → /api/auth/admin-entry (§4.9 / §0.7).
  */
 export default function LoginPage({
   params,
@@ -39,7 +39,8 @@ export default function LoginPage({
     locale,
   );
 
-  if (searchParams.local === '1' && isAdminPath(returnTo)) {
+  // §4.9 — any path toward the admin console uses admin-entry (never local password).
+  if (isAdminPath(returnTo)) {
     redirect(`/api/auth/admin-entry?next=${encodeURIComponent(returnTo)}`);
   }
 

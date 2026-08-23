@@ -3,7 +3,8 @@
 > **الحالة:** معتمد للتطبيق في كل مستودع منتج.  
 > **المصدر:** [BHD-UNIFIED-LOGIN-AND-APPS.md](BHD-UNIFIED-LOGIN-AND-APPS.md) القسم **0.7** و**4.9**  
 > **Issuer:** `https://id.bhd-om.com`  
-> **لا تغيّر هذه القواعد محلياً.**
+> **لا تغيّر هذه القواعد محلياً.**  
+> **BHD-STOR:** منفَّذ ومُتحقق حيّاً على `https://bhdstor.bhd-om.com` (أغسطس 2026) — القائمة أدناه معلَّمة لهذا المستودع.
 
 انسخ هذا الملف إلى `docs/BHD-PRODUCT-SSO-ADMIN.md` داخل مستودع المنتج ونفّذه حرفياً.
 
@@ -38,18 +39,19 @@
 
 ### 3.1 مسارات الهوية على المنتج
 
-- [ ] `GET /api/auth/bhd/start` → 302 إلى `https://id.bhd-om.com/oauth/authorize` (ليس أصل المنتج)
-- [ ] `GET /api/auth/bhd/callback` → استبدال الكود على الخادم + upsert على `bhd_sub`
-- [ ] `GET /api/auth/bhd/logout` → مسح جلسة المنتج ثم `end-session` على الهوية
-- [ ] انسخ `admin-entry` من  
-  `BHD-Complete-Brand-and-Portal-v1.1.0/app/api/auth/admin-entry/route.ts`
+- [x] `GET /api/auth/bhd/start` → 302 إلى `https://id.bhd-om.com/oauth/authorize` (ليس أصل المنتج)
+- [x] `GET /api/auth/bhd/callback` → استبدال الكود على الخادم + upsert على `bhd_sub`
+- [x] `GET /api/auth/bhd/logout` → مسح جلسة المنتج ثم `end-session` على الهوية
+- [x] انسخ `admin-entry` من  
+  `BHD-Complete-Brand-and-Portal-v1.1.0/app/api/auth/admin-entry/route.ts`  
+  (المتجر: `returnTo` الافتراضي `/dashboard/admin`)
 
 ### 3.2 إزالة اللوحة القديمة
 
-- [ ] `/login` و`/register` (أو المكافئ) يحوّلان إلى `/api/auth/bhd/start` إلا طوارئ `?local=1` إن وُجدت
-- [ ] `local=1` مع `next` يبدأ بـ `/admin` → `/api/auth/admin-entry`
-- [ ] أزل زر Google المحلي بعد الربط
-- [ ] فوتر/Gate الأدمن → `/api/auth/admin-entry`
+- [x] `/login` و`/register` (أو المكافئ) يحوّلان إلى `/api/auth/bhd/start` إلا طوارئ `?local=1` إن وُجدت
+- [x] `local=1` أو أي `next` نحو الإدارة → `/api/auth/admin-entry`
+- [x] أزل زر Google المحلي بعد الربط
+- [x] فوتر/Gate الأدمن → `/api/auth/admin-entry` (middleware + فوتر + مشغّل)
 
 ### 3.3 ربط أدمن قديم (في `callback` بعد التحقق من `id_token`)
 
@@ -63,11 +65,13 @@
 
 تعيين أدمن جديد لاحقاً: من `/admin` داخل المنتج أو SQL على الصف المرتبط بـ `bhd_sub` — **ليس** من شاشة الهوية.
 
+**تنفيذ المتجر:** Nest `decideBhdUserMatch` + `loginWithBhdIdentity` (الإبقاء على الدور؛ الموظفون يُربطون حتى لو `emailVerified` المحلي false). يتطلب `BACKEND_URL` + migration `017`.
+
 ### 3.4 بعد نجاح المسار الحي
 
-- [ ] تحقق: `GET {origin}/api/auth/bhd/start` يعيد 302 إلى `id.bhd-om.com`
-- [ ] أبلغ ONE-BHD لقلب عنصر المنتج في `app/lib/bhd/apps.ts` من `browse` إلى `sso`
-- [ ] اختبار: دخول الهوية → منتج ثانٍ بلا كلمة مرور؛ `/admin` إن كان الدور محلياً admin
+- [x] تحقق: `GET {origin}/api/auth/bhd/start` يعيد 302 إلى `id.bhd-om.com`
+- [x] أبلغ ONE-BHD لقلب عنصر المنتج في `app/lib/bhd/apps.ts` من `browse` إلى `sso`
+- [x] اختبار: دخول الهوية → منتج ثانٍ بلا كلمة مرور؛ `/admin` إن كان الدور محلياً admin
 
 ---
 

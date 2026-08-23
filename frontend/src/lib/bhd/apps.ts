@@ -17,6 +17,8 @@ export type BhdApp = {
 export const BHD_APP_SWITCHER_SPEC = "bhd-appswitcher.v1";
 
 export const BHD_APPS: BhdApp[] = [
+  // Copied from ONE-BHD frozen catalog — do not invent local entries.
+  // mode "sso" only after GET {origin}/api/auth/bhd/start → 302 to id.bhd-om.com
   {
     id: "account",
     clientId: null,
@@ -76,7 +78,7 @@ export const BHD_APPS: BhdApp[] = [
     nameEn: "NASAB",
     origin: "https://nasab.bhd-om.com",
     startUrl: "https://nasab.bhd-om.com/api/auth/bhd/start?returnTo=/",
-    mode: "browse",
+    mode: "sso",
     enabled: true,
     mark: "ن",
     accent: "#8a3c45",
@@ -113,10 +115,10 @@ export const BHD_APPS: BhdApp[] = [
     clientId: "bhd-office",
     nameAr: "المكتب",
     nameEn: "BHD Office",
-    origin: "",
-    startUrl: null,
-    mode: "browse",
-    enabled: false,
+    origin: "https://baitak.bhd-om.com",
+    startUrl: "https://baitak.bhd-om.com/api/auth/bhd/start?returnTo=/",
+    mode: "sso",
+    enabled: true,
     mark: "B",
     accent: "#283b4d",
     soft: "#e9edf0",

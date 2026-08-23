@@ -10,7 +10,13 @@ export const runtime = 'nodejs';
 
 function clearStoreCookies(response: NextResponse) {
   const base = oauthStateCookieOptions(0);
-  for (const name of ['accessToken', 'refreshToken', 'bhd_session', 'bhd_oauth_state']) {
+  for (const name of [
+    'accessToken',
+    'refreshToken',
+    'bhd_session',
+    'bhd_oauth_state',
+    'bhd_sso_profile',
+  ]) {
     response.cookies.set(name, '', { ...base, maxAge: 0 });
   }
 }
