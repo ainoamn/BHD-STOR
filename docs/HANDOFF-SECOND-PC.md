@@ -1,22 +1,23 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
-**آخر مزامنة من Git:** 2026-08-19  
-**HEAD على `main`:** `4b5a8d3` — توثيق SSO + شاشة الهوية (تحقق حي على `bhdstor.bhd-om.com`)  
-**SSO على `main`:** `cb0d635` → `51088ab` → `683d68d` → `98c401f` → `4b5a8d3`  
-**نقطة كود الإصلاح السابقة:** `bdd414e` — `Merge branch 'fix/p2-nocheck-burn-deps'`  
+**آخر مزامنة من Git:** 2026-09-03  
+**HEAD على `main`:** انظر `git log -1` بعد `pull` — يجب أن يشمل توثيق الجلسة `SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md`  
+**SSO/أدمن (أحدث سلسلة):** `…` → `1b31537` → `36327e3` → (commit توثيق النقل)  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
+**هوية / دليل مرجعي:** https://github.com/ainoamn/ONE-BHD  
 
 > **اقرأ بهذا الترتيب على الجهاز الجديد:**  
 > 1) هذا الملف  
-> 2) [`BHD-UNIFIED-LOGIN-AND-APPS.md`](./BHD-UNIFIED-LOGIN-AND-APPS.md) ثم [`BHD-STORE-INTEGRATION.md`](./BHD-STORE-INTEGRATION.md) إن كان العمل على SSO / مشغّل التطبيقات  
-> 3) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md)  
-> 4) [`ENGINEERING-SECURITY-AUDIT-2026-08-11.md`](./ENGINEERING-SECURITY-AUDIT-2026-08-11.md)
+> 2) [`SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md`](./SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md) — **ملخص المحادثة الأخيرة كاملة**  
+> 3) [`BHD-PRODUCT-SSO-ADMIN.md`](./BHD-PRODUCT-SSO-ADMIN.md) ثم [`BHD-UNIFIED-LOGIN-AND-APPS.md`](./BHD-UNIFIED-LOGIN-AND-APPS.md) §0.7 / §4.9 / §12.6  
+> 4) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md) إن كان العمل على NO-GO  
 
 ---
 
 ## 0) قاعدة منع التعارض (مهم جداً)
 
-كل العمل الأخير **مرفوع ومتزامن** على `origin/main`. لا توجد تغييرات محلية غير مُلتزَمة على جهاز المصدر.
+كل عمل SSO/أدمن الموثَّق في جلسة 2026-09-03 **مرفوع على `origin/main`**.  
+لا تعتمد على ملفات Cursor المحلية (transcripts) على الجهاز الثاني — السياق في `docs/SESSION-*.md`.
 
 على الجهاز الآخر افعل **فقط**:
 
@@ -28,12 +29,12 @@ git pull --ff-only origin main
 git log -1 --oneline
 ```
 
-يجب أن ترى في `git log -1 --oneline` أحدث `main`، ومن ضمن التاريخ:
+يجب أن ترى في التاريخ (على الأقل):
 
 ```text
-98c401f fix(auth): send store login to the shared BHD Identity screen
-683d68d fix(auth): complete store SSO on Next like other BHD relying parties
-cb0d635 feat(auth): connect the store to BHD Identity SSO as bhd-store
+36327e3 fix(auth): route admin gates through admin-entry and sync SSO docs
+1b31537 fix(auth): admin-entry SSO and preserve local staff roles
+37a0a88 feat(store): apply unified brand, 48h idle session, and apps footer
 ```
 
 | افعل | لا تفعل |
@@ -152,6 +153,7 @@ npm run test:e2e:smoke
 | Password reset selector+verifier + Redis revoke | تم |
 | TOTP setup/enable/disable + تحدّي login | تم |
 | BHD Identity SSO (`client_id=bhd-store`) + شاشة `id.bhd-om.com`؛ المحلي `?local=1` | تم — [`BHD-STORE-IDENTITY.md`](./BHD-STORE-IDENTITY.md) |
+| `admin-entry` + ربط أدمن قديم بـ `bhd_sub` مع الإبقاء على الدور؛ Gate middleware | تم — [`SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md`](./SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md) |
 | API key scopes assert عند الإنشاء | تم (الجداول عبر 015) |
 
 ### CI / جودة
@@ -169,6 +171,9 @@ npm run test:e2e:smoke
 
 | Commit | الموضوع |
 |--------|---------|
+| `36327e3` | Gate أدمن عبر `admin-entry` + مزامنة كتالوج/دليل |
+| `1b31537` | `admin-entry` + الحفاظ على أدوار الموظفين عند SSO |
+| `37a0a88` | هوية بصرية + خمول 48 ساعة + فوتر برامجنا |
 | `98c401f` | دخول المتجر → شاشة الهوية الموحّدة (`id.bhd-om.com`) |
 | `683d68d` | إكمال SSO على Next إن تعذّر Nest |
 | `51088ab` | SSO على `bhdstor.bhd-om.com` دون rewrite لـ localhost |
