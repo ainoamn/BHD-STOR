@@ -106,6 +106,8 @@ export default function ServiceWorkerRegistration({
   const [showUpdateToast, setShowUpdateToast] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  // BHD-SESSION-POLICY.md — reload only after the user taps «تحديث».
+  const userRequestedUpdateRef = useRef(false);
 
   // Listen for service worker update messages
   useEffect(() => {
@@ -113,7 +115,7 @@ export default function ServiceWorkerRegistration({
       if (event.data?.type === "SW_UPDATE_AVAILABLE") {
         setShowUpdateToast(true);
       }
-      if (event.data?.type === "SW_ACTIVATED") {
+      if (event.data?.type === "SW_ACTIVATED" && userRequestedUpdateRef.current) {
         window.location.reload();
       }
     };
@@ -175,7 +177,7 @@ export default function ServiceWorkerRegistration({
 
         // Listen for controller changes (new SW activated)
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          if (isMounted) {
+          if (isMounted && userRequestedUpdateRef.current) {
             window.location.reload();
           }
         });
@@ -221,25 +223,16 @@ export default function ServiceWorkerRegistration({
 
     intervalRef.current = setInterval(checkForUpdates, checkInterval);
 
-    // Also check on page visibility change (user returning to tab)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        checkForUpdates();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [checkInterval]);
 
   // Manual update handler
   const handleUpdate = useCallback(() => {
+    userRequestedUpdateRef.current = true;
     if (waitingWorker) {
       // Send skip waiting message to the new service worker
       waitingWorker.postMessage({ type: "SKIP_WAITING" });

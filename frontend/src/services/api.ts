@@ -222,14 +222,18 @@ api.interceptors.response.use(
         return Promise.reject(formatApiError(error));
       }
 
+      // BHD-SESSION-POLICY.md — a failed /me read never ends the session.
+      if ((originalRequest.url || '').includes('/auth/me') || originalRequest._retry) {
+        return Promise.reject(formatApiError(error));
+      }
+
       const refreshToken = getRefreshToken();
 
       // Prefer cookie-based refresh (HttpOnly) even when localStorage is empty
       const canRefresh = Boolean(refreshToken) || typeof window !== 'undefined';
 
       if (!canRefresh) {
-        removeAuthToken();
-        redirectToLogin();
+        redirectToSilentSso();
         return Promise.reject(formatApiError(error));
       }
 
@@ -290,8 +294,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         __isRefreshing = false;
         __refreshSubscribers = [];
-        removeAuthToken();
-        redirectToLogin();
+        redirectToSilentSso();
         return Promise.reject(formatApiError(refreshError as AxiosError));
       }
     }
@@ -397,12 +400,15 @@ function formatApiError(
 // Redirect helper
 // ---------------------------------------------------------------------------
 
-function redirectToLogin(): void {
+/**
+ * Product session gone: one silent hop through identity (no login form, no Google)
+ * while `bhd_id` is still valid — BHD-SESSION-POLICY.md.
+ */
+function redirectToSilentSso(): void {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('bhd:sessionExpired'));
-    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-    const locale = window.location.pathname.startsWith('/en') ? 'en' : 'ar';
-    window.location.href = `/${locale}/auth/login?returnUrl=${returnUrl}`;
+    const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `/api/auth/bhd/start?returnTo=${returnTo}`;
   }
 }
 

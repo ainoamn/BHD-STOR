@@ -46,7 +46,7 @@
 ### هوية بصرية / جلسة / فوتر (الدليل الموحّد)
 
 - IBM Plex Sans Arabic + ألوان البوابة (`#092d24` / `#fbfaf7`…)
-- خمول منزلق 48 ساعة: `SESSION_IDLE_MAX_AGE_SEC` + `SessionKeepAlive` + `/api/auth/session/keepalive`
+- ~~خمول منزلق 48 ساعة + `SessionKeepAlive`~~ — استُبدل في 4 أكتوبر 2026 بـ [`BHD-SESSION-POLICY.md`](./BHD-SESSION-POLICY.md): جلسة 400 يوم ثابتة حتى «خروج»، بلا نبضات
 - فوتر «برامجنا» من الكتالوج المجمد + روابط عن الشركة / هوية الشركة على `www.bhd-om.com`
 - `apps.ts` مزامَن من ONE-BHD (`store` و`nasab` و`office` = `sso` حيث ينطبق)
 

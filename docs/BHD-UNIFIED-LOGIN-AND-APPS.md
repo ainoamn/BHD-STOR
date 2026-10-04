@@ -47,15 +47,15 @@
 
 ---
 
-## 0.2 الجلسة: خمول 48 ساعة، حساب واحد، الإدارة
+## 0.2 الجلسة: تبقى حتى الخروج الصريح، حساب واحد، الإدارة
 
-**الخمول.** بعد **48 ساعة بلا استخدام** يُسجَّل الخروج تلقائياً. أي استخدام (نقرة، لوحة مفاتيح، إعادة إظهار التبويب، طلب `/api/auth/me`) يجدّد النافذة 48 ساعة أخرى. المرجع في البوابة: `SESSION_IDLE_MAX_AGE_SEC` و`SessionKeepAlive` وتجديد الكوكي في `GET /api/auth/me`. المنتج يطبّق النافذة نفسها على **جلسته المحلية**، وتبقى جلسة الهوية على `id` بنفس القاعدة حتى يبقى التنقل الصامت متسقاً.
+**لا خمول.** المستخدم يبقى داخلًا حتى يضغط «خروج». الخمول وإغلاق التبويب/المتصفح وإعادة فتح الجهاز لا تُسقط الجلسة ولا تُحدّث الصفحة ولا تستدعي جوجل. المرجع: [`BHD-SESSION-POLICY.md`](BHD-SESSION-POLICY.md). كوكي `bhd_id` لمدة 400 يوم أو حتى الخروج. المنتج يطبّق **نفس** السياسة على جلسته المحلية حتى يبقى التنقل الصامت متسقاً.
 
 **حساب واحد لكل متصفح — إلزامي.** لا يُسمح بجلستين لحسابين في نفس المتصفح (نفس الملف الشخصي) في **أي** موقع من المجموعة في الوقت نفسه.
 
 - الدخول يحدث فقط على `https://id.bhd-om.com`. `/login` و`/account` و`/admin` و`/oauth` على `www` أو `one-bhd.vercel.app` تُحوَّل إلى مضيف الهوية حتى لا تنشأ كوكي ثانية.
 - لا قائمة «إضافة حساب». إن كانت جلسة الهوية قائمة يظهر تنبيه: اخرج ثم ادخل بالحساب الآخر.
-- المنتجات (وازن، حسابي، نَسَب، بيتك، المتجر، المكتب) **ممنوع** أن تُبقي دخولاً محلياً مستقلاً (جوجل/كلمة مرور/أدمن محلي) بجانب هوية BHD. مسار `/admin` في المنتج لنفس `bhd_sub` فقط.
+- المنتجات (وازن، حسابي، نَسَب، BHD R، المتجر، المكتب) **ممنوع** أن تُبقي دخولاً محلياً مستقلاً (جوجل/كلمة مرور/أدمن محلي) بجانب هوية BHD. مسار `/admin` في المنتج لنفس `bhd_sub` فقط.
 - عند `callback` SSO: امسح أي جلسة منتج سابقة واستبدلها بالمستخدم القادم من الهوية. لا تُبقَ مستخدم أدمن قديم إن دخل حساب BHD مختلف.
 - لتغيير الحساب: خروج موحّد من الهوية (`/oauth/end-session`) يمسح `bhd_id` ثم يجب أن يمسح المنتج جلسته. بعدها فقط يُسمح بدخول جديد.
 
@@ -75,7 +75,7 @@
 
 | ينعكس فوراً عبر الهوية (حاسوب ↔ هاتف) | لا ينعكس بين المواقع |
 |---|---|
-| الاسم، البريد، الهاتف، العنوان، الصورة في `/account` | فواتير حسابي، محافظ وازن، طلبات المتجر، شجرة نَسَب، عقارات بيتك |
+| الاسم، البريد، الهاتف، العنوان، الصورة في `/account` | فواتير حسابي، محافظ وازن، طلبات المتجر، شجرة نَسَب، عقارات BHD R |
 | قائمة المواقع المرتبطة بالحساب | اشتراكات ذلك المنتج وخططه |
 | حالة الدخول على الهوية (بعد SSO) | أدوار المشرف داخل المنتج |
 
@@ -162,7 +162,7 @@
 
 ما يحدث فعلياً:
 
-1. عند أول دخول ناجح على `id.bhd-om.com` تُضبط كوكي هوية اسمها `bhd_id`، **Host-only** على مضيف الهوية فقط، **48 ساعة خمول منزلق**، `HttpOnly` + `Secure` + `SameSite=Lax`.
+1. عند أول دخول ناجح على `id.bhd-om.com` تُضبط كوكي هوية اسمها `bhd_id`، **Host-only** على مضيف الهوية فقط، **400 يوم أو حتى «خروج»**، `HttpOnly` + `Secure` + `SameSite=Lax`.
 2. عندما يفتح المستخدم منتجاً آخر (مثلاً وازن) يذهب المتصفح إلى `{origin}/api/auth/bhd/start` ثم إلى  
    `https://id.bhd-om.com/oauth/authorize?...`
 3. الهوية ترى كوكي `bhd_id` لأنها على **نفس المضيف** الذي ضبطها. لا تحتاج كلمة مرور.
@@ -171,7 +171,7 @@
 
 لذلك: الدخول السابق إلى **أي** موقع يمر عبر الهوية يكفي للتنقل اللاحق. الموقع الجديد لا يقرأ كوكي الموقع القديم؛ يثق بتوكن صادر من الهوية بعد PKCE.
 
-إن لم تكن جلسة `bhd_id` قائمة (خروج موحّد، أو متصفح آخر، أو انتهاء **48 ساعة خمول**) تظهر شاشة `/login` مرة واحدة ثم يعود المنتج.
+إن لم تكن جلسة `bhd_id` قائمة (خروج موحّد، أو متصفح آخر) تظهر شاشة `/login` مرة واحدة ثم يعود المنتج. الخمول وحده لا يكفي لإسقاط الجلسة.
 
 ```mermaid
 sequenceDiagram
@@ -212,8 +212,8 @@ sequenceDiagram
 | scopes | `openid profile email` |
 | صلاحية الكود | 60 ثانية، استخدام واحد |
 | صلاحية ID/Access Token | 10 دقائق |
-| صلاحية Refresh | 30 يوماً مع تدوير |
-| صلاحية `bhd_id` | 48 ساعة خمول منزلق (أي استخدام يجدّد) |
+| صلاحية Refresh | 400 يوم مع تدوير |
+| صلاحية `bhd_id` | 400 يوم أو حتى الخروج الصريح — بلا خمول |
 | DNS للنطاقات الفرعية | CNAME → `cname.vercel-dns.com` (**ليس** `vercel-dns-017`) |
 
 ### 2.1 `client_id` و`redirect_uri` الإنتاج
@@ -225,12 +225,12 @@ sequenceDiagram
 | حسابي | `bhd-hisaby` | `https://hisaby.bhd-om.com` | `https://hisaby.bhd-om.com/api/auth/bhd/callback` |
 | نَسَب | `bhd-nasab` | `https://nasab.bhd-om.com` | `https://nasab.bhd-om.com/api/auth/bhd/callback` |
 | المتجر | `bhd-store` | `https://bhdstor.bhd-om.com` | `https://bhdstor.bhd-om.com/api/auth/bhd/callback` |
-| بيتك | `bhd-baitak` | `https://baitak.bhd-om.com` | `https://baitak.bhd-om.com/api/auth/bhd/callback` |
-| المكتب | `bhd-office` | داخلي | `{origin}/api/auth/bhd/callback` |
+| BHD R | `bhd-r` | `https://r.bhd-om.com` | `https://r.bhd-om.com/api/auth/bhd/callback` (+ `/ar/...` وواجهة API إن وُجدت) |
+| المكتب | `bhd-office` | `https://baitak.bhd-om.com` (نطاق المكتب الحالي) | `https://baitak.bhd-om.com/api/auth/bhd/callback` |
 
 محلياً يُسمح أيضاً بـ `http://localhost:3000/api/auth/bhd/callback` (وازن أيضاً `:3001`). المقارنة **مطابقة تامة**.
 
-`hisaby.pro` نطاق إضافي لحسابي وليس عنصراً في المشغّل. `bhd-ain-oman` يُعامل كاسم قديم لـ `bhd-baitak` إن وُجد في حل العميل.
+`hisaby.pro` نطاق إضافي لحسابي وليس عنصراً في المشغّل. الأسماء القديمة `bhd-ain-oman` و`bhd-baitak` تُحلّ إلى `bhd-r` في مزوّد الهوية.
 
 ### 2.2 كوكيز — أسماء ثابتة
 
@@ -309,7 +309,7 @@ sequenceDiagram
 - يظهر فقط مع جلسة صالحة.
 - يسار الصورة في RTL: تسع نقاط ثم الأفاتار.
 - الكتالوج المجمد `app/lib/bhd/apps.ts` — لا قائمة محلية.
-- `mode: "sso"` → `{origin}/api/auth/bhd/start?returnTo=/`
+- `mode: "sso"` → `{origin}/api/auth/bhd/start?returnTo={workspacePath}` حيث `workspacePath` مساحة عمل العميل في الكتالوج.
 - `mode: "browse"` → أصل الموقع فقط (المنتج لم يُكمل القسم 6)
 - `mode: "identity"` → `/account` على البوابة/الهوية وإلا `https://id.bhd-om.com/account`
 - رابط الحساب من منتج آخر: دائماً `https://id.bhd-om.com/account`
@@ -359,7 +359,7 @@ CREATE INDEX IF NOT EXISTS users_bhd_sub_idx ON <users>(bhd_sub);
 
 **خطأ شائع:** نسخ مسار البوابة الذي يستخدم `{origin}/oauth/authorize` لأن البوابة **هي** الهوية. المنتج يجب أن يستخدم الـ Issuer.
 
-`returnTo` نسبي آمن فقط. من المشغّل دائماً `/`.
+`returnTo` نسبي آمن فقط. من الرئيسية/المشغّل = `workspacePath` في `apps.ts` (لوحة العميل). من `admin-entry` = مسار الإدارة المحلي.
 
 ### 4.5 `GET /api/auth/bhd/callback`
 
@@ -415,7 +415,7 @@ CREATE INDEX IF NOT EXISTS users_bhd_sub_idx ON <users>(bhd_sub);
 | نَسَب | `/admin` | `/admin` |
 | حسابي | أكّد المسار في مستودع حسابي إن لم يكن `/admin` | |
 | المتجر | `/dashboard/admin` | `/dashboard/admin` (افتراضي `admin-entry`) |
-| بيتك / المكتب | أكّد المسار إن اختلف | |
+| بيتك / BHD R / المكتب | أكّد المسار إن اختلف | |
 
 بعد `callback` امسح جلسة المنتج السابقة. `/admin` لنفس `bhd_sub` فقط. لربط أدمن محلي قديم أو سياسة الأدوار الآمنة اتبع القسم **0.7**.
 
@@ -430,7 +430,7 @@ CREATE INDEX IF NOT EXISTS users_bhd_sub_idx ON <users>(bhd_sub);
 - منح أدوار مدير من الهوية.
 - جلب كتالوج المشغّل من شبكة خارجية في v1 (الملف المجمد).
 - فتح تطبيق المشغّل في تبويب جديد.
-- تغيير `returnTo` إلى مسار داخلي لموقع آخر.
+- تغيير `returnTo` إلى مسار داخلي لموقع **آخر** (يُسمح فقط بمسار نسبي داخل نفس المنتج؛ `workspacePath` من الكتالوج معتمد).
 - بناء تسجيل مستخدم نهائي جديد في المنتج.
 - نسخ قائمة المنتجات التسويقية بدل `apps.ts`.
 
@@ -473,8 +473,9 @@ CREATE INDEX IF NOT EXISTS users_bhd_sub_idx ON <users>(bhd_sub);
 | `app/lib/identity/clients.ts` | تسجيل `redirect_uri` |
 | `app/components/SiteFooter.tsx` | فوتر برامجنا + عن الشركة + الهوية |
 | `app/apps/page.tsx` | شرح كل برنامج وفوائده وكيف يعمل |
-| `app/components/auth/SessionKeepAlive.tsx` | تجديد الجلسة عند الاستخدام |
-| `app/lib/auth/config.ts` | `SESSION_IDLE_MAX_AGE_SEC` = 48 ساعة |
+| `app/components/auth/SessionKeepAlive.tsx` | متقاعد (no-op) — انظر `BHD-SESSION-POLICY.md` |
+| `app/lib/auth/config.ts` | `SESSION_MAX_AGE_SEC` = 400 يوم حتى الخروج الصريح |
+| `docs/BHD-SESSION-POLICY.md` | سياسة الجلسة المعتمدة لجميع المواقع |
 | `db/schema.ts` | جداول Neon للهوية فقط |
 
 ---
@@ -487,7 +488,8 @@ CREATE INDEX IF NOT EXISTS users_bhd_sub_idx ON <users>(bhd_sub);
 4. `state`/`nonce` خاطئ → رفض.
 5. كود مستخدم مرتين → الثانية `invalid_grant`.
 6. خروج المنتج ثم فتحه → يطلب دخولاً. خروج الهوية ثم منتج آخر → يطلب دخولاً.
-6ب. خمول 48 ساعة بلا استخدام → خروج. استخدام خلال النافذة يجدّد.
+6ب. خمول بلا استخدام **لا** يخرج المستخدم. الخروج فقط بزر «خروج».
+6ب-2. إعادة فتح المتصفح والتبويب لا تُحدّث الصفحة ولا تستدعي جوجل إن كانت الجلسة قائمة.
 6ج. لا يمكن جلستان لحسابين في نفس المتصفح.
 6د. غير المدير لا يدخل `/admin` ولا إعدادات أدمن المنتج.
 7. من عُمان: `id.bhd-om.com` يفتح.
@@ -505,9 +507,9 @@ CREATE INDEX IF NOT EXISTS users_bhd_sub_idx ON <users>(bhd_sub);
 | وازن | قيد التنفيذ | بعد OIDC | `browse` حتى إشعار ONE-BHD | 12.2 |
 | حسابي | مربوط في الكود 20 أغسطس 2026 — قلب `sso` بعد تحقق 302 الحي | `bhd-hisaby` | `browse`→`sso` | 12.3 |
 | نَسَب | نعم | نعم | `sso` | 12.4 |
-| بيتك | لم يُربط | — | `browse` | 12.5 |
+| BHD R | تصفّح عام حتى يُفعَّل OIDC الحي | — | `browse` · `https://r.bhd-om.com/ar` | 12.5 |
 | المتجر | نعم | نعم | `sso` | 12.6 |
-| المكتب | نعم (على نطاق بيتك الحالي) | نعم | `sso` · `enabled: true` | 12.7 |
+| المكتب | نعم (على نطاق baitak.bhd-om.com) | نعم | `sso` · `enabled: true` | 12.7 |
 
 ---
 
@@ -603,7 +605,7 @@ authorize وtoken دائماً على https://id.bhd-om.com وليس أصل ال
 
 | البند | التوثيق |
 |---|---|
-| تاريخ التثبيت الحي | 18–19 أغسطس 2026 — OIDC ثم المشغّل (`e1231cd` وما بعده) |
+| تاريخ التثبيت الحي | 18–19 أغسطس 2026 — OIDC ثم المشغّل (`e1231cd` وما بعده) · 4 أكتوبر 2026 — مطابقة `BHD-SESSION-POLICY` |
 | `client_id` | `bhd-nasab` |
 | الأصل | `https://nasab.bhd-om.com` (نسخة Vercel: `https://nasab-mu.vercel.app`) |
 | `redirect_uri` | `https://nasab.bhd-om.com/api/auth/bhd/callback` + `https://nasab-mu.vercel.app/api/auth/bhd/callback` + `http://localhost:5173/api/auth/bhd/callback` |
@@ -611,7 +613,7 @@ authorize وtoken دائماً على https://id.bhd-om.com وليس أصل ال
 | كيف يعمل الدخول | زر «تسجيل الدخول» → `GET /api/auth/bhd/start` → `https://id.bhd-om.com/oauth/authorize` (ليس أصل نَسَب) → `callback` يربط `bhd_sub` (يبقي دور الأدمن المحلي إن وُجد بالبريد) ويمسح جلسة المنتج السابقة → كوكي `kimi_sid`. جوجل وكلمة المرور المحلية معطّلان عند جاهزية SSO |
 | كيف يعمل التنقل الصامت | كوكي `bhd_id` على مضيف الهوية فقط؛ نَسَب لا يقرأ كوكي البوابة |
 | المشغّل | `AppHeader` بعد جلسة نَسَب فقط. «الحساب» → `https://id.bhd-om.com/account`. إعدادات الشجرة/الفوترة تبقى `/account` داخل نَسَب |
-| جلسة المنتج | خمول منزلق 48 ساعة + `SessionKeepAlive` + `GET /api/auth/me` + تجديد في `auth.me`؛ `callback` يمسح الجلسة السابقة |
+| جلسة المنتج | حتى «خروج» الصريح — `BHD-SESSION-POLICY.md`. كوكي `kimi_sid` و`exp` في JWT لمدة 400 يوم. بلا خمول ولا `SessionKeepAlive`. `GET /api/auth/me` و`auth.me` للقراءة فقط بلا `Set-Cookie`. لا One Tap ولا تحديث تلقائي. الخروج فقط بزر «خروج» → `POST` خروج المنتج → `end-session`. `callback` يمسح الجلسة السابقة |
 | الإدارة | صلاحية محلية `users.role=admin` فقط مربوط بـ `bhd_sub`. مسار الدخول: `GET /api/auth/admin-entry` → SSO → `/admin`. لا `/login?admin=1` ولا كلمة مرور محلية للمستخدم النهائي. غير المشرف يرى منعاً صريحاً. أدمن منصة الهوية لا يفتح نَسَب |
 | الفوتر | صف «برامجنا» من الكتالوج + روابط عن الشركة/الهوية/apps/الخصوصية/الشروط/الأمان على `www.bhd-om.com` + «دخول الإدارة» → `/api/auth/admin-entry` |
 | الهوية البصرية | حبر `#092d24` · أخضر `#075c45` · رمل `#fbfaf7`/`#f4f0e8` · IBM Plex Sans Arabic (لون تمييز نَسَب في أيقونة المشغّل فقط) |
@@ -619,18 +621,22 @@ authorize وtoken دائماً على https://id.bhd-om.com وليس أصل ال
 | عمود `bhd_sub` | جدول `users` (Neon PostgreSQL) |
 | قلب `mode` إلى `sso` | 19 أغسطس 2026 في `lib/bhd/apps.ts` داخل ONE-BHD |
 | أسرار (أسماء فقط) | `BHD_IDENTITY_ISSUER`, `BHD_OAUTH_CLIENT_ID`, `BHD_OAUTH_CLIENT_SECRET`, `BHD_OAUTH_REDIRECT_URI`, `BHD_IDENTITY_TOKEN_SECRET`, `APP_SECRET`, `DATABASE_URL` |
-| التقنيات الكاملة لبناء هذا الموقع وكيف يعمل | SPA: Vite + React + TypeScript + Tailwind + tRPC من المتصفح. الخادم: Hono داخل `app/server` يُنشر دالة Vercel واحدة (`Root Directory = app`، مشروع `nasab`). البيانات: Neon PostgreSQL (eu-west-2) عبر Drizzle ومسار Neon HTTP sidecar. الجلسة: JWT HS256 في كوكي Host-only اسمها `kimi_sid` موقَّعة بـ `APP_SECRET`، خمول منزلق 48 ساعة. الواجهة عربية/إنجليزية. المدفوعات (تحويل بنكي / ثواني / Stripe) والكوبونات محلية في نَسَب. الاختبار: Vitest. |
+| التقنيات الكاملة لبناء هذا الموقع وكيف يعمل | SPA: Vite + React + TypeScript + Tailwind + tRPC من المتصفح. الخادم: Hono داخل `app/server` يُنشر دالة Vercel واحدة (`Root Directory = app`، مشروع `nasab`). البيانات: Neon PostgreSQL (eu-west-2) عبر Drizzle ومسار Neon HTTP sidecar. الجلسة: JWT HS256 في كوكي Host-only اسمها `kimi_sid` موقَّعة بـ `APP_SECRET`، 400 يوم أو حتى «خروج» بلا خمول. الواجهة عربية/إنجليزية. المدفوعات (تحويل بنكي / ثواني / Stripe) والكوبونات محلية في نَسَب. الاختبار: Vitest. |
 | ما لم يُوحَّد | الأشجار، الأعضاء، الدعوات، القصص، GEDCOM، فواتير نَسَب، الخطط، أدوار الشجرة |
 | فريق الصيانة | مستودع `ainoamn/Nasab` |
 
-### 12.5 بيتك — `ainoamn/ainoamn-ain-oman-web`
+### 12.5 BHD R — إدارة العقارات (`r.bhd-om.com`)
+
+يحلّ محل منتج «بيتك / عين عُمان» في كتالوج البوابة والمشغّل. الروابط القديمة `/products/baitak` و`/products/ain-oman` تحوّل إلى `/products/bhd-r`.
 
 | البند | التوثيق |
 |---|---|
-| `client_id` | `bhd-baitak` |
-| الأصل | `https://baitak.bhd-om.com` |
-| التقنيات الكاملة | _يملأها فريق بيتك_ |
-| ما لم يُوحَّد | العقارات، الإيجار، الخرائط |
+| `client_id` | `bhd-r` (الأسماء القديمة `bhd-baitak` / `bhd-ain-oman` تُحلّ إليه) |
+| الأصل العام | `https://r.bhd-om.com` — هبوط عربي `https://r.bhd-om.com/ar` |
+| حالة المشغّل | `enabled: true` · `mode: browse` · `startUrl: https://r.bhd-om.com/ar` حتى يثبت `GET …/api/auth/bhd/start` → 302 إلى `id.bhd-om.com` |
+| redirect الإنتاج | `https://r.bhd-om.com/api/auth/bhd/callback` (+ مسار `/ar` وواجهة API إن وُجدت) |
+| أسرار (أسماء فقط) | `BHD_OAUTH_CLIENT_SECRET_R` |
+| ما لم يُوحَّد | الوحدات، العقود، التحصيل، الصيانة، أدوار المالك/المطور/المستأجر |
 
 ### 12.6 المتجر — `ainoamn/BHD-STOR`
 

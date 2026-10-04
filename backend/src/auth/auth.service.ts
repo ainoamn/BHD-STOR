@@ -25,6 +25,7 @@ import {
   decideBhdUserMatch,
   splitDisplayName,
 } from './utils/bhd-identity.util';
+import { PRODUCT_SESSION_MAX_AGE } from './utils/session-policy';
 
 export interface TokenPayload {
   sub: string;
@@ -82,8 +83,8 @@ export class AuthService {
   ) {
     this.jwtSecret = this.configService.get<string>('JWT_SECRET', '');
     this.jwtRefreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET', '');
-    this.jwtExpiresIn = this.configService.get<string>('JWT_EXPIRES_IN', '15m');
-    this.jwtRefreshExpiresIn = this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '7d');
+    this.jwtExpiresIn = PRODUCT_SESSION_MAX_AGE;
+    this.jwtRefreshExpiresIn = PRODUCT_SESSION_MAX_AGE;
     this.jwtIssuer = this.configService.get<string>('JWT_ISSUER', 'bhd-oman-marketplace');
     this.jwtAudience = this.configService.get<string>('JWT_AUDIENCE', 'bhd-oman-api');
     this.aesKey = this.configService.get<string>('AES_ENCRYPTION_KEY', '');

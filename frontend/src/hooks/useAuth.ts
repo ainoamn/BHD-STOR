@@ -73,8 +73,9 @@ export function useUser(): UseQueryResult<User | null, Error> {
       if (error instanceof Error && error.message.includes('401')) return false;
       return failureCount < 2;
     },
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    // BHD-SESSION-POLICY.md — no session re-check when the tab regains focus.
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }
 

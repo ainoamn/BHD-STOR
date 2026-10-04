@@ -10,7 +10,6 @@ const STORE_WARMUP_ROUTES = [
   "/deals",
   "/categories",
   "/about",
-  "/auth/login",
 ];
 
 export function NavigationWarmup() {

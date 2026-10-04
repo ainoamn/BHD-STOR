@@ -162,7 +162,7 @@ export class BhdIdentityService {
     try {
       jwt.verify(idToken, hsSecret, {
         algorithms: ['HS256'],
-        issuer: allowedIssuers(issuer),
+        issuer: allowedIssuers(issuer) as [string, ...string[]],
         audience,
       });
     } catch {

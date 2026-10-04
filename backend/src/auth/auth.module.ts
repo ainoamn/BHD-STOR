@@ -15,6 +15,7 @@ import { RolesGuard } from './guards/roles.guard';
 import { ThrottlerGuard } from './guards/throttler.guard';
 import { TotpService } from './services/totp.service';
 import { BhdIdentityService } from './services/bhd-identity.service';
+import { PRODUCT_SESSION_MAX_AGE } from './utils/session-policy';
 
 @Module({
   imports: [
@@ -31,7 +32,7 @@ import { BhdIdentityService } from './services/bhd-identity.service';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRES_IN', '15m'),
+          expiresIn: PRODUCT_SESSION_MAX_AGE,
           issuer: configService.get<string>('JWT_ISSUER', 'bhd-oman-marketplace'),
           audience: configService.get<string>('JWT_AUDIENCE', 'bhd-oman-api'),
         },

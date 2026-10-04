@@ -5,7 +5,6 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { LocaleProviders } from "./providers";
 import { SsoSessionHydrate } from "@/components/auth/SsoSessionHydrate";
-import { SessionKeepAlive } from "@/components/auth/SessionKeepAlive";
 import "@/styles/globals.css";
 
 const ibmPlexArabic = IBM_Plex_Sans_Arabic({
@@ -107,7 +106,6 @@ export default async function RootLayout({ children, params: { locale } }: RootL
       >
         <NextIntlClientProvider locale={locale} messages={messages}>
           <SsoSessionHydrate />
-          <SessionKeepAlive />
           <LocaleProviders>{children}</LocaleProviders>
         </NextIntlClientProvider>
       </body>
