@@ -1,16 +1,17 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
-**آخر مزامنة من Git:** 2026-09-03  
-**HEAD على `main`:** `5d61c7b` — توثيق نقل الجهاز الثاني (جلسة SSO/أدمن)  
-**SSO/أدمن (أحدث سلسلة):** `37a0a88` → `1b31537` → `36327e3` → `5d61c7b`  
+**آخر مزامنة من Git:** 2026-10-04  
+**آخر كود:** `5a27b26` — سياسة الجلسة (بقاء حتى «خروج»، 400 يوم)  
+**SSO/أدمن/جلسة (أحدث سلسلة):** `37a0a88` → `1b31537` → `36327e3` → `5d61c7b` → `5a27b26` → توثيق 2026-10-04  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 **هوية / دليل مرجعي:** https://github.com/ainoamn/ONE-BHD  
 
 > **اقرأ بهذا الترتيب على الجهاز الجديد:**  
 > 1) هذا الملف  
-> 2) [`SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md`](./SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md) — **ملخص المحادثة الأخيرة كاملة**  
-> 3) [`BHD-PRODUCT-SSO-ADMIN.md`](./BHD-PRODUCT-SSO-ADMIN.md) ثم [`BHD-UNIFIED-LOGIN-AND-APPS.md`](./BHD-UNIFIED-LOGIN-AND-APPS.md) §0.7 / §4.9 / §12.6  
-> 4) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md) إن كان العمل على NO-GO  
+> 2) [`SESSION-2026-10-04-SESSION-POLICY.md`](./SESSION-2026-10-04-SESSION-POLICY.md) — **آخر جلسة: سياسة البقاء حتى «خروج»**  
+> 3) [`SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md`](./SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md) — SSO + أدمن محلي  
+> 4) [`BHD-SESSION-POLICY.md`](./BHD-SESSION-POLICY.md) · [`BHD-PRODUCT-SSO-ADMIN.md`](./BHD-PRODUCT-SSO-ADMIN.md) · [`BHD-UNIFIED-LOGIN-AND-APPS.md`](./BHD-UNIFIED-LOGIN-AND-APPS.md) §0.2 / §0.7 / §4.9 / §12.6  
+> 5) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md) إن كان العمل على NO-GO  
 
 ---
 
@@ -32,10 +33,13 @@ git log -1 --oneline
 يجب أن ترى في التاريخ (على الأقل):
 
 ```text
+5a27b26 feat(auth): keep store session until explicit sign-out per BHD session policy
 36327e3 fix(auth): route admin gates through admin-entry and sync SSO docs
 1b31537 fix(auth): admin-entry SSO and preserve local staff roles
 37a0a88 feat(store): apply unified brand, 48h idle session, and apps footer
 ```
+
+> خمول الـ 48 ساعة في `37a0a88` استُبدل بـ `5a27b26` (بقاء حتى «خروج»).
 
 | افعل | لا تفعل |
 |------|---------|
@@ -171,6 +175,7 @@ npm run test:e2e:smoke
 
 | Commit | الموضوع |
 |--------|---------|
+| `5a27b26` | سياسة الجلسة: 400 يوم حتى «خروج»، حذف `SessionKeepAlive`، لا تحديث عند عودة التبويب |
 | `36327e3` | Gate أدمن عبر `admin-entry` + مزامنة كتالوج/دليل |
 | `1b31537` | `admin-entry` + الحفاظ على أدوار الموظفين عند SSO |
 | `37a0a88` | هوية بصرية + خمول 48 ساعة + فوتر برامجنا |
