@@ -2,7 +2,7 @@
 
 **آخر مزامنة من Git:** 2026-10-20  
 **آخر موضوع:** عزل بيانات الحساب + Silent SSO + شارة بجانب البريد (ACCOUNT-SWITCHER عزل)  
-**SSO/جلسة/حسابات:** `47c6618` → commit عزل الحساب 2026-10-20  
+**SSO/جلسة/حسابات:** `47c6618` → `32a6e79` (عزل الحساب)  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 **هوية / دليل مرجعي:** https://github.com/ainoamn/ONE-BHD · منشور: https://id.bhd-om.com/docs/BHD-ACCOUNT-SWITCHER.md  
 

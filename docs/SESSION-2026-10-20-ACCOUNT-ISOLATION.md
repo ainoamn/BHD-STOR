@@ -31,3 +31,7 @@
 5. `lib/bhd/apps.ts`
 
 `connect-src` يجب أن يشمل `https://id.bhd-om.com`.
+
+## نشر
+
+- `32a6e79` على `origin/main` · Vercel `bhdstor`
