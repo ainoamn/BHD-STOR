@@ -20,3 +20,9 @@
 | `frontend/src/styles/globals.css` | `.bhd-switcher-face` · `person` · `who` · `account-now/list/foot` |
 
 الربط السابق (me/switch/add/logout) من `SESSION-2026-10-20-MULTI-ACCOUNT.md` يبقى كما هو.
+
+## نشر
+
+- `f43f558` — التنفيذ + المواصفة  
+- `9e1b187` — تثبيت HANDOFF  
+- `origin/main` محدّث · Vercel مشروع `bhdstor`
