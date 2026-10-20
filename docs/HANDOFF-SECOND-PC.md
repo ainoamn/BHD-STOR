@@ -2,7 +2,7 @@
 
 **آخر مزامنة من Git:** 2026-10-20  
 **آخر موضوع:** بطاقة الحساب بأسلوب جوجل (صورة دائرية + بريد + شارة على الزاوية)  
-**SSO/جلسة/حسابات:** `5a27b26` → `e219ea8` (تعدد حسابات) → commit بطاقة ACCOUNT-SWITCHER 2026-10-20  
+**SSO/جلسة/حسابات:** `5a27b26` → `e219ea8` (تعدد حسابات) → `f43f558` (بطاقة ACCOUNT-SWITCHER)  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 **هوية / دليل مرجعي:** https://github.com/ainoamn/ONE-BHD · منشور: https://id.bhd-om.com/docs/BHD-ACCOUNT-SWITCHER.md  
 
@@ -33,7 +33,7 @@ git log -1 --oneline
 يجب أن ترى في التاريخ (على الأقل):
 
 ```text
-(آخر commit) docs/feat: Gmail-style account card per BHD-ACCOUNT-SWITCHER
+f43f558 feat(auth): Gmail-style account card per BHD-ACCOUNT-SWITCHER
 e219ea8 feat(auth): multi-account switcher in store header per BHD session policy
 5a27b26 feat(auth): keep store session until explicit sign-out per BHD session policy
 36327e3 fix(auth): route admin gates through admin-entry and sync SSO docs
