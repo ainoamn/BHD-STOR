@@ -1,16 +1,16 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-10-20  
-**آخر موضوع:** بطاقة الحساب بأسلوب جوجل (صورة دائرية + بريد + شارة على الزاوية)  
-**SSO/جلسة/حسابات:** `5a27b26` → `e219ea8` (تعدد حسابات) → `f43f558` (بطاقة ACCOUNT-SWITCHER)  
+**آخر موضوع:** تبديل بلا وميض + فتح التطبيقات على `workspacePath` (ACCOUNT-SWITCHER §5)  
+**SSO/جلسة/حسابات:** `f43f558` (بطاقة) → commit سرعة §5 2026-10-20  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 **هوية / دليل مرجعي:** https://github.com/ainoamn/ONE-BHD · منشور: https://id.bhd-om.com/docs/BHD-ACCOUNT-SWITCHER.md  
 
 > **اقرأ بهذا الترتيب على الجهاز الجديد:**  
 > 1) هذا الملف  
-> 2) [`SESSION-2026-10-20-ACCOUNT-CARD.md`](./SESSION-2026-10-20-ACCOUNT-CARD.md) — **آخر جلسة: بطاقة صورة+بريد**  
-> 3) [`BHD-ACCOUNT-SWITCHER.md`](./BHD-ACCOUNT-SWITCHER.md) · [`SESSION-2026-10-20-MULTI-ACCOUNT.md`](./SESSION-2026-10-20-MULTI-ACCOUNT.md)  
-> 4) [`BHD-SESSION-POLICY.md`](./BHD-SESSION-POLICY.md) · [`BHD-APP-SWITCHER.md`](./BHD-APP-SWITCHER.md) · UNIFIED §0.2 / §12.6  
+> 2) [`SESSION-2026-10-20-FAST-SWITCH.md`](./SESSION-2026-10-20-FAST-SWITCH.md) — **آخر جلسة: سرعة بلا وميض**  
+> 3) [`BHD-ACCOUNT-SWITCHER.md`](./BHD-ACCOUNT-SWITCHER.md) §5 · [`BHD-APP-SWITCHER.md`](./BHD-APP-SWITCHER.md)  
+> 4) [`BHD-SESSION-POLICY.md`](./BHD-SESSION-POLICY.md) · UNIFIED §12.6  
 > 5) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md) إن كان العمل على NO-GO  
 
 ---
@@ -33,10 +33,10 @@ git log -1 --oneline
 يجب أن ترى في التاريخ (على الأقل):
 
 ```text
+(آخر commit) feat(auth): instant account switch + workspace hops per ACCOUNT-SWITCHER §5
 f43f558 feat(auth): Gmail-style account card per BHD-ACCOUNT-SWITCHER
 e219ea8 feat(auth): multi-account switcher in store header per BHD session policy
 5a27b26 feat(auth): keep store session until explicit sign-out per BHD session policy
-36327e3 fix(auth): route admin gates through admin-entry and sync SSO docs
 ```
 
 > خمول الـ 48 ساعة في `37a0a88` استُبدل بـ `5a27b26` (بقاء حتى «خروج»).

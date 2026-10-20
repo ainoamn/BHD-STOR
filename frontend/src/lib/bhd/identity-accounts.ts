@@ -19,6 +19,12 @@ export type IdentityAccount = {
   hasPassword?: boolean;
 };
 
+export type IdentityMePayload = {
+  user: IdentityAccount | null;
+  accounts: IdentityAccount[];
+  platformAdmin: boolean;
+};
+
 type IdentityMeResponse = {
   user?: IdentityAccount | null;
   accounts?: IdentityAccount[];
@@ -56,39 +62,43 @@ function normalizeAccount(raw: IdentityAccount): IdentityAccount {
   };
 }
 
-export async function fetchIdentityAccounts(): Promise<{
-  user: IdentityAccount | null;
-  accounts: IdentityAccount[];
-  platformAdmin: boolean;
-}> {
+function normalizeMe(data: IdentityMeResponse): IdentityMePayload {
+  const user = data.user ? normalizeAccount(data.user) : null;
+  const accounts = (data.accounts?.length ? data.accounts : user ? [user] : []).map(normalizeAccount);
+  return { user, accounts, platformAdmin: Boolean(data.platformAdmin) };
+}
+
+export async function fetchIdentityAccounts(): Promise<IdentityMePayload> {
   try {
     const response = await identityFetch("/api/auth/me");
     if (!response.ok) return { user: null, accounts: [], platformAdmin: false };
-    const data = (await response.json()) as IdentityMeResponse;
-    const user = data.user ? normalizeAccount(data.user) : null;
-    const accounts = (data.accounts?.length ? data.accounts : user ? [user] : []).map(normalizeAccount);
-    return { user, accounts, platformAdmin: Boolean(data.platformAdmin) };
+    return normalizeMe((await response.json()) as IdentityMeResponse);
   } catch {
     return { user: null, accounts: [], platformAdmin: false };
   }
 }
 
-export async function switchIdentityAccount(sub: string): Promise<boolean> {
+/** Switch identity account; returns JSON payload for in-place header update. */
+export async function switchIdentityAccount(sub: string): Promise<IdentityMePayload | null> {
   const response = await identityFetch("/api/auth/switch", {
     method: "POST",
     body: JSON.stringify({ sub }),
   });
-  return response.ok;
+  if (!response.ok) return null;
+  return normalizeMe((await response.json().catch(() => ({}))) as IdentityMeResponse);
 }
 
-export async function logoutIdentityAccount(all: boolean): Promise<IdentityAccount | null> {
+export async function logoutIdentityAccount(all: boolean): Promise<IdentityMePayload | null> {
   const response = await identityFetch("/api/auth/logout", {
     method: "POST",
     body: JSON.stringify({ all }),
   });
   if (!response.ok) return null;
-  const data = (await response.json()) as { user?: IdentityAccount | null };
-  return data.user ? normalizeAccount(data.user) : null;
+  return normalizeMe((await response.json().catch(() => ({}))) as IdentityMeResponse);
+}
+
+export function storeWorkspaceHref(): string {
+  return STORE_WORKSPACE_PATH;
 }
 
 export function storeSilentStartHref(returnTo?: string | null): string {
@@ -118,7 +128,11 @@ export function identityEndSessionHref(all = false): string {
 
 export async function clearProductSession(): Promise<void> {
   try {
-    await fetch("/api/auth/bhd/logout?local=1", { method: "GET", credentials: "include", cache: "no-store" });
+    await fetch("/api/auth/bhd/logout?local=1", {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
   } catch {
     /* cookies cleared by route or ignored */
   }

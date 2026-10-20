@@ -3,8 +3,7 @@
 > **الحالة:** معتمد للتطبيق في كل مستودع منتج.  
 > **المصدر:** [BHD-UNIFIED-LOGIN-AND-APPS.md](BHD-UNIFIED-LOGIN-AND-APPS.md) القسم **0.7** و**4.9**  
 > **Issuer:** `https://id.bhd-om.com`  
-> **لا تغيّر هذه القواعد محلياً.**  
-> **BHD-STOR:** منفَّذ ومُتحقق حيّاً على `https://bhdstor.bhd-om.com` (أغسطس 2026) — القائمة أدناه معلَّمة لهذا المستودع.
+> **لا تغيّر هذه القواعد محلياً.**
 
 انسخ هذا الملف إلى `docs/BHD-PRODUCT-SSO-ADMIN.md` داخل مستودع المنتج ونفّذه حرفياً.
 
@@ -14,7 +13,7 @@
 
 | الطبقة | ماذا تفعل | أين |
 |---|---|---|
-| الهوية | من أنت (حساب واحد) | `id.bhd-om.com` فقط |
+| الهوية | من أنت (حساب نشط + قائمة تبديل) | `id.bhd-om.com` فقط |
 | جلسة التنقّل | كوكي `bhd_id` → SSO بلا كلمة مرور | `start` → `authorize` → `callback` |
 | صلاحية الأدمن | ماذا يحق لك داخل **هذا** المنتج | جدول الدور المحلي مربوط بـ `bhd_sub` |
 
@@ -39,19 +38,18 @@
 
 ### 3.1 مسارات الهوية على المنتج
 
-- [x] `GET /api/auth/bhd/start` → 302 إلى `https://id.bhd-om.com/oauth/authorize` (ليس أصل المنتج)
-- [x] `GET /api/auth/bhd/callback` → استبدال الكود على الخادم + upsert على `bhd_sub`
-- [x] `GET /api/auth/bhd/logout` → مسح جلسة المنتج ثم `end-session` على الهوية
-- [x] انسخ `admin-entry` من  
-  `BHD-Complete-Brand-and-Portal-v1.1.0/app/api/auth/admin-entry/route.ts`  
-  (المتجر: `returnTo` الافتراضي `/dashboard/admin`)
+- [ ] `GET /api/auth/bhd/start` → 302 إلى `https://id.bhd-om.com/oauth/authorize` (ليس أصل المنتج)
+- [ ] `GET /api/auth/bhd/callback` → استبدال الكود على الخادم + upsert على `bhd_sub`
+- [ ] `GET /api/auth/bhd/logout` → مسح جلسة المنتج ثم `end-session` على الهوية
+- [ ] انسخ `admin-entry` من  
+  `BHD-Complete-Brand-and-Portal-v1.1.0/app/api/auth/admin-entry/route.ts`
 
 ### 3.2 إزالة اللوحة القديمة
 
-- [x] `/login` و`/register` (أو المكافئ) يحوّلان إلى `/api/auth/bhd/start` إلا طوارئ `?local=1` إن وُجدت
-- [x] `local=1` أو أي `next` نحو الإدارة → `/api/auth/admin-entry`
-- [x] أزل زر Google المحلي بعد الربط
-- [x] فوتر/Gate الأدمن → `/api/auth/admin-entry` (middleware + فوتر + مشغّل)
+- [ ] `/login` و`/register` (أو المكافئ) يحوّلان إلى `/api/auth/bhd/start` إلا طوارئ `?local=1` إن وُجدت
+- [ ] `local=1` مع `next` يبدأ بـ `/admin` → `/api/auth/admin-entry`
+- [ ] أزل زر Google المحلي بعد الربط
+- [ ] فوتر/Gate الأدمن → `/api/auth/admin-entry`
 
 ### 3.3 ربط أدمن قديم (في `callback` بعد التحقق من `id_token`)
 
@@ -65,13 +63,39 @@
 
 تعيين أدمن جديد لاحقاً: من `/admin` داخل المنتج أو SQL على الصف المرتبط بـ `bhd_sub` — **ليس** من شاشة الهوية.
 
-**تنفيذ المتجر:** Nest `decideBhdUserMatch` + `loginWithBhdIdentity` (الإبقاء على الدور؛ الموظفون يُربطون حتى لو `emailVerified` المحلي false). يتطلب `BACKEND_URL` + migration `017`.
+### 3.5 مساحة عمل العميل (`returnTo`)
 
-### 3.4 بعد نجاح المسار الحي
+بعد نجاح SSO من بوابة `bhd-om.com` أو المشغّل، المنتج يفتح **لوحة العميل** وليس الصفحة التسويقية:
 
-- [x] تحقق: `GET {origin}/api/auth/bhd/start` يعيد 302 إلى `id.bhd-om.com`
-- [x] أبلغ ONE-BHD لقلب عنصر المنتج في `app/lib/bhd/apps.ts` من `browse` إلى `sso`
-- [x] اختبار: دخول الهوية → منتج ثانٍ بلا كلمة مرور؛ `/admin` إن كان الدور محلياً admin
+| المنتج | `returnTo` المعتمد |
+|---|---|
+| وازن | `/dashboard` |
+| حسابي | `/dashboard` |
+| نَسَب | `/app` |
+| BHD R | `/ar/portal` |
+| المتجر | `/dashboard` |
+| المكتب | `/ar` |
+| بوابة بن حمود | `/company` |
+
+اسمح بهذه المسارات في تحقق `returnTo` الآمن. الإدارة تبقى عبر `admin-entry` فقط.
+
+### 3.7 جلسة المنتج (إلزامي)
+
+انسخ [`BHD-SESSION-POLICY.md`](BHD-SESSION-POLICY.md) ونفّذه:
+
+- [ ] لا خمول 48 ساعة ولا `SessionKeepAlive`
+- [ ] كوكي الجلسة المحلية 400 يوم، تُمسح عند «خروج» فقط
+- [ ] `GET /api/auth/me` من الكوكي فقط، بلا قاعدة بيانات وبلا `Set-Cookie` — الرأس يظهر فوراً
+- [ ] لا جوجل محلي ولا One Tap؛ لا تحميل GIS إلا بعد ضغطة
+- [ ] لا `router.refresh()` عند عودة التبويب
+- [ ] الدخول/الخروج/`start`/`callback` والتنقل الداخلي أسرع من جزء من الثانية
+- [ ] تبديل الحساب من الرأس بلا وميض (`POST` هوية ثم JSON). فتح تطبيق آخر = `workspacePath` مباشرة؛ `start` فقط بلا جلسة. انسخ [`BHD-ACCOUNT-SWITCHER.md`](BHD-ACCOUNT-SWITCHER.md)
+
+### 3.6 بعد نجاح المسار الحي
+
+- [ ] تحقق: `GET {origin}/api/auth/bhd/start` يعيد 302 إلى `id.bhd-om.com`
+- [ ] أبلغ ONE-BHD لقلب عنصر المنتج في `app/lib/bhd/apps.ts` من `browse` إلى `sso`
+- [ ] اختبار: دخول الهوية → منتج ثانٍ بلا كلمة مرور؛ `/admin` إن كان الدور محلياً admin
 
 ---
 
@@ -87,6 +111,14 @@
 
 ## 5. مراجع
 
+- [BHD-SESSION-POLICY.md](BHD-SESSION-POLICY.md) — الجلسة حتى الخروج الصريح (بلا خمول وبلا جوجل في المنتج)
 - [BHD-UNIFIED-LOGIN-AND-APPS.md](BHD-UNIFIED-LOGIN-AND-APPS.md) — القسم 0.7 و4 و4.9
 - [BHD-IDENTITY-SSO.md](BHD-IDENTITY-SSO.md) — بروتوكول OIDC
 - [BHD-APP-SWITCHER.md](BHD-APP-SWITCHER.md) — المشغّل والكتالوج المجمد
+
+---
+
+## 6. نطاق هذا الملف
+
+هذا الدليل يُنفَّذ في **مستودع كل منتج** (وازن، حسابي، نَسَب…).  
+مستودع الهوية `ONE-BHD` يطبّق جانب المُصدِر (كوكي `bhd_id`، OIDC، أدمن المنصة، الكتالوج). راجع القسم **12.1** في الدليل الموحّد لحالة المطابقة الحية.

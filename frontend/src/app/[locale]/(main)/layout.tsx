@@ -17,14 +17,14 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { BhdAppSwitcher } from "@/components/bhd/BhdAppSwitcher";
 import { BhdAppIcon } from "@/components/bhd/BhdAppIcon";
 import { NavigationWarmup } from "@/components/NavigationWarmup";
-import { BHD_APPS } from "@/lib/bhd/apps";
+import { BHD_APPS, launchUrlForApp } from "@/lib/bhd/apps";
 import {
   clearProductSession,
   fetchIdentityAccounts,
   identityAddAccountHref,
   identityEndSessionHref,
   logoutIdentityAccount,
-  storeSilentStartHref,
+  STORE_WORKSPACE_PATH,
   switchIdentityAccount,
   type IdentityAccount,
 } from "@/lib/bhd/identity-accounts";
@@ -59,6 +59,7 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [accounts, setAccounts] = useState<IdentityAccount[]>([]);
+  const [activeAccount, setActiveAccount] = useState<IdentityAccount | null>(null);
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [locale, setLocale] = useState<"ar" | "en">("ar");
 
@@ -70,6 +71,7 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
   useEffect(() => {
     if (!user) {
       setAccounts([]);
+      setActiveAccount(null);
       setPlatformAdmin(false);
       return;
     }
@@ -77,12 +79,34 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
     void fetchIdentityAccounts().then((data) => {
       if (cancelled) return;
       setAccounts(data.accounts);
+      setActiveAccount(data.user);
       setPlatformAdmin(data.platformAdmin);
     });
     return () => {
       cancelled = true;
     };
   }, [user?.id, user?.email]);
+
+  const productSub = (user as { bhdSub?: string } | null)?.bhdSub || user?.id || "";
+
+  function applyIdentityMe(data: {
+    user: IdentityAccount | null;
+    accounts: IdentityAccount[];
+    platformAdmin?: boolean;
+  }) {
+    if (data.user) setActiveAccount(data.user);
+    setAccounts(data.accounts);
+    if (typeof data.platformAdmin === "boolean") setPlatformAdmin(data.platformAdmin);
+  }
+
+  /** §5: if identity sub ≠ product session, one hop to workspace (middleware → start only if needed). */
+  async function rebindProductIfNeeded(nextSub: string | undefined) {
+    if (!nextSub || nextSub === productSub) return false;
+    clearAuthSession();
+    await clearProductSession();
+    window.location.assign(STORE_WORKSPACE_PATH);
+    return true;
+  }
 
   const cartItemCount = mounted
     ? (cart?.items?.reduce(
@@ -101,15 +125,16 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
   };
 
   const handleLogoutThis = async () => {
-    clearAuthSession();
-    await clearProductSession();
     const remaining = await logoutIdentityAccount(false);
-    if (remaining) {
-      window.location.assign(
-        storeSilentStartHref(`${window.location.pathname}${window.location.search}`),
-      );
+    if (remaining?.user) {
+      applyIdentityMe(remaining);
+      clearAuthSession();
+      await clearProductSession();
+      window.location.assign(STORE_WORKSPACE_PATH);
       return;
     }
+    clearAuthSession();
+    await clearProductSession();
     logout.mutate();
   };
 
@@ -121,13 +146,12 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
   };
 
   const handleSwitchAccount = async (sub: string) => {
-    const ok = await switchIdentityAccount(sub);
-    if (!ok) return;
-    clearAuthSession();
-    await clearProductSession();
-    window.location.assign(
-      storeSilentStartHref(`${window.location.pathname}${window.location.search}`),
-    );
+    const optimistic = accounts.find((item) => item.id === sub);
+    if (optimistic) setActiveAccount(optimistic);
+    const data = await switchIdentityAccount(sub);
+    if (!data?.user) return;
+    applyIdentityMe(data);
+    await rebindProductIfNeeded(data.user.id);
   };
 
   const handleAddAccount = () => {
@@ -328,10 +352,20 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
                 </Button>
                 <BhdAppSwitcher
                   user={{
-                    id: (user as { bhdSub?: string }).bhdSub || user.id,
-                    name: user.fullName || user.name || user.email,
-                    email: user.email,
-                    picture: user.avatar || null,
+                    id: activeAccount?.id || (user as { bhdSub?: string }).bhdSub || user.id,
+                    name:
+                      activeAccount?.name ||
+                      user.fullName ||
+                      user.name ||
+                      user.email,
+                    email: activeAccount?.email || user.email,
+                    username: activeAccount?.username,
+                    phone: activeAccount?.phone,
+                    picture: activeAccount?.picture ?? user.avatar ?? null,
+                    providers: activeAccount?.providers,
+                    googleLinked: activeAccount?.googleLinked,
+                    facebookLinked: activeAccount?.facebookLinked,
+                    hasPassword: activeAccount?.hasPassword,
                   }}
                   accounts={accounts}
                   platformAdmin={platformAdmin || isAdminRole(user.role)}
@@ -375,7 +409,7 @@ function Footer() {
             {programs.map((app) => (
               <a
                 key={app.id}
-                href={app.mode === "sso" && app.startUrl ? app.startUrl : `${app.origin}/`}
+                href={launchUrlForApp(app)}
                 className="store-footer-program"
                 title={app.nameAr}
               >

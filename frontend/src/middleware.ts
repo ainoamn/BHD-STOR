@@ -215,10 +215,11 @@ export default function middleware(request: NextRequest) {
         adminEntry.searchParams.set('next', pathWithoutLocale || '/dashboard/admin');
         return NextResponse.redirect(adminEntry);
       }
-      const locale = locales.find((l) => pathname.startsWith(`/${l}`)) || defaultLocale;
-      const loginUrl = new URL(`/${locale}/auth/login`, request.url);
-      loginUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(loginUrl);
+      // BHD-ACCOUNT-SWITCHER §5 — start only when product session is missing.
+      const returnTo = pathWithoutLocale || '/dashboard';
+      const startUrl = new URL('/api/auth/bhd/start', request.url);
+      startUrl.searchParams.set('returnTo', returnTo);
+      return NextResponse.redirect(startUrl);
     }
   }
 
