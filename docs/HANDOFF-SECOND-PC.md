@@ -1,16 +1,16 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
-**آخر مزامنة من Git:** 2026-10-04  
-**آخر كود:** `5a27b26` — سياسة الجلسة (بقاء حتى «خروج»، 400 يوم)  
-**SSO/أدمن/جلسة (أحدث سلسلة):** `37a0a88` → `1b31537` → `36327e3` → `5d61c7b` → `5a27b26` → توثيق 2026-10-04  
+**آخر مزامنة من Git:** 2026-10-20  
+**آخر موضوع:** تعدد الحسابات من الرأس (بريد + شارات مصدر + تبديل بلا كلمة مرور)  
+**SSO/جلسة/حسابات:** `5a27b26` (جلسة حتى خروج) → commit تعدد الحسابات 2026-10-20  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 **هوية / دليل مرجعي:** https://github.com/ainoamn/ONE-BHD  
 
 > **اقرأ بهذا الترتيب على الجهاز الجديد:**  
 > 1) هذا الملف  
-> 2) [`SESSION-2026-10-04-SESSION-POLICY.md`](./SESSION-2026-10-04-SESSION-POLICY.md) — **آخر جلسة: سياسة البقاء حتى «خروج»**  
-> 3) [`SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md`](./SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md) — SSO + أدمن محلي  
-> 4) [`BHD-SESSION-POLICY.md`](./BHD-SESSION-POLICY.md) · [`BHD-PRODUCT-SSO-ADMIN.md`](./BHD-PRODUCT-SSO-ADMIN.md) · [`BHD-UNIFIED-LOGIN-AND-APPS.md`](./BHD-UNIFIED-LOGIN-AND-APPS.md) §0.2 / §0.7 / §4.9 / §12.6  
+> 2) [`SESSION-2026-10-20-MULTI-ACCOUNT.md`](./SESSION-2026-10-20-MULTI-ACCOUNT.md) — **آخر جلسة: تعدد الحسابات**  
+> 3) [`SESSION-2026-10-04-SESSION-POLICY.md`](./SESSION-2026-10-04-SESSION-POLICY.md) — بقاء حتى «خروج»  
+> 4) [`BHD-SESSION-POLICY.md`](./BHD-SESSION-POLICY.md) · [`BHD-APP-SWITCHER.md`](./BHD-APP-SWITCHER.md) · UNIFIED §0.2 / §0.7 / §4.9 / §12.6  
 > 5) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md) إن كان العمل على NO-GO  
 
 ---

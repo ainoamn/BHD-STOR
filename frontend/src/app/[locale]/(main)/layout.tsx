@@ -18,10 +18,21 @@ import { BhdAppSwitcher } from "@/components/bhd/BhdAppSwitcher";
 import { BhdAppIcon } from "@/components/bhd/BhdAppIcon";
 import { NavigationWarmup } from "@/components/NavigationWarmup";
 import { BHD_APPS } from "@/lib/bhd/apps";
+import {
+  clearProductSession,
+  fetchIdentityAccounts,
+  identityAddAccountHref,
+  identityEndSessionHref,
+  logoutIdentityAccount,
+  storeSilentStartHref,
+  switchIdentityAccount,
+  type IdentityAccount,
+} from "@/lib/bhd/identity-accounts";
 
 import { isAdminRole } from "@/lib/auth-helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
+import { clearAuthSession } from "@/lib/auth-storage";
 
 import { SmartCart } from "@/components/cart/SmartCart";
 // import { AIAssistant } from "@/components/ai/AIAssistant";
@@ -47,10 +58,31 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [accounts, setAccounts] = useState<IdentityAccount[]>([]);
+  const [platformAdmin, setPlatformAdmin] = useState(false);
+  const [locale, setLocale] = useState<"ar" | "en">("ar");
 
   useEffect(() => {
     setMounted(true);
+    setLocale(window.location.pathname.startsWith("/en") ? "en" : "ar");
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setAccounts([]);
+      setPlatformAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    void fetchIdentityAccounts().then((data) => {
+      if (cancelled) return;
+      setAccounts(data.accounts);
+      setPlatformAdmin(data.platformAdmin);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.email]);
 
   const cartItemCount = mounted
     ? (cart?.items?.reduce(
@@ -68,8 +100,38 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogoutThis = async () => {
+    clearAuthSession();
+    await clearProductSession();
+    const remaining = await logoutIdentityAccount(false);
+    if (remaining) {
+      window.location.assign(
+        storeSilentStartHref(`${window.location.pathname}${window.location.search}`),
+      );
+      return;
+    }
     logout.mutate();
+  };
+
+  const handleLogoutAll = async () => {
+    clearAuthSession();
+    await clearProductSession();
+    await logoutIdentityAccount(true);
+    window.location.assign(identityEndSessionHref(true));
+  };
+
+  const handleSwitchAccount = async (sub: string) => {
+    const ok = await switchIdentityAccount(sub);
+    if (!ok) return;
+    clearAuthSession();
+    await clearProductSession();
+    window.location.assign(
+      storeSilentStartHref(`${window.location.pathname}${window.location.search}`),
+    );
+  };
+
+  const handleAddAccount = () => {
+    window.location.assign(identityAddAccountHref());
   };
 
   const navLinks = [
@@ -150,7 +212,7 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
                     )}
                     <Separator />
                     <button
-                      onClick={handleLogout}
+                      onClick={() => void handleLogoutThis()}
                       className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors text-left"
                     >
                       <LogOut className="h-5 w-5" />
@@ -266,11 +328,18 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
                 </Button>
                 <BhdAppSwitcher
                   user={{
+                    id: (user as { bhdSub?: string }).bhdSub || user.id,
                     name: user.fullName || user.name || user.email,
                     email: user.email,
                     picture: user.avatar || null,
                   }}
-                  onSignOut={handleLogout}
+                  accounts={accounts}
+                  platformAdmin={platformAdmin || isAdminRole(user.role)}
+                  onSignOut={handleLogoutThis}
+                  onSignOutAll={handleLogoutAll}
+                  onSwitchAccount={handleSwitchAccount}
+                  onAddAccount={handleAddAccount}
+                  locale={locale}
                 />
               </>
             ) : (

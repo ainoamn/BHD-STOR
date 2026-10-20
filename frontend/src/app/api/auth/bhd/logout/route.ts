@@ -21,8 +21,7 @@ function clearStoreCookies(response: NextResponse) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  const origin = new URL(request.url).origin;
+async function clearNestSession(request: NextRequest) {
   try {
     await fetch(`${backendOrigin(request.url)}/api/v1/auth/logout`, {
       method: 'POST',
@@ -31,14 +30,36 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch {
-    // Store cookies are still cleared below.
+    // Product cookies are still cleared below.
+  }
+}
+
+/**
+ * - `?local=1` — clear product session only (JSON). Used when switching / signing out one of many.
+ * - `?all=1` — clear product then identity end-session for every roster account.
+ * - default — clear product then identity end-session for the active account path.
+ */
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url);
+  const origin = url.origin;
+  const localOnly = url.searchParams.get('local') === '1';
+  const all = url.searchParams.get('all') === '1';
+
+  await clearNestSession(request);
+
+  if (localOnly) {
+    const response = NextResponse.json({ ok: true });
+    clearStoreCookies(response);
+    return response;
   }
 
   const issuer = identityIssuer();
-  const postLogout = `${origin}/`;
   const endSession = new URL('/oauth/end-session', issuer);
-  endSession.searchParams.set('post_logout_redirect_uri', postLogout);
+  endSession.searchParams.set('post_logout_redirect_uri', `${origin}/`);
   endSession.searchParams.set('client_id', oauthClientId());
+  if (all) {
+    endSession.searchParams.set('all', '1');
+  }
 
   const response = NextResponse.redirect(endSession);
   clearStoreCookies(response);

@@ -4,6 +4,7 @@
 
 | الملف | التاريخ | الموضوع |
 |-------|---------|---------|
+| [`SESSION-2026-10-20-MULTI-ACCOUNT.md`](./SESSION-2026-10-20-MULTI-ACCOUNT.md) | 2026-10-20 | **تعدد الحسابات من الرأس:** إضافة/تبديل بلا كلمة مرور · بريد أولاً + شارات G/f/WA/● |
 | [`SESSION-2026-10-04-SESSION-POLICY.md`](./SESSION-2026-10-04-SESSION-POLICY.md) | 2026-10-04 | **سياسة الجلسة:** بقاء حتى «خروج» · 400 يوم · حذف `SessionKeepAlive` · لا تحديث عند عودة التبويب |
 | [`SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md`](./SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md) | 2026-08-20 → 09-03 | **استكمال الجهاز الثاني:** SSO + أدمن محلي + Gate `admin-entry` + دليل §0.7/§4.9 · ملخص المحادثة كاملة |
 | [`SESSION-2026-08-19.md`](./SESSION-2026-08-19.md) | 2026-08-19 | مشغّل تطبيقات + الدليل الموحّد `BHD-UNIFIED-LOGIN-AND-APPS.md` · تسجيل المتجر عبر الهوية |
@@ -13,4 +14,4 @@
 
 **لقطة حالة قديمة:** [`external-reviews/STATUS-2026-07-21.md`](./external-reviews/STATUS-2026-07-21.md)  
 **الخطة النشطة:** [`../ROADMAP.md`](../ROADMAP.md)  
-**عند فتح جهاز جديد:** `git pull` ثم اقرأ [`HANDOFF-SECOND-PC.md`](./HANDOFF-SECOND-PC.md) ثم [`SESSION-2026-10-04-SESSION-POLICY.md`](./SESSION-2026-10-04-SESSION-POLICY.md) ثم [`SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md`](./SESSION-2026-09-03-SSO-ADMIN-HANDOFF.md).
+**عند فتح جهاز جديد:** `git pull` ثم اقرأ [`HANDOFF-SECOND-PC.md`](./HANDOFF-SECOND-PC.md) ثم [`SESSION-2026-10-20-MULTI-ACCOUNT.md`](./SESSION-2026-10-20-MULTI-ACCOUNT.md) ثم [`SESSION-2026-10-04-SESSION-POLICY.md`](./SESSION-2026-10-04-SESSION-POLICY.md).
