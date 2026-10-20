@@ -1,16 +1,16 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-10-20  
-**آخر موضوع:** تعدد الحسابات من الرأس (بريد + شارات مصدر + تبديل بلا كلمة مرور)  
-**SSO/جلسة/حسابات:** `5a27b26` (جلسة حتى خروج) → commit تعدد الحسابات 2026-10-20  
+**آخر موضوع:** بطاقة الحساب بأسلوب جوجل (صورة دائرية + بريد + شارة على الزاوية)  
+**SSO/جلسة/حسابات:** `5a27b26` → `e219ea8` (تعدد حسابات) → commit بطاقة ACCOUNT-SWITCHER 2026-10-20  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
-**هوية / دليل مرجعي:** https://github.com/ainoamn/ONE-BHD  
+**هوية / دليل مرجعي:** https://github.com/ainoamn/ONE-BHD · منشور: https://id.bhd-om.com/docs/BHD-ACCOUNT-SWITCHER.md  
 
 > **اقرأ بهذا الترتيب على الجهاز الجديد:**  
 > 1) هذا الملف  
-> 2) [`SESSION-2026-10-20-MULTI-ACCOUNT.md`](./SESSION-2026-10-20-MULTI-ACCOUNT.md) — **آخر جلسة: تعدد الحسابات**  
-> 3) [`SESSION-2026-10-04-SESSION-POLICY.md`](./SESSION-2026-10-04-SESSION-POLICY.md) — بقاء حتى «خروج»  
-> 4) [`BHD-SESSION-POLICY.md`](./BHD-SESSION-POLICY.md) · [`BHD-APP-SWITCHER.md`](./BHD-APP-SWITCHER.md) · UNIFIED §0.2 / §0.7 / §4.9 / §12.6  
+> 2) [`SESSION-2026-10-20-ACCOUNT-CARD.md`](./SESSION-2026-10-20-ACCOUNT-CARD.md) — **آخر جلسة: بطاقة صورة+بريد**  
+> 3) [`BHD-ACCOUNT-SWITCHER.md`](./BHD-ACCOUNT-SWITCHER.md) · [`SESSION-2026-10-20-MULTI-ACCOUNT.md`](./SESSION-2026-10-20-MULTI-ACCOUNT.md)  
+> 4) [`BHD-SESSION-POLICY.md`](./BHD-SESSION-POLICY.md) · [`BHD-APP-SWITCHER.md`](./BHD-APP-SWITCHER.md) · UNIFIED §0.2 / §12.6  
 > 5) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md) إن كان العمل على NO-GO  
 
 ---
@@ -33,10 +33,10 @@ git log -1 --oneline
 يجب أن ترى في التاريخ (على الأقل):
 
 ```text
+(آخر commit) docs/feat: Gmail-style account card per BHD-ACCOUNT-SWITCHER
+e219ea8 feat(auth): multi-account switcher in store header per BHD session policy
 5a27b26 feat(auth): keep store session until explicit sign-out per BHD session policy
 36327e3 fix(auth): route admin gates through admin-entry and sync SSO docs
-1b31537 fix(auth): admin-entry SSO and preserve local staff roles
-37a0a88 feat(store): apply unified brand, 48h idle session, and apps footer
 ```
 
 > خمول الـ 48 ساعة في `37a0a88` استُبدل بـ `5a27b26` (بقاء حتى «خروج»).
