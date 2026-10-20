@@ -16,15 +16,16 @@ import { ThemeProvider } from "@/providers/ThemeProvider";
 import { BrandLogo } from "@/components/BrandLogo";
 import { BhdAppSwitcher } from "@/components/bhd/BhdAppSwitcher";
 import { BhdAppIcon } from "@/components/bhd/BhdAppIcon";
+import { BhdSilentSso } from "@/components/bhd/BhdSilentSso";
 import { NavigationWarmup } from "@/components/NavigationWarmup";
 import { BHD_APPS, launchUrlForApp } from "@/lib/bhd/apps";
 import {
+  applyAccountIsolation,
   clearProductSession,
   fetchIdentityAccounts,
   identityAddAccountHref,
   identityEndSessionHref,
   logoutIdentityAccount,
-  STORE_WORKSPACE_PATH,
   switchIdentityAccount,
   type IdentityAccount,
 } from "@/lib/bhd/identity-accounts";
@@ -87,27 +88,6 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
     };
   }, [user?.id, user?.email]);
 
-  const productSub = (user as { bhdSub?: string } | null)?.bhdSub || user?.id || "";
-
-  function applyIdentityMe(data: {
-    user: IdentityAccount | null;
-    accounts: IdentityAccount[];
-    platformAdmin?: boolean;
-  }) {
-    if (data.user) setActiveAccount(data.user);
-    setAccounts(data.accounts);
-    if (typeof data.platformAdmin === "boolean") setPlatformAdmin(data.platformAdmin);
-  }
-
-  /** §5: if identity sub ≠ product session, one hop to workspace (middleware → start only if needed). */
-  async function rebindProductIfNeeded(nextSub: string | undefined) {
-    if (!nextSub || nextSub === productSub) return false;
-    clearAuthSession();
-    await clearProductSession();
-    window.location.assign(STORE_WORKSPACE_PATH);
-    return true;
-  }
-
   const cartItemCount = mounted
     ? (cart?.items?.reduce(
         (sum: number, item: any) => sum + item.quantity,
@@ -124,13 +104,19 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
     }
   };
 
+  /** Isolate: clear local product state then rebind via start — never login?add=1. */
+  async function isolateToActiveAccount() {
+    clearAuthSession();
+    await clearProductSession();
+    applyAccountIsolation();
+  }
+
   const handleLogoutThis = async () => {
     const remaining = await logoutIdentityAccount(false);
     if (remaining?.user) {
-      applyIdentityMe(remaining);
-      clearAuthSession();
-      await clearProductSession();
-      window.location.assign(STORE_WORKSPACE_PATH);
+      setActiveAccount(remaining.user);
+      setAccounts(remaining.accounts);
+      await isolateToActiveAccount();
       return;
     }
     clearAuthSession();
@@ -146,12 +132,9 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
   };
 
   const handleSwitchAccount = async (sub: string) => {
-    const optimistic = accounts.find((item) => item.id === sub);
-    if (optimistic) setActiveAccount(optimistic);
-    const data = await switchIdentityAccount(sub);
-    if (!data?.user) return;
-    applyIdentityMe(data);
-    await rebindProductIfNeeded(data.user.id);
+    const ok = await switchIdentityAccount(sub);
+    if (!ok) return;
+    await isolateToActiveAccount();
   };
 
   const handleAddAccount = () => {
@@ -543,6 +526,7 @@ export default function MainLayout({
     <CurrencyProvider>
       <ThemeProvider defaultTheme="light" storageKey="bhd-theme">
         <div className="flex min-h-screen flex-col">
+              <BhdSilentSso />
               <NavigationWarmup />
               <Navbar onCartOpen={() => setCartOpen(true)} />
 

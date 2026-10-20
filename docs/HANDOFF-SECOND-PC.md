@@ -1,16 +1,16 @@
 ﻿# دليل النقل — جهاز تطوير ثانٍ (BHD-STOR)
 
 **آخر مزامنة من Git:** 2026-10-20  
-**آخر موضوع:** تبديل بلا وميض + فتح التطبيقات على `workspacePath` (ACCOUNT-SWITCHER §5)  
-**SSO/جلسة/حسابات:** `f43f558` (بطاقة) → `47c6618` (سرعة §5)  
+**آخر موضوع:** عزل بيانات الحساب + Silent SSO + شارة بجانب البريد (ACCOUNT-SWITCHER عزل)  
+**SSO/جلسة/حسابات:** `47c6618` → commit عزل الحساب 2026-10-20  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 **هوية / دليل مرجعي:** https://github.com/ainoamn/ONE-BHD · منشور: https://id.bhd-om.com/docs/BHD-ACCOUNT-SWITCHER.md  
 
 > **اقرأ بهذا الترتيب على الجهاز الجديد:**  
 > 1) هذا الملف  
-> 2) [`SESSION-2026-10-20-FAST-SWITCH.md`](./SESSION-2026-10-20-FAST-SWITCH.md) — **آخر جلسة: سرعة بلا وميض**  
-> 3) [`BHD-ACCOUNT-SWITCHER.md`](./BHD-ACCOUNT-SWITCHER.md) §5 · [`BHD-APP-SWITCHER.md`](./BHD-APP-SWITCHER.md)  
-> 4) [`BHD-SESSION-POLICY.md`](./BHD-SESSION-POLICY.md) · UNIFIED §12.6  
+> 2) [`SESSION-2026-10-20-ACCOUNT-ISOLATION.md`](./SESSION-2026-10-20-ACCOUNT-ISOLATION.md) — **آخر جلسة: عزل الحساب**  
+> 3) [`BHD-ACCOUNT-SWITCHER.md`](./BHD-ACCOUNT-SWITCHER.md) — ارفعه لباقي المواقع كما هو  
+> 4) [`BhdSilentSso`](../frontend/src/components/bhd/BhdSilentSso.tsx) · [`lib/identity/client.ts`](../frontend/src/lib/identity/client.ts)  
 > 5) [`AUDIT-REMEDIATION-TRACKER-2026-08.md`](./AUDIT-REMEDIATION-TRACKER-2026-08.md) إن كان العمل على NO-GO  
 
 ---

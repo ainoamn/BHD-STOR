@@ -650,7 +650,7 @@ authorize وtoken دائماً على https://id.bhd-om.com وليس أصل ال
 | الأدمن | صلاحية محلية في جدول `users.role` فقط؛ الهوية لا تمنح أدمن. مسار الدخول: `/api/auth/admin-entry` لا `?local=1`. middleware يحوّل `/dashboard/admin` بلا جلسة إلى `admin-entry`. يتطلب `BACKEND_URL` + migration 017 لربط `bhd_sub` |
 | التنقل الصامت | كوكي `bhd_id` على الهوية؛ الكتالوج `mode=sso` للمتجر |
 | المشغّل | تسع نقاط في شريط المتجر؛ الحساب `https://id.bhd-om.com/account`؛ مزامنة `apps.ts` من ONE-BHD (23 أغسطس 2026) |
-| جلسة المنتج | [BHD-SESSION-POLICY.md](BHD-SESSION-POLICY.md) · [BHD-ACCOUNT-SWITCHER.md](BHD-ACCOUNT-SWITCHER.md) §5: تبديل من JSON بلا reload · فتح تطبيق → `{origin}{workspacePath}` · ميدلوير `start` فقط بلا جلسة · preconnect/prefetch · بطاقة صورة+بريد |
+| جلسة المنتج | [BHD-ACCOUNT-SWITCHER.md](BHD-ACCOUNT-SWITCHER.md): حساب نشط واحد · تبديل → `start?returnTo=` لعزل بيانات المنتج · `add=1` للإضافة فقط · `BhdSilentSso` للروابط المباشرة · شارة المصدر بجانب البريد |
 | الفوتر | صف برامجنا + رابط «دخول الإدارة» → `/api/auth/admin-entry` |
 | تاريخ قلب `mode` إلى `sso` | 19 أغسطس 2026 |
 | أسرار (أسماء فقط) | `BHD_IDENTITY_ISSUER`, `BHD_OAUTH_CLIENT_ID`, `BHD_OAUTH_CLIENT_SECRET`, `BACKEND_URL` |

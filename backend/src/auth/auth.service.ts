@@ -629,6 +629,7 @@ export class AuthService {
         phone: user.phone,
         role: user.role,
         avatar: user.avatar,
+        bhdSub: user.bhdSub ?? null,
         isEmailVerified: user.isEmailVerified,
         isActive: user.isActive,
         createdAt: user.createdAt,

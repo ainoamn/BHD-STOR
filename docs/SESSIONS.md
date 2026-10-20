@@ -4,7 +4,8 @@
 
 | الملف | التاريخ | الموضوع |
 |-------|---------|---------|
-| [`SESSION-2026-10-20-FAST-SWITCH.md`](./SESSION-2026-10-20-FAST-SWITCH.md) | 2026-10-20 | **سرعة بلا وميض:** تبديل من JSON بلا reload · فتح تطبيق → `workspacePath` · ميدلوير `start` فقط بلا جلسة · [`BHD-ACCOUNT-SWITCHER.md`](./BHD-ACCOUNT-SWITCHER.md) §5 |
+| [`SESSION-2026-10-20-ACCOUNT-ISOLATION.md`](./SESSION-2026-10-20-ACCOUNT-ISOLATION.md) | 2026-10-20 | **عزل الحساب كجوجل:** تبديل → `start` ببيانات الحساب الجديد · ممنوع `add=1` عند التبديل · `BhdSilentSso` للروابط · شارة بجانب البريد · [`BHD-ACCOUNT-SWITCHER.md`](./BHD-ACCOUNT-SWITCHER.md) |
+| [`SESSION-2026-10-20-FAST-SWITCH.md`](./SESSION-2026-10-20-FAST-SWITCH.md) | 2026-10-20 | **سرعة بلا وميض:** تبديل من JSON بلا reload · فتح تطبيق → `workspacePath` · ميدلوير `start` فقط بلا جلسة |
 | [`SESSION-2026-10-20-ACCOUNT-CARD.md`](./SESSION-2026-10-20-ACCOUNT-CARD.md) | 2026-10-20 | **بطاقة حساب كجوجل:** صورة دائرية + بريد في صف · شارة على زاوية الصورة · [`BHD-ACCOUNT-SWITCHER.md`](./BHD-ACCOUNT-SWITCHER.md) |
 | [`SESSION-2026-10-20-MULTI-ACCOUNT.md`](./SESSION-2026-10-20-MULTI-ACCOUNT.md) | 2026-10-20 | **تعدد الحسابات من الرأس:** إضافة/تبديل بلا كلمة مرور · بريد أولاً + شارات G/f/WA/● |
 | [`SESSION-2026-10-04-SESSION-POLICY.md`](./SESSION-2026-10-04-SESSION-POLICY.md) | 2026-10-04 | **سياسة الجلسة:** بقاء حتى «خروج» · 400 يوم · حذف `SessionKeepAlive` · لا تحديث عند عودة التبويب |
@@ -16,4 +17,4 @@
 
 **لقطة حالة قديمة:** [`external-reviews/STATUS-2026-07-21.md`](./external-reviews/STATUS-2026-07-21.md)  
 **الخطة النشطة:** [`../ROADMAP.md`](../ROADMAP.md)  
-**عند فتح جهاز جديد:** `git pull` ثم اقرأ [`HANDOFF-SECOND-PC.md`](./HANDOFF-SECOND-PC.md) ثم [`SESSION-2026-10-20-FAST-SWITCH.md`](./SESSION-2026-10-20-FAST-SWITCH.md) ثم [`SESSION-2026-10-20-ACCOUNT-CARD.md`](./SESSION-2026-10-20-ACCOUNT-CARD.md).
+**عند فتح جهاز جديد:** `git pull` ثم اقرأ [`HANDOFF-SECOND-PC.md`](./HANDOFF-SECOND-PC.md) ثم [`SESSION-2026-10-20-ACCOUNT-ISOLATION.md`](./SESSION-2026-10-20-ACCOUNT-ISOLATION.md) ثم [`BHD-ACCOUNT-SWITCHER.md`](./BHD-ACCOUNT-SWITCHER.md).

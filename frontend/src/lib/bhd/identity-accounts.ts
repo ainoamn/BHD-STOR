@@ -1,5 +1,11 @@
-import { DEFAULT_IDENTITY_ISSUER } from "@/lib/bhd/issuer";
 import { BHD_STORE_CLIENT_ID } from "@/lib/bhd-identity";
+import {
+  addAccountUrl,
+  applyAccountIsolation,
+  identityApiUrl,
+  identityFetch,
+  productStartPath,
+} from "@/lib/identity/client";
 
 /** Store workspace after SSO — matches frozen catalog `workspacePath`. */
 export const STORE_WORKSPACE_PATH = "/dashboard";
@@ -30,22 +36,6 @@ type IdentityMeResponse = {
   accounts?: IdentityAccount[];
   platformAdmin?: boolean;
 };
-
-function identityUrl(path: string) {
-  return `${DEFAULT_IDENTITY_ISSUER.replace(/\/$/, "")}${path}`;
-}
-
-async function identityFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetch(identityUrl(path), {
-    ...init,
-    credentials: "include",
-    cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
-}
 
 function normalizeAccount(raw: IdentityAccount): IdentityAccount {
   return {
@@ -78,27 +68,23 @@ export async function fetchIdentityAccounts(): Promise<IdentityMePayload> {
   }
 }
 
-/** Switch identity account; returns JSON payload for in-place header update. */
-export async function switchIdentityAccount(sub: string): Promise<IdentityMePayload | null> {
+export async function switchIdentityAccount(sub: string): Promise<boolean> {
   const response = await identityFetch("/api/auth/switch", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sub }),
   });
-  if (!response.ok) return null;
-  return normalizeMe((await response.json().catch(() => ({}))) as IdentityMeResponse);
+  return response.ok;
 }
 
 export async function logoutIdentityAccount(all: boolean): Promise<IdentityMePayload | null> {
   const response = await identityFetch("/api/auth/logout", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ all }),
   });
   if (!response.ok) return null;
   return normalizeMe((await response.json().catch(() => ({}))) as IdentityMeResponse);
-}
-
-export function storeWorkspaceHref(): string {
-  return STORE_WORKSPACE_PATH;
 }
 
 export function storeSilentStartHref(returnTo?: string | null): string {
@@ -109,15 +95,15 @@ export function storeSilentStartHref(returnTo?: string | null): string {
     !returnTo.includes("://")
       ? returnTo
       : STORE_WORKSPACE_PATH;
-  return `/api/auth/bhd/start?returnTo=${encodeURIComponent(path)}`;
+  return productStartPath(path);
 }
 
 export function identityAddAccountHref(): string {
-  return identityUrl("/login?add=1");
+  return addAccountUrl();
 }
 
 export function identityEndSessionHref(all = false): string {
-  const url = new URL(identityUrl("/oauth/end-session"));
+  const url = new URL(identityApiUrl("/oauth/end-session"));
   url.searchParams.set("client_id", BHD_STORE_CLIENT_ID);
   if (typeof window !== "undefined") {
     url.searchParams.set("post_logout_redirect_uri", `${window.location.origin}/`);
@@ -137,3 +123,5 @@ export async function clearProductSession(): Promise<void> {
     /* cookies cleared by route or ignored */
   }
 }
+
+export { applyAccountIsolation, addAccountUrl };

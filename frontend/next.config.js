@@ -154,7 +154,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
               "img-src 'self' blob: data: *.amazonaws.com res.cloudinary.com images.unsplash.com flagcdn.com ui-avatars.com cdn.bhdoman.com images.bhdoman.com *.googleusercontent.com",
               "font-src 'self' fonts.gstatic.com",
-              "connect-src 'self' *.google-analytics.com *.googletagmanager.com api.bhdoman.com http://localhost:3001 ws://localhost:* wss://*.bhdoman.com",
+              "connect-src 'self' https://id.bhd-om.com *.google-analytics.com *.googletagmanager.com api.bhdoman.com http://localhost:3001 ws://localhost:* wss://*.bhdoman.com",
               "frame-src 'self' *.stripe.com *.paypal.com",
               "media-src 'self' *.amazonaws.com res.cloudinary.com",
               "object-src 'none'",
