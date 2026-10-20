@@ -27,3 +27,7 @@
 | `frontend/src/components/NavigationWarmup.tsx` | preconnect `hopOrigins` |
 
 الربط السابق (me/switch/add) من `SESSION-2026-10-20-MULTI-ACCOUNT.md` وبطاقة الصورة من `SESSION-2026-10-20-ACCOUNT-CARD.md` يبقيان.
+
+## نشر
+
+- `47c6618` على `origin/main` · Vercel `bhdstor`

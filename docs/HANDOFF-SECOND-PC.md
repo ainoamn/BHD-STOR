@@ -2,7 +2,7 @@
 
 **آخر مزامنة من Git:** 2026-10-20  
 **آخر موضوع:** تبديل بلا وميض + فتح التطبيقات على `workspacePath` (ACCOUNT-SWITCHER §5)  
-**SSO/جلسة/حسابات:** `f43f558` (بطاقة) → commit سرعة §5 2026-10-20  
+**SSO/جلسة/حسابات:** `f43f558` (بطاقة) → `47c6618` (سرعة §5)  
 **المستودع:** https://github.com/ainoamn/BHD-STOR  
 **هوية / دليل مرجعي:** https://github.com/ainoamn/ONE-BHD · منشور: https://id.bhd-om.com/docs/BHD-ACCOUNT-SWITCHER.md  
 
@@ -33,7 +33,7 @@ git log -1 --oneline
 يجب أن ترى في التاريخ (على الأقل):
 
 ```text
-(آخر commit) feat(auth): instant account switch + workspace hops per ACCOUNT-SWITCHER §5
+47c6618 feat(auth): instant account switch and workspace hops per ACCOUNT-SWITCHER §5
 f43f558 feat(auth): Gmail-style account card per BHD-ACCOUNT-SWITCHER
 e219ea8 feat(auth): multi-account switcher in store header per BHD session policy
 5a27b26 feat(auth): keep store session until explicit sign-out per BHD session policy
