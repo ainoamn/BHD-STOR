@@ -1,6 +1,7 @@
 "use client";
 
-import { BHD_APPS, hopOrigins, launchUrlForApp, type BhdApp } from "@/lib/bhd/apps";
+import { hopOrigins, launchUrlForApp, type BhdApp } from "@/lib/bhd/apps";
+import { useBhdCatalog } from "@/lib/identity/use-bhd-catalog";
 import { DEFAULT_IDENTITY_ISSUER } from "@/lib/bhd/issuer";
 import { BhdAppIcon } from "./BhdAppIcon";
 import { useRouter } from "next/navigation";
@@ -105,10 +106,10 @@ function isCurrentApp(app: BhdApp, pageOrigin: string) {
   return Boolean(app.origin) && here === stripSlash(app.origin);
 }
 
-function accountPageUrl(pageOrigin: string) {
+function accountPageUrl(pageOrigin: string, apps: BhdApp[]) {
   if (!pageOrigin) return `${DEFAULT_IDENTITY_ISSUER}/account`;
-  const accountApp = BHD_APPS.find((app) => app.id === "account");
-  const portalApp = BHD_APPS.find((app) => app.id === "portal");
+  const accountApp = apps.find((app) => app.id === "account");
+  const portalApp = apps.find((app) => app.id === "portal");
   if (
     (accountApp && isCurrentApp(accountApp, pageOrigin)) ||
     (portalApp && isCurrentApp(portalApp, pageOrigin))
@@ -216,8 +217,8 @@ function hintHop(url: string) {
   }
 }
 
-function openApp(app: BhdApp, pageOrigin: string, push: (href: string) => void) {
-  const url = app.mode === "identity" ? accountPageUrl(pageOrigin) : launchUrlForApp(app, pageOrigin);
+function openApp(app: BhdApp, pageOrigin: string, apps: BhdApp[], push: (href: string) => void) {
+  const url = app.mode === "identity" ? accountPageUrl(pageOrigin, apps) : launchUrlForApp(app, pageOrigin);
   if (url.startsWith("/")) {
     push(url);
     return;
@@ -260,13 +261,14 @@ export function BhdAppSwitcher({
   const appsId = useId();
   const accountId = useId();
   const router = useRouter();
+  const catalogApps = useBhdCatalog();
   const t = COPY[locale];
   const isArabic = locale === "ar";
 
   useEffect(() => {
     setOrigin(window.location.origin);
-    hopOrigins().forEach((item) => hintHop(item));
-  }, []);
+    hopOrigins(catalogApps).forEach((item) => hintHop(item));
+  }, [catalogApps]);
 
   useEffect(() => {
     setPictureBroken(false);
@@ -292,16 +294,16 @@ export function BhdAppSwitcher({
 
   useEffect(() => {
     if (panel !== "apps" || !origin) return;
-    BHD_APPS.forEach((app) => {
+    catalogApps.forEach((app) => {
       if (!app.enabled) return;
-      hintHop(app.mode === "identity" ? accountPageUrl(origin) : launchUrlForApp(app, origin));
+      hintHop(app.mode === "identity" ? accountPageUrl(origin, catalogApps) : launchUrlForApp(app, origin));
     });
-  }, [panel, origin]);
+  }, [panel, origin, catalogApps]);
 
   function onAppClick(app: BhdApp) {
     if (!app.enabled) return;
     if (app.id === "account") {
-      openApp(app, origin, (href) => {
+      openApp(app, origin, catalogApps, (href) => {
         close();
         if (href.startsWith("http")) {
           window.location.assign(href);
@@ -315,7 +317,7 @@ export function BhdAppSwitcher({
       close();
       return;
     }
-    openApp(app, origin, (href) => {
+    openApp(app, origin, catalogApps, (href) => {
       close();
       if (href.startsWith("http")) {
         window.location.assign(href);
@@ -375,7 +377,7 @@ export function BhdAppSwitcher({
             <p>{t.appsTitle}</p>
           </div>
           <div className="bhd-switcher-grid-apps">
-            {BHD_APPS.map((app) => {
+            {catalogApps.map((app) => {
               const current = origin ? isCurrentApp(app, origin) : false;
               const label = isArabic ? app.nameAr : app.nameEn;
               return (
@@ -410,7 +412,7 @@ export function BhdAppSwitcher({
         >
           <div className="bhd-switcher-account-now">
             <AccountRow user={user} t={t} large />
-            <a className="bhd-switcher-manage" href={accountPageUrl(origin)}>
+            <a className="bhd-switcher-manage" href={accountPageUrl(origin, catalogApps)}>
               {t.manage}
             </a>
             {platformAdmin ? (

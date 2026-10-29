@@ -18,7 +18,8 @@ import { BhdAppSwitcher } from "@/components/bhd/BhdAppSwitcher";
 import { BhdAppIcon } from "@/components/bhd/BhdAppIcon";
 import { BhdSilentSso } from "@/components/bhd/BhdSilentSso";
 import { NavigationWarmup } from "@/components/NavigationWarmup";
-import { BHD_APPS, launchUrlForApp } from "@/lib/bhd/apps";
+import { gatewayApps, launchUrlForApp } from "@/lib/bhd/apps";
+import { useBhdCatalog } from "@/lib/identity/use-bhd-catalog";
 import {
   applyAccountIsolation,
   clearProductSession,
@@ -26,7 +27,7 @@ import {
   identityAddAccountHref,
   identityEndSessionHref,
   logoutIdentityAccount,
-  switchIdentityAccount,
+  switchWindowAccount,
   type IdentityAccount,
 } from "@/lib/bhd/identity-accounts";
 
@@ -104,11 +105,10 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
     }
   };
 
-  /** Isolate: clear local product state then rebind via start — never login?add=1. */
-  async function isolateToActiveAccount() {
+  async function isolateToActiveAccount(token?: string | null) {
     clearAuthSession();
     await clearProductSession();
-    applyAccountIsolation();
+    await applyAccountIsolation(token, { force: true });
   }
 
   const handleLogoutThis = async () => {
@@ -132,9 +132,9 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
   };
 
   const handleSwitchAccount = async (sub: string) => {
-    const ok = await switchIdentityAccount(sub);
-    if (!ok) return;
-    await isolateToActiveAccount();
+    const switched = await switchWindowAccount(sub);
+    if (!switched.ok || !switched.token) return;
+    await isolateToActiveAccount(switched.token);
   };
 
   const handleAddAccount = () => {
@@ -378,7 +378,8 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
 
 function Footer() {
   const t = useTranslations("layout.footer");
-  const programs = BHD_APPS.filter((app) => app.enabled && app.id !== "account");
+  const catalogApps = useBhdCatalog();
+  const programs = gatewayApps(catalogApps);
 
   return (
     <footer className="border-t bg-muted/30">

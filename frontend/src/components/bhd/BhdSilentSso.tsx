@@ -1,12 +1,17 @@
 "use client";
 
-import { identityFetch, isIdentityOrigin, productStartPath } from "@/lib/identity/client";
+import {
+  applyAccountIsolation,
+  clearAccountRebindLock,
+  isAccountRebindPending,
+  isIdentityOrigin,
+  productStartPath,
+} from "@/lib/identity/client";
+import { loadBhdIdentity } from "@/lib/identity/bhd-browser";
 import { useEffect } from "react";
 
 /**
- * Direct link to this product: if identity has an active account and the product
- * session is missing or bound to a different sub/email, rebind silently via start.
- * Never /login?add=1, never force logout of other roster accounts.
+ * Direct link: rebind product session to the active identity account silently.
  */
 export function BhdSilentSso() {
   useEffect(() => {
@@ -22,15 +27,19 @@ export function BhdSilentSso() {
       return;
     }
 
-    let cancelled = false;
-    const here = `${window.location.pathname}${window.location.search || ""}` || "/";
-    const guardKey = `bhd-sso:${here}`;
-    if (sessionStorage.getItem(guardKey) === "1") return;
+    if (isAccountRebindPending()) return;
 
-    identityFetch("/api/auth/me")
-      .then((response) => response.json())
-      .then(async (identity: { user?: { id?: string; email?: string } | null }) => {
-        if (cancelled || !identity.user?.id) return;
+    let cancelled = false;
+
+    void loadBhdIdentity().then(async (identity) => {
+      if (cancelled || !identity) return;
+      try {
+        const { ok, body } = await identity.me();
+        if (cancelled || !ok || !body.user?.id) {
+          clearAccountRebindLock();
+          return;
+        }
+
         const localResponse = await fetch("/api/auth/me", {
           cache: "no-store",
           credentials: "include",
@@ -39,19 +48,35 @@ export function BhdSilentSso() {
           user?: { id?: string; email?: string } | null;
         };
         if (cancelled) return;
+
         const localId = local.user?.id || "";
         const localEmail = (local.user?.email || "").toLowerCase();
-        const identityId = identity.user.id;
-        const identityEmail = (identity.user.email || "").toLowerCase();
+        const identityId = body.user.id;
+        const identityEmail = (body.user.email || "").toLowerCase();
         const matched =
           Boolean(localId) &&
-          (localId === identityId ||
-            (localEmail && identityEmail && localEmail === identityEmail));
-        if (matched) return;
-        sessionStorage.setItem(guardKey, "1");
-        window.location.replace(productStartPath(here));
-      })
-      .catch(() => undefined);
+          (localId === identityId || (localEmail && identityEmail && localEmail === identityEmail));
+        if (matched) {
+          clearAccountRebindLock();
+          return;
+        }
+
+        const guardKey = `bhd-sso:${body.user.id}`;
+        const last = Number(sessionStorage.getItem(guardKey) || "0");
+        if (last && Date.now() - last < 15_000) return;
+        sessionStorage.setItem(guardKey, String(Date.now()));
+
+        if (!localId) {
+          const here = `${window.location.pathname}${window.location.search || ""}` || "/";
+          window.location.replace(identity.productStart(here) || productStartPath(here));
+          return;
+        }
+
+        await applyAccountIsolation(body.token, { force: true });
+      } catch {
+        clearAccountRebindLock();
+      }
+    });
 
     return () => {
       cancelled = true;

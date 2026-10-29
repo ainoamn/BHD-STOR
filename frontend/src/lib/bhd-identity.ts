@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomBytes } from 'crypto';
-import { SESSION_MAX_AGE_SEC } from '@/lib/bhd/session';
+import { productSessionMaxAgeSec } from '@/lib/bhd/session';
 
 export const BHD_OAUTH_STATE_COOKIE = 'bhd_oauth_state';
 export const DEFAULT_BHD_IDENTITY_ISSUER = 'https://id.bhd-om.com';
@@ -212,8 +212,8 @@ export function mintStoreSessionTokens(profile: IdentityProfile): {
     throw new Error('missing_session_secret');
   }
   return {
-    accessToken: signHs256({ ...base, type: 'access', exp: now + SESSION_MAX_AGE_SEC }, secret),
-    refreshToken: signHs256({ ...base, type: 'refresh', exp: now + SESSION_MAX_AGE_SEC }, secret),
+    accessToken: signHs256({ ...base, type: 'access', exp: now + productSessionMaxAgeSec() }, secret),
+    refreshToken: signHs256({ ...base, type: 'refresh', exp: now + productSessionMaxAgeSec() }, secret),
   };
 }
 

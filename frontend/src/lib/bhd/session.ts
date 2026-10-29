@@ -1,5 +1,11 @@
+import { identitySessionMaxAgeSecCached, SESSION_MAX_AGE_FALLBACK } from "@/lib/bhd/runtime";
+
 /**
- * BHD-SESSION-POLICY.md — store session stays until explicit sign-out.
- * 400 days is the Chromium cookie ceiling, not an idle timeout. JWT `exp` matches.
+ * Product session cookie/JWT lifetime — sourced from id.bhd-om.com/api/bhd/runtime (~5min cache).
+ * @deprecated Use identitySessionMaxAgeSecCached() directly.
  */
-export const SESSION_MAX_AGE_SEC = 400 * 24 * 60 * 60;
+export const SESSION_MAX_AGE_SEC = SESSION_MAX_AGE_FALLBACK;
+
+export function productSessionMaxAgeSec() {
+  return identitySessionMaxAgeSecCached();
+}

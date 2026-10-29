@@ -5,7 +5,10 @@ import {
   identityApiUrl,
   identityFetch,
   productStartPath,
+  switchWindowAccount,
 } from "@/lib/identity/client";
+
+export { switchWindowAccount };
 
 /** Store workspace after SSO — matches frozen catalog `workspacePath`. */
 export const STORE_WORKSPACE_PATH = "/dashboard";
@@ -68,13 +71,8 @@ export async function fetchIdentityAccounts(): Promise<IdentityMePayload> {
   }
 }
 
-export async function switchIdentityAccount(sub: string): Promise<boolean> {
-  const response = await identityFetch("/api/auth/switch", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sub }),
-  });
-  return response.ok;
+export async function switchIdentityAccount(sub: string): Promise<{ ok: boolean; token?: string }> {
+  return switchWindowAccount(sub);
 }
 
 export async function logoutIdentityAccount(all: boolean): Promise<IdentityMePayload | null> {

@@ -1,6 +1,8 @@
 import React from "react";
 import type { Metadata } from "next";
+import Script from "next/script";
 import { IBM_Plex_Sans_Arabic } from "next/font/google";
+import { IDENTITY_SCRIPT_URL } from "@/lib/bhd/runtime";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { LocaleProviders } from "./providers";
@@ -104,6 +106,7 @@ export default async function RootLayout({ children, params: { locale } }: RootL
       <body
         className={`${ibmPlexArabic.className} antialiased bg-[#fbfaf7] dark:bg-gray-950 text-[#092d24] dark:text-white min-h-screen`}
       >
+        <Script src={IDENTITY_SCRIPT_URL} strategy="afterInteractive" />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <SsoSessionHydrate />
           <LocaleProviders>{children}</LocaleProviders>

@@ -1,5 +1,5 @@
 import type { User } from "@/types";
-import { SESSION_MAX_AGE_SEC } from "@/lib/bhd/session";
+import { productSessionMaxAgeSec } from "@/lib/bhd/session";
 
 const USER_KEY = "bhd_user";
 
@@ -31,7 +31,7 @@ export function persistAuthSession(
     // ignore
   }
 
-  const maxAge = SESSION_MAX_AGE_SEC;
+  const maxAge = productSessionMaxAgeSec();
   // Optional non-HttpOnly UX flag only — Next middleware must NOT treat this as auth.
   // Real session is accessToken / refreshToken (HttpOnly).
   document.cookie = `bhd_session=1; path=/; max-age=${maxAge}; SameSite=Lax`;
