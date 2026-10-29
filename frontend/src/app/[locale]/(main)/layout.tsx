@@ -22,7 +22,6 @@ import { gatewayApps, launchUrlForApp } from "@/lib/bhd/apps";
 import { useBhdCatalog } from "@/lib/identity/use-bhd-catalog";
 import {
   applyAccountIsolation,
-  paintPrivacyVeil,
   clearProductSession,
   fetchIdentityAccounts,
   identityAddAccountHref,
@@ -31,6 +30,7 @@ import {
   switchWindowAccount,
   type IdentityAccount,
 } from "@/lib/bhd/identity-accounts";
+import { paintPrivacyVeil } from "@/lib/identity/client";
 
 import { isAdminRole } from "@/lib/auth-helpers";
 import { useAuth } from "@/hooks/useAuth";
