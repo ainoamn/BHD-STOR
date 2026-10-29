@@ -35,3 +35,7 @@
 ## ملاحظة
 
 Rebind يحدّث جلسة Next (cookies). مسار Nest `POST /api/v1/auth/bhd/complete` يُستخدم من callback OIDC؛ عند تشغيل backend كامل يُفضّل ضبط `BACKEND_URL` لاستمرار upsert المستخدم في PostgreSQL.
+
+## تحديث §95 (29 أكتوبر 2026)
+
+إصلاح جذر العزل على الهوية: `POST /api/auth/switch` يكتب `bhd_id` دائماً. هذا المنتج يعتمد `rebind` محلياً بعد التبديل. التفاصيل: `BHD-ACCOUNT-ISOLATION.md`.
