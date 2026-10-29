@@ -16,12 +16,13 @@ import { ThemeProvider } from "@/providers/ThemeProvider";
 import { BrandLogo } from "@/components/BrandLogo";
 import { BhdAppSwitcher } from "@/components/bhd/BhdAppSwitcher";
 import { BhdAppIcon } from "@/components/bhd/BhdAppIcon";
-import { BhdSilentSso } from "@/components/bhd/BhdSilentSso";
+import { BhdStoreAccountIsolation } from "@/components/bhd/BhdStoreAccountIsolation";
 import { NavigationWarmup } from "@/components/NavigationWarmup";
 import { gatewayApps, launchUrlForApp } from "@/lib/bhd/apps";
 import { useBhdCatalog } from "@/lib/identity/use-bhd-catalog";
 import {
   applyAccountIsolation,
+  paintPrivacyVeil,
   clearProductSession,
   fetchIdentityAccounts,
   identityAddAccountHref,
@@ -132,9 +133,15 @@ function Navbar({ onCartOpen }: { onCartOpen: () => void }) {
   };
 
   const handleSwitchAccount = async (sub: string) => {
+    paintPrivacyVeil();
     const switched = await switchWindowAccount(sub);
     if (!switched.ok || !switched.token) return;
-    await isolateToActiveAccount(switched.token);
+    clearAuthSession();
+    await clearProductSession();
+    await applyAccountIsolation(switched.token, {
+      force: true,
+      sub: switched.userId || sub,
+    });
   };
 
   const handleAddAccount = () => {
@@ -527,7 +534,7 @@ export default function MainLayout({
     <CurrencyProvider>
       <ThemeProvider defaultTheme="light" storageKey="bhd-theme">
         <div className="flex min-h-screen flex-col">
-              <BhdSilentSso />
+              <BhdStoreAccountIsolation />
               <NavigationWarmup />
               <Navbar onCartOpen={() => setCartOpen(true)} />
 

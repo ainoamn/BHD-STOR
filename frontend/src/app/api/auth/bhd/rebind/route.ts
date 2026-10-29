@@ -57,6 +57,7 @@ function clearProductSession(response: NextResponse) {
 function applyProductCookies(
   response: NextResponse,
   tokens: { accessToken: string; refreshToken: string },
+  profile: IdentityProfile,
 ) {
   const maxAge = productSessionMaxAgeSec();
   clearProductSession(response);
@@ -69,23 +70,85 @@ function applyProductCookies(
     path: '/',
     maxAge,
   });
+
+  const [firstName, ...rest] = profile.name.trim().split(/\s+/);
+  response.cookies.set(
+    'bhd_sso_profile',
+    JSON.stringify({
+      id: profile.sub,
+      email: profile.email,
+      firstName: firstName || profile.email,
+      lastName: rest.join(' ') || firstName || 'BHD',
+      fullName: profile.name,
+      avatar: profile.picture || undefined,
+      role: 'customer',
+      status: 'active',
+      isEmailVerified: true,
+      isPhoneVerified: false,
+      addresses: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 120,
+    },
+  );
 }
 
 function safeReturnPath(value: string | null | undefined) {
   return isSafeNextPath(value) ? value : '/';
 }
 
+function bindReturnPath(returnTo: string, sub: string) {
+  const safe = safeReturnPath(returnTo);
+  try {
+    const url = new URL(safe, 'https://bhd.local');
+    url.searchParams.set('au', sub);
+    url.searchParams.set('_bhd', String(Date.now()));
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return safe;
+  }
+}
+
+function wantsJson(request: Request) {
+  const accept = request.headers.get('accept') || '';
+  return accept.includes('application/json');
+}
+
+function redirectHome(origin: string, returnTo: string) {
+  const response = NextResponse.redirect(new URL(returnTo, origin), 303);
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  response.headers.set('Pragma', 'no-cache');
+  return response;
+}
+
+function jsonOk(payload: {
+  ok: true;
+  unchanged?: boolean;
+  user: { id: string; email: string; name: string };
+}) {
+  return NextResponse.json(payload, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, private', Pragma: 'no-cache' },
+  });
+}
+
 async function rebind(request: NextRequest) {
   const url = new URL(request.url);
   const origin = url.origin;
+  const json = wantsJson(request);
 
   let token = '';
   let returnTo = '/';
   const contentType = request.headers.get('content-type') || '';
   if (request.method === 'POST' && contentType.includes('application/json')) {
-    const json = (await request.json().catch(() => ({}))) as { token?: string; returnTo?: string };
-    token = typeof json.token === 'string' ? json.token.trim() : '';
-    returnTo = safeReturnPath(json.returnTo);
+    const body = (await request.json().catch(() => ({}))) as { token?: string; returnTo?: string };
+    token = typeof body.token === 'string' ? body.token.trim() : '';
+    returnTo = safeReturnPath(body.returnTo);
   } else if (request.method === 'POST') {
     const form = await request.formData().catch(() => null);
     token = String(form?.get('token') || '').trim();
@@ -97,6 +160,7 @@ async function rebind(request: NextRequest) {
   const header = request.headers.get('authorization');
   if (!token && header?.toLowerCase().startsWith('bearer ')) token = header.slice(7).trim();
   if (!token || token.length < 20) {
+    if (json) return NextResponse.json({ ok: false, error: 'token' }, { status: 401 });
     return NextResponse.redirect(
       new URL(`/api/auth/bhd/start?returnTo=${encodeURIComponent(returnTo)}`, origin),
       303,
@@ -107,58 +171,55 @@ async function rebind(request: NextRequest) {
     const profile = await profileFromWindowToken(token);
     const currentToken = request.cookies.get('accessToken')?.value || '';
     const current = readStoreAccessProfile(currentToken);
+
     if (current?.sub === profile.sub) {
-      const response = NextResponse.redirect(new URL(returnTo, origin), 303);
-      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+      if (json) {
+        return jsonOk({
+          ok: true,
+          unchanged: true,
+          user: { id: profile.sub, email: profile.email, name: profile.name },
+        });
+      }
+      const response = redirectHome(origin, bindReturnPath(returnTo, profile.sub));
+      if (sessionSigningSecret()) {
+        applyProductCookies(response, mintStoreSessionTokens(profile), profile);
+      } else {
+        applyProductCookies(response, { accessToken: token, refreshToken: token }, profile);
+      }
       return response;
     }
 
-    const response = NextResponse.redirect(new URL(returnTo, origin), 303);
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-    response.headers.set('Pragma', 'no-cache');
+    const tokens = sessionSigningSecret()
+      ? mintStoreSessionTokens(profile)
+      : { accessToken: token, refreshToken: token };
 
-    if (sessionSigningSecret()) {
-      applyProductCookies(response, mintStoreSessionTokens(profile));
-    } else {
-      applyProductCookies(response, { accessToken: token, refreshToken: token });
+    if (json) {
+      const response = jsonOk({
+        ok: true,
+        user: { id: profile.sub, email: profile.email, name: profile.name },
+      });
+      applyProductCookies(response, tokens, profile);
+      return response;
     }
 
-    const [firstName, ...rest] = profile.name.trim().split(/\s+/);
-    response.cookies.set(
-      'bhd_sso_profile',
-      JSON.stringify({
-        id: profile.sub,
-        email: profile.email,
-        firstName: firstName || profile.email,
-        lastName: rest.join(' ') || firstName || 'BHD',
-        fullName: profile.name,
-        avatar: profile.picture || undefined,
-        role: 'customer',
-        status: 'active',
-        isEmailVerified: true,
-        isPhoneVerified: false,
-        addresses: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }),
-      {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 120,
-      },
-    );
-
+    const response = redirectHome(origin, bindReturnPath(returnTo, profile.sub));
+    applyProductCookies(response, tokens, profile);
     return response;
   } catch {
-    return NextResponse.redirect(
+    if (json) {
+      const response = NextResponse.json({ ok: false, error: 'rebind' }, { status: 401 });
+      clearProductSession(response);
+      return response;
+    }
+    const response = NextResponse.redirect(
       new URL(
         `/api/auth/bhd/logout?continue=${encodeURIComponent(`/api/auth/bhd/start?returnTo=${encodeURIComponent(returnTo)}`)}`,
         origin,
       ),
       303,
     );
+    clearProductSession(response);
+    return response;
   }
 }
 
